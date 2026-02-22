@@ -1,6 +1,8 @@
 import { Stack } from "expo-router";
 import React from "react";
 import { Platform, StyleSheet, View } from "react-native";
+import "react-native-gesture-handler";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { Colors } from "@/styles/colors";
@@ -8,33 +10,26 @@ import { EntitlementsProvider } from "./_providers/entitlements";
 
 export default function RootLayout() {
   return (
-    <SafeAreaProvider>
-      <EntitlementsProvider>
-        <View style={Platform.OS === "web" ? webStyles.page : styles.flex}>
-          <View style={Platform.OS === "web" ? webStyles.phoneFrame : styles.flex}>
-            <Stack
-              screenOptions={{
-                headerShown: false,
-                // Critical: allow transparentModal backdrop to be visible
-                contentStyle: { backgroundColor: "transparent" },
-              }}
-            >
-              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-
-              {/* Paywall modal */}
-              <Stack.Screen
-                name="paywall"
-                options={{
-                  presentation: "transparentModal",
-                  animation: "fade",
-                  headerShown: false,
-                }}
-              />
-            </Stack>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <EntitlementsProvider>
+          <View style={Platform.OS === "web" ? webStyles.page : styles.flex}>
+            <View style={Platform.OS === "web" ? webStyles.phoneFrame : styles.flex}>
+              <Stack screenOptions={{ headerShown: false }}>
+                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                <Stack.Screen
+                  name="paywall"
+                  options={{
+                    presentation: "modal",
+                    headerShown: false,
+                  }}
+                />
+              </Stack>
+            </View>
           </View>
-        </View>
-      </EntitlementsProvider>
-    </SafeAreaProvider>
+        </EntitlementsProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
 
@@ -51,7 +46,6 @@ const webStyles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 16,
   },
-
   phoneFrame: {
     width: 420,
     height: "96vh",

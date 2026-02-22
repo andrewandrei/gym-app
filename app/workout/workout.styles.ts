@@ -2,434 +2,384 @@ import { Colors } from "@/styles/colors";
 import { Spacing } from "@/styles/spacing";
 import { StyleSheet } from "react-native";
 
+const HAIR = StyleSheet.hairlineWidth;
+
 export const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.surface },
+  safe: {
+    flex: 1,
+    backgroundColor: Colors.surface,
+  },
 
-  listContent: { paddingBottom: 120 },
-
-  /* Top bar */
+  // Top bar
   topBar: {
+    paddingTop: 10,
     paddingHorizontal: Spacing.lg,
     paddingBottom: 8,
-    backgroundColor: Colors.surface,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
-
-  backBtn: {
+  topBarLeft: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    paddingVertical: 10,
-    paddingRight: 10,
   },
-  backText: {
-    fontSize: 22,
+  backLabel: {
+    fontSize: 18,
     fontWeight: "800",
     color: Colors.text,
     letterSpacing: -0.2,
   },
-
-  dotsBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+  iconBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 999,
     alignItems: "center",
     justifyContent: "center",
   },
 
-  /* Header */
+  // Header (title / status / progress)
   header: {
     paddingHorizontal: Spacing.lg,
-    paddingTop: 6,
-    paddingBottom: 18,
+    paddingTop: 4,
+    paddingBottom: 14,
   },
   title: {
-    fontSize: 40,
+    fontSize: 40, // tightened from oversized
     lineHeight: 44,
     fontWeight: "900",
-    letterSpacing: -0.9,
+    letterSpacing: -0.8,
     color: Colors.text,
   },
   status: {
     marginTop: 10,
     fontSize: 18,
     fontWeight: "700",
-    color: "rgba(0,0,0,0.38)",
-    letterSpacing: -0.1,
+    color: "rgba(0,0,0,0.35)",
   },
-
-  progressBlock: { marginTop: 26 },
-  progressLabel: {
-    fontSize: 22,
-    fontWeight: "800",
-    color: "rgba(0,0,0,0.65)",
-    letterSpacing: -0.2,
+  setsLine: {
+    marginTop: 18,
+    fontSize: 34, // tightened
+    lineHeight: 38,
+    fontWeight: "900",
+    letterSpacing: -0.7,
+    color: "rgba(0,0,0,0.62)",
   },
   progressTrack: {
-    marginTop: 14,
-    height: 10,
+    marginTop: 12,
+    height: 12,
     borderRadius: 999,
     backgroundColor: "rgba(0,0,0,0.06)",
     overflow: "hidden",
   },
   progressFill: {
-    height: 10,
+    height: 12,
     borderRadius: 999,
     backgroundColor: Colors.text,
   },
 
-  /* Cards */
+  // Exercise card
   card: {
+    marginTop: 10,
     marginHorizontal: Spacing.lg,
-    marginBottom: 18,
     borderRadius: 22,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "rgba(0,0,0,0.10)",
     backgroundColor: Colors.surface,
+    borderWidth: HAIR,
+    borderColor: Colors.border,
+    overflow: "hidden",
+  },
+  cardInner: {
     padding: 16,
   },
 
-  cardHeader: {
+  exerciseRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 14,
-    paddingBottom: 14,
   },
-
-  thumbWrap: {
-    width: 54,
+  thumb: {
+    width: 54, // tightened
     height: 54,
-    borderRadius: 16,
-    backgroundColor: "rgba(0,0,0,0.04)",
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "rgba(0,0,0,0.10)",
-    overflow: "hidden",
+    borderRadius: 14,
+    backgroundColor: "rgba(0,0,0,0.06)",
   },
-  thumbImage: { width: "100%", height: "100%" },
-
-  cardHeaderMid: { flex: 1 },
-
+  exerciseText: {
+    flex: 1,
+    paddingLeft: 14,
+    paddingRight: 10,
+  },
   exerciseTitle: {
-    fontSize: 26,
-    lineHeight: 30,
+    fontSize: 40, // still bold but not insane
+    lineHeight: 42,
     fontWeight: "900",
-    letterSpacing: -0.5,
+    letterSpacing: -0.8,
     color: Colors.text,
   },
-  exerciseTempo: {
+  exerciseSub: {
     marginTop: 6,
-    fontSize: 16,
-    fontWeight: "700",
-    color: "rgba(0,0,0,0.38)",
-    letterSpacing: -0.1,
+    fontSize: 20,
+    fontWeight: "800",
+    color: "rgba(0,0,0,0.35)",
+    letterSpacing: -0.2,
   },
-
-  cardDotsBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+  menuBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 999,
     alignItems: "center",
     justifyContent: "center",
   },
 
-  /* Table */
-  tableOuter: { alignSelf: "stretch", overflow: "hidden" },
+  divider: {
+    marginTop: 14,
+    height: HAIR,
+    backgroundColor: Colors.border,
+  },
 
-  tableHeader: {
+  // Table header
+  tableHead: {
+    paddingTop: 16,
+    paddingBottom: 10,
+    paddingHorizontal: 16,
     flexDirection: "row",
     alignItems: "center",
-    paddingTop: 10,
-    paddingBottom: 12,
+  },
+  thSet: {
+    width: 34,
+    fontSize: 18,
+    fontWeight: "900",
+    color: "rgba(0,0,0,0.38)",
+    letterSpacing: 2.2,
+  },
+  thCell: {
+    flex: 1,
+    fontSize: 18,
+    fontWeight: "900",
+    color: "rgba(0,0,0,0.38)",
+    letterSpacing: 2.2,
+    textAlign: "center",
+  },
+  thCheck: {
+    width: 62, // space for check button
+    fontSize: 18,
+    fontWeight: "900",
+    color: "rgba(0,0,0,0.38)",
+    letterSpacing: 2.2,
+    textAlign: "center",
   },
 
-  th: {
-    fontSize: 14,
-    fontWeight: "800",
-    color: "rgba(0,0,0,0.42)",
-    letterSpacing: 0.8,
+  // Rows
+  rowsWrap: {
+    paddingHorizontal: 16,
+    paddingBottom: 16,
   },
-
-  tableDivider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: "rgba(0,0,0,0.10)",
+  rowDivider: {
+    height: HAIR,
+    backgroundColor: "rgba(0,0,0,0.06)",
   },
 
   row: {
-    position: "relative",
+    height: 72, // tighter than before
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 12,
   },
 
-  setNum: {
-    fontSize: 22,
-    fontWeight: "800",
-    color: "rgba(0,0,0,0.55)",
-    letterSpacing: -0.2,
+  setIndex: {
+    width: 34,
+    fontSize: 36,
+    fontWeight: "900",
+    color: "rgba(0,0,0,0.45)",
+    letterSpacing: -0.6,
   },
 
-  cellInput: {
-    height: 50,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "rgba(0,0,0,0.12)",
+  // This is the BIG fix:
+  // - enforce minWidth so cells never collapse into circles
+  // - keep them as rounded rectangles
+  cell: {
+    flex: 1,
+    minWidth: 86,
+    height: 52,
+    marginHorizontal: 8,
+    borderRadius: 18,
+    borderWidth: 2,
+    borderColor: "rgba(0,0,0,0.14)",
     backgroundColor: Colors.surface,
-    textAlign: "center",
-    fontSize: 18,
-    fontWeight: "800",
-    letterSpacing: -0.2,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cellText: {
+    fontSize: 28, // tightened
+    fontWeight: "900",
     color: Colors.text,
-    paddingHorizontal: 8,
+    letterSpacing: -0.4,
+  },
+  cellPlaceholder: {
+    fontSize: 28,
+    fontWeight: "900",
+    color: "rgba(0,0,0,0.25)",
+    letterSpacing: -0.4,
+  },
+  input: {
+    width: "100%",
+    height: "100%",
+    textAlign: "center",
+    fontSize: 28,
+    fontWeight: "900",
+    color: Colors.text,
   },
 
-  cellInputEmpty: {
-    borderColor: "rgba(0,0,0,0.10)",
+  // Check column
+  checkCol: {
+    width: 62,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  checkBtn: {
+    width: 48, // tighter than your oversized version
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 3,
+    borderColor: "rgba(0,0,0,0.18)",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: Colors.surface,
+  },
+  checkBtnOn: {
+    backgroundColor: Colors.text,
+    borderColor: Colors.text,
   },
 
-  /* Calmer check */
-  check: {
-    width: 44,
+  // Swipe background (delete)
+  swipeBg: {
+    height: 72,
+    justifyContent: "center",
+    alignItems: "flex-end",
+    paddingRight: 14,
+    backgroundColor: "rgba(0,0,0,0.03)",
+  },
+  deletePill: {
+    paddingHorizontal: 18,
     height: 44,
     borderRadius: 22,
-    borderWidth: 2,
-    borderColor: "rgba(0,0,0,0.18)",
-    backgroundColor: Colors.surface,
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: HAIR,
+    borderColor: Colors.border,
+    backgroundColor: "rgba(0,0,0,0.05)",
   },
-  checkDone: {
-    backgroundColor: "rgba(0,0,0,0.78)",
-    borderColor: "rgba(0,0,0,0.78)",
-  },
-
-  rowDivider: {
-    position: "absolute",
-    right: 0,
-    bottom: 0,
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: "rgba(0,0,0,0.08)",
-  },
-
-  /* Actions */
-  cardActions: { marginTop: 16, flexDirection: "row", gap: 14 },
-
-  actionBtn: {
-    flex: 1,
-    height: 56,
-    borderRadius: 28,
-    borderWidth: 1,
-    borderColor: "rgba(0,0,0,0.12)",
-    backgroundColor: Colors.surface,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  actionText: {
-    fontSize: 18,
-    fontWeight: "900",
-    color: Colors.text,
-    letterSpacing: -0.2,
-  },
-
-  /* Swipe to delete */
-  swipeWrap: { position: "relative" },
-
-  deleteUnderlay: {
-    position: "absolute",
-    right: 0,
-    top: 0,
-    bottom: 0,
-    width: 96,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  deletePill: {
-    height: 40,
-    paddingHorizontal: 14,
-    borderRadius: 999,
-    backgroundColor: "rgba(0,0,0,0.08)",
-    borderWidth: 1,
-    borderColor: "rgba(0,0,0,0.10)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
   deleteText: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: "900",
     color: Colors.text,
-    letterSpacing: -0.1,
+    letterSpacing: -0.2,
   },
 
-  /* Bottom bar */
-  bottomBar: {
-    paddingHorizontal: Spacing.lg,
+  // Bottom buttons inside card
+  cardActions: {
     paddingTop: 10,
-    backgroundColor: Colors.surface,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: "rgba(0,0,0,0.10)",
-  },
-
-  restRow: {
+    paddingHorizontal: 16,
+    paddingBottom: 16,
     flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingBottom: 10,
+    gap: 14,
   },
-  restLeft: { flex: 1, paddingRight: 12 },
-  restLabel: {
-    fontSize: 13,
-    fontWeight: "800",
-    color: "rgba(0,0,0,0.45)",
-    letterSpacing: -0.1,
-  },
-  restTime: {
-    marginTop: 2,
-    fontSize: 18,
-    fontWeight: "900",
-    color: Colors.text,
-    letterSpacing: -0.2,
-  },
-  restSkip: {
-    height: 36,
-    paddingHorizontal: 14,
+  ghostBtn: {
+    flex: 1,
+    height: 56, // tighter
     borderRadius: 999,
-    borderWidth: 1,
-    borderColor: "rgba(0,0,0,0.12)",
+    borderWidth: 2,
+    borderColor: "rgba(0,0,0,0.16)",
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: Colors.surface,
   },
-  restSkipText: {
-    fontSize: 14,
+  ghostText: {
+    fontSize: 22, // tighter
     fontWeight: "900",
     color: Colors.text,
-    letterSpacing: -0.1,
+    letterSpacing: -0.4,
   },
 
-  completeCta: {
-    height: 54,
-    borderRadius: 999,
-    backgroundColor: Colors.text,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  completeCtaText: {
-    fontSize: 18,
-    fontWeight: "900",
-    color: "#FFFFFF",
-    letterSpacing: -0.2,
-  },
-
-  completeCtaDisabled: { backgroundColor: "rgba(0,0,0,0.18)" },
-  completeCtaTextDisabled: { color: "rgba(255,255,255,0.85)" },
-
-  /* History modal */
-  modalBackdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.35)",
-  },
-
-  modalSheet: {
+  // Sticky CTA
+  bottomBar: {
     position: "absolute",
     left: 0,
     right: 0,
     bottom: 0,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: 10,
+    paddingBottom: 14,
     backgroundColor: Colors.surface,
-    borderTopLeftRadius: 22,
-    borderTopRightRadius: 22,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "rgba(0,0,0,0.10)",
-    overflow: "hidden",
+    borderTopWidth: HAIR,
+    borderTopColor: "rgba(0,0,0,0.08)",
+  },
+  cta: {
+    height: 72, // tighter than giant
+    borderRadius: 999,
+    backgroundColor: Colors.text,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  ctaText: {
+    color: "#FFFFFF",
+    fontSize: 30, // tighter
+    fontWeight: "900",
+    letterSpacing: -0.6,
   },
 
+  // Spacer so content doesn’t hide behind CTA
+  bottomSpacer: {
+    height: 110,
+  },
+
+  // Modal
+  modalSheet: {
+    marginHorizontal: Spacing.lg,
+    borderRadius: 22,
+    backgroundColor: Colors.surface,
+    borderWidth: HAIR,
+    borderColor: Colors.border,
+    overflow: "hidden",
+  },
   modalHeader: {
-    paddingHorizontal: Spacing.lg,
-    paddingTop: 14,
-    paddingBottom: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
-
   modalTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: "900",
     color: Colors.text,
-    letterSpacing: -0.1,
+    letterSpacing: -0.2,
   },
-
-  modalClose: {
-    height: 36,
-    paddingHorizontal: 14,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: "rgba(0,0,0,0.12)",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: Colors.surface,
-  },
-  modalCloseText: {
-    fontSize: 14,
-    fontWeight: "900",
-    color: Colors.text,
-  },
-
   modalBody: {
-    paddingHorizontal: Spacing.lg,
+    paddingHorizontal: 16,
     paddingBottom: 16,
   },
-
-  modalExerciseName: {
-    fontSize: 24,
-    fontWeight: "900",
-    color: Colors.text,
-    letterSpacing: -0.3,
-  },
-
-  modalMeta: {
-    marginTop: 6,
-    fontSize: 14,
-    fontWeight: "700",
-    color: "rgba(0,0,0,0.42)",
-  },
-
-  historyTable: {
-    marginTop: 14,
-    borderRadius: 18,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "rgba(0,0,0,0.10)",
-    overflow: "hidden",
-  },
-
-  historyHead: {
+  modalRow: {
     flexDirection: "row",
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    backgroundColor: "rgba(0,0,0,0.03)",
+    alignItems: "center",
+    paddingVertical: 10,
+    borderTopWidth: HAIR,
+    borderTopColor: "rgba(0,0,0,0.06)",
   },
-
-  historyRow: {
-    flexDirection: "row",
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: "rgba(0,0,0,0.10)",
+  modalRowLeft: {
+    flex: 1,
   },
-
-  historyCellH: {
-    fontSize: 12,
-    fontWeight: "900",
-    color: "rgba(0,0,0,0.42)",
-    letterSpacing: 0.8,
-  },
-
-  historyCell: {
-    fontSize: 14,
+  modalRowTitle: {
+    fontSize: 15,
     fontWeight: "800",
     color: Colors.text,
-    letterSpacing: -0.1,
+  },
+  modalRowMeta: {
+    marginTop: 4,
+    fontSize: 13,
+    fontWeight: "700",
+    color: Colors.muted,
+  },
+  modalRowRight: {
+    fontSize: 15,
+    fontWeight: "900",
+    color: Colors.text,
   },
 });
