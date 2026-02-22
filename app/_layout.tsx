@@ -1,7 +1,7 @@
+// app/_layout.tsx
 import { Stack } from "expo-router";
 import React from "react";
 import { Platform, StyleSheet, View } from "react-native";
-import "react-native-gesture-handler";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
@@ -9,24 +9,25 @@ import { Colors } from "@/styles/colors";
 import { EntitlementsProvider } from "./_providers/entitlements";
 
 export default function RootLayout() {
+  const StackTree = (
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="paywall" options={{ presentation: "modal" }} />
+      <Stack.Screen name="modal" options={{ presentation: "modal" }} />
+    </Stack>
+  );
+
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <GestureHandlerRootView style={styles.flex}>
       <SafeAreaProvider>
         <EntitlementsProvider>
-          <View style={Platform.OS === "web" ? webStyles.page : styles.flex}>
-            <View style={Platform.OS === "web" ? webStyles.phoneFrame : styles.flex}>
-              <Stack screenOptions={{ headerShown: false }}>
-                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                <Stack.Screen
-                  name="paywall"
-                  options={{
-                    presentation: "modal",
-                    headerShown: false,
-                  }}
-                />
-              </Stack>
+          {Platform.OS === "web" ? (
+            <View style={webStyles.page}>
+              <View style={webStyles.phoneFrame}>{StackTree}</View>
             </View>
-          </View>
+          ) : (
+            StackTree
+          )}
         </EntitlementsProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

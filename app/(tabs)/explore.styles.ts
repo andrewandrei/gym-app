@@ -51,9 +51,6 @@ export const styles = StyleSheet.create({
     fontWeight: "600",
   },
 
-
- 
-
   cardPressed: { opacity: 0.92 },
 
   activePill: {

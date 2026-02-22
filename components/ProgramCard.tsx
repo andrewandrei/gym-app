@@ -1,7 +1,6 @@
 function ProgramCard() {
   return (
     <div className="bg-white rounded-3xl overflow-hidden border border-neutral-200">
-      
       {/* Image */}
       <div className="relative h-44">
         <img
@@ -16,9 +15,7 @@ function ProgramCard() {
 
       {/* Content */}
       <div className="p-5 space-y-4">
-        <p className="text-sm text-neutral-500">
-          Intermediate • Gym
-        </p>
+        <p className="text-sm text-neutral-500">Intermediate • Gym</p>
 
         <ProgressBar value={3} max={21} />
 
@@ -26,19 +23,15 @@ function ProgramCard() {
           <p className="text-sm font-medium text-neutral-900">
             3 of 21 workouts completed
           </p>
-          <p className="text-sm text-neutral-500">
-            You're on Workout 4
-          </p>
+          <p className="text-sm text-neutral-500">You're on Workout 4</p>
         </div>
 
-        <PrimaryButton>
-          Continue Next Workout
-        </PrimaryButton>
+        <PrimaryButton>Continue Next Workout</PrimaryButton>
 
         <p className="text-xs text-neutral-500 text-center">
           Next up: Workout 4 · Hypertrophy Focus
         </p>
       </div>
     </div>
-  )
+  );
 }

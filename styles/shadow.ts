@@ -1,12 +1,12 @@
-import { Platform, StyleSheet } from 'react-native';
-import { Colors } from './colors';
-import { Spacing } from './spacing';
+import { Platform, StyleSheet } from "react-native";
+import { Colors } from "./colors";
+import { Spacing } from "./spacing";
 
 export const Cards = StyleSheet.create({
   base: {
     backgroundColor: Colors.card,
     borderRadius: 22,
-    overflow: 'hidden',
+    overflow: "hidden",
     marginRight: Spacing.md,
     ...Platform.select({
       ios: {
@@ -30,12 +30,12 @@ export const Cards = StyleSheet.create({
   },
 
   imageProgram: {
-    width: '100%',
+    width: "100%",
     height: 170,
   },
 
   imageWorkout: {
-    width: '100%',
+    width: "100%",
     height: 135,
   },
 

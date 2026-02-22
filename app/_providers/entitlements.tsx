@@ -16,11 +16,17 @@ type EntitlementsContextValue = {
   requirePro: (action: () => void) => void;
 };
 
-const EntitlementsContext = createContext<EntitlementsContextValue | null>(null);
+const EntitlementsContext = createContext<EntitlementsContextValue | null>(
+  null,
+);
 
 const KEY = "entitlements_isPro";
 
-export function EntitlementsProvider({ children }: { children: React.ReactNode }) {
+export function EntitlementsProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const [isPro, setIsPro] = useState(false);
   const [hydrated, setHydrated] = useState(false);
 
@@ -56,19 +62,24 @@ export function EntitlementsProvider({ children }: { children: React.ReactNode }
       if (isPro) action();
       else openPaywall();
     },
-    [hydrated, isPro, openPaywall]
+    [hydrated, isPro, openPaywall],
   );
 
   const value = useMemo(
     () => ({ isPro, setPro, openPaywall, requirePro }),
-    [isPro, setPro, openPaywall, requirePro]
+    [isPro, setPro, openPaywall, requirePro],
   );
 
-  return <EntitlementsContext.Provider value={value}>{children}</EntitlementsContext.Provider>;
+  return (
+    <EntitlementsContext.Provider value={value}>
+      {children}
+    </EntitlementsContext.Provider>
+  );
 }
 
 export function useEntitlements() {
   const ctx = useContext(EntitlementsContext);
-  if (!ctx) throw new Error("useEntitlements must be used within EntitlementsProvider");
+  if (!ctx)
+    throw new Error("useEntitlements must be used within EntitlementsProvider");
   return ctx;
 }

@@ -14,5 +14,5 @@ function Header() {
         🌙
       </button>
     </div>
-  )
+  );
 }

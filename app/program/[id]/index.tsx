@@ -1,9 +1,17 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { Check, ChevronLeft, ChevronRight, Sparkles } from "lucide-react-native";
+import {
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Sparkles,
+} from "lucide-react-native";
 import React, { useMemo, useState } from "react";
 import { Image, ImageBackground, ScrollView, Text, View } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 
 import { PressableScale } from "@/components/ui/PressableScale";
 import { styles } from "../programDetail.styles";
@@ -37,7 +45,9 @@ export default function ProgramDetailScreen() {
       id: id ?? "p1",
       title: isHybrid ? "Hybrid Athlete" : "Strength Foundations",
       coach: "Andrei Andrei",
-      meta: isHybrid ? "Advanced · 12 weeks · Full gym" : "Intermediate · 8 weeks · Gym",
+      meta: isHybrid
+        ? "Advanced · 12 weeks · Full gym"
+        : "Intermediate · 8 weeks · Gym",
       goalLine: isHybrid ? "Strength + engine" : "Lean muscle + performance",
       hero: isHybrid
         ? "https://cdn.prod.website-files.com/6442b6aa142c4cb61a9a549d/6784fa945db9e2462bde508b_675b0276e2206c6b6a37ff0c_Hybrid%20Athlete%20(1)-p-800.jpg"
@@ -108,16 +118,29 @@ export default function ProgramDetailScreen() {
     <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
         {/* HERO */}
-        <ImageBackground source={{ uri: program.hero }} style={styles.hero} resizeMode="cover">
+        <ImageBackground
+          source={{ uri: program.hero }}
+          style={styles.hero}
+          resizeMode="cover"
+        >
           {/* Premium gradient: legibility without “dark wash” */}
           <LinearGradient
-            colors={["rgba(0,0,0,0.10)", "rgba(0,0,0,0.35)", "rgba(0,0,0,0.72)"]}
+            colors={[
+              "rgba(0,0,0,0.10)",
+              "rgba(0,0,0,0.35)",
+              "rgba(0,0,0,0.72)",
+            ]}
             locations={[0, 0.45, 1]}
             style={styles.heroGradient}
           />
 
           {/* top bar */}
-          <View style={[styles.heroTopBar, { paddingTop: Math.max(insets.top, 10) }]}>
+          <View
+            style={[
+              styles.heroTopBar,
+              { paddingTop: Math.max(insets.top, 10) },
+            ]}
+          >
             <PressableScale
               onPress={() => router.back()}
               style={styles.heroIconBtn}
@@ -151,7 +174,9 @@ export default function ProgramDetailScreen() {
             <Text style={styles.heroMeta}>{program.meta}</Text>
 
             <View style={styles.heroProgressTrack}>
-              <View style={[styles.heroProgressFill, { width: `${progressPct}%` }]} />
+              <View
+                style={[styles.heroProgressFill, { width: `${progressPct}%` }]}
+              />
             </View>
 
             {/* Stats: keep minimal, no pill overload */}
@@ -184,10 +209,20 @@ export default function ProgramDetailScreen() {
                     scaleTo={0.985}
                     opacityTo={0.9}
                   >
-                    <Text style={[styles.weekItemText, active && styles.weekItemTextActive]}>
+                    <Text
+                      style={[
+                        styles.weekItemText,
+                        active && styles.weekItemTextActive,
+                      ]}
+                    >
                       {w.label}
                     </Text>
-                    <View style={[styles.weekUnderline, active && styles.weekUnderlineActive]} />
+                    <View
+                      style={[
+                        styles.weekUnderline,
+                        active && styles.weekUnderlineActive,
+                      ]}
+                    />
                   </PressableScale>
                 );
               })}
@@ -219,7 +254,10 @@ export default function ProgramDetailScreen() {
                   scaleTo={0.99}
                   opacityTo={0.94}
                 >
-                  <Image source={{ uri: w.image }} style={styles.workoutThumb} />
+                  <Image
+                    source={{ uri: w.image }}
+                    style={styles.workoutThumb}
+                  />
 
                   <View style={styles.workoutMid}>
                     <Text style={styles.workoutTitle} numberOfLines={1}>

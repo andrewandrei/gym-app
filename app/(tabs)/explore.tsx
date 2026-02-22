@@ -1,7 +1,14 @@
 import { router } from "expo-router";
 import { ChevronRight } from "lucide-react-native";
 import React, { useMemo } from "react";
-import { FlatList, Image, Pressable, ScrollView, Text, View } from "react-native";
+import {
+  FlatList,
+  Image,
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+} from "react-native";
 
 import { Colors } from "@/styles/colors";
 import { GlobalStyles } from "@/styles/global";
@@ -63,7 +70,10 @@ function RailHeader({
       {!!onPressAll && (
         <Pressable
           onPress={onPressAll}
-          style={({ pressed }) => [styles.railAll, pressed && styles.railAllPressed]}
+          style={({ pressed }) => [
+            styles.railAll,
+            pressed && styles.railAllPressed,
+          ]}
           accessibilityRole="button"
           accessibilityLabel={`See all ${title}`}
         >
@@ -95,12 +105,18 @@ function ProgramCard({
   return (
     <Pressable
       onPress={() => onPress(program.id)}
-      style={({ pressed }) => [styles.programCardWrap, pressed && styles.cardPressed]}
+      style={({ pressed }) => [
+        styles.programCardWrap,
+        pressed && styles.cardPressed,
+      ]}
       accessibilityRole="button"
       accessibilityLabel={`Open ${program.title}`}
     >
       <View style={styles.programTile}>
-        <Image source={{ uri: program.imageUrl }} style={styles.programTileImage} />
+        <Image
+          source={{ uri: program.imageUrl }}
+          style={styles.programTileImage}
+        />
         <View style={styles.programTileFade} />
 
         <View style={styles.programTileTopRow}>
@@ -143,7 +159,12 @@ function MiniCard({
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [Cards.base, Cards.workout, styles.miniCard, pressed && styles.cardPressed]}
+      style={({ pressed }) => [
+        Cards.base,
+        Cards.workout,
+        styles.miniCard,
+        pressed && styles.cardPressed,
+      ]}
       accessibilityRole="button"
       accessibilityLabel={title}
     >
@@ -172,7 +193,6 @@ function MiniCard({
 
 export default function ExploreScreen() {
   const user = useMemo(() => ({ firstName: "Andrei" }), []);
-  
 
   const ACTIVE_IMAGE_URL =
     "https://cdn.prod.website-files.com/6442b6aa142c4cb61a9a549d/685bf886d23017768f4614b5_img%20(1).png";
@@ -215,7 +235,7 @@ export default function ExploreScreen() {
           "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=1600&q=80",
       },
     ],
-    [ACTIVE_IMAGE_URL]
+    [ACTIVE_IMAGE_URL],
   );
 
   const workouts = useMemo<Workout[]>(
@@ -245,7 +265,7 @@ export default function ExploreScreen() {
           "https://images.unsplash.com/photo-1552674605-db6ffd4facb5?auto=format&fit=crop&w=1600&q=80",
       },
     ],
-    [ACTIVE_IMAGE_URL]
+    [ACTIVE_IMAGE_URL],
   );
 
   const recipes = useMemo<Recipe[]>(
@@ -272,32 +292,55 @@ export default function ExploreScreen() {
           "https://images.unsplash.com/photo-1467003909585-2f8a72700288?auto=format&fit=crop&w=1600&q=80",
       },
     ],
-    []
+    [],
   );
 
-  const rails = useMemo<Array<Rail<Program> | Rail<Workout> | Rail<Recipe>>>(() => {
+  const rails = useMemo<
+    Array<Rail<Program> | Rail<Workout> | Rail<Recipe>>
+  >(() => {
     return [
-      { id: "programs", title: "Programs", subtitle: "Structured plans", kind: "program", items: programs },
-      { id: "workouts", title: "Workouts", subtitle: "Individual sessions", kind: "workout", items: workouts },
-      { id: "recipes", title: "Recipes", subtitle: "Simple macro-friendly meals", kind: "recipe", items: recipes },
+      {
+        id: "programs",
+        title: "Programs",
+        subtitle: "Structured plans",
+        kind: "program",
+        items: programs,
+      },
+      {
+        id: "workouts",
+        title: "Workouts",
+        subtitle: "Individual sessions",
+        kind: "workout",
+        items: workouts,
+      },
+      {
+        id: "recipes",
+        title: "Recipes",
+        subtitle: "Simple macro-friendly meals",
+        kind: "recipe",
+        items: recipes,
+      },
     ];
   }, [programs, workouts, recipes]);
 
-  
   const onPressProgram = (id: string) => router.push(`/program/${id}`);
   const onPressWorkout = (_id: string) => router.push("/workouts");
   const onPressRecipe = (_id: string) => router.push("/explore");
 
   return (
     <View style={[GlobalStyles.safe, styles.safe]}>
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.header}>
-         <View style={styles.headerTopRow}>
-  <View style={styles.headerLeft}>
-    <Text style={styles.kicker}>Good evening, {user.firstName}</Text>
-    <Text style={styles.title}>Explore</Text>
-  </View>
-</View>
+          <View style={styles.headerTopRow}>
+            <View style={styles.headerLeft}>
+              <Text style={styles.kicker}>Good evening, {user.firstName}</Text>
+              <Text style={styles.title}>Explore</Text>
+            </View>
+          </View>
 
           <Text style={styles.subtitle} numberOfLines={1}>
             Programs, workouts, and recipes — curated.
@@ -328,7 +371,10 @@ export default function ExploreScreen() {
                     const p = item as Program;
                     return (
                       <ProgramCard
-                        program={{ ...p, isActive: p.id === activeProgramId || !!p.isActive }}
+                        program={{
+                          ...p,
+                          isActive: p.id === activeProgramId || !!p.isActive,
+                        }}
                         onPress={onPressProgram}
                       />
                     );

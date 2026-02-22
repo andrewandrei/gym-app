@@ -1,48 +1,47 @@
-import { Colors } from '@/styles/colors';
-
-import { useRouter } from 'expo-router';
-import { ArrowLeft, Moon } from 'lucide-react-native';
+import { Colors } from "@/styles/colors";
+import { useRouter } from "expo-router";
+import { ArrowLeft, Moon } from "lucide-react-native";
 import {
-    Image,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+  Image,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 /* ───────────────────────── DATA ───────────────────────── */
 
 const programs = [
   {
-    id: 'p1',
-    title: 'Strength Foundations',
-    meta: 'Intermediate · 8 weeks',
-    workouts: '21 workouts',
-    image: 'https://images.unsplash.com/photo-1599058917212-d750089bc07d',
+    id: "p1",
+    title: "Strength Foundations",
+    meta: "Intermediate · 8 weeks",
+    workouts: "21 workouts",
+    image: "https://images.unsplash.com/photo-1599058917212-d750089bc07d",
   },
   {
-    id: 'p2',
-    title: 'Yoga Flow',
-    meta: 'Beginner · 4 weeks',
-    workouts: '12 workouts',
-    image: 'https://images.unsplash.com/photo-1552058544-f2b08422138a',
+    id: "p2",
+    title: "Yoga Flow",
+    meta: "Beginner · 4 weeks",
+    workouts: "12 workouts",
+    image: "https://images.unsplash.com/photo-1552058544-f2b08422138a",
   },
   {
-    id: 'p3',
-    title: 'Lean Muscle Build',
-    meta: 'Advanced · 10 weeks',
-    workouts: '30 workouts',
-    image: 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438',
+    id: "p3",
+    title: "Lean Muscle Build",
+    meta: "Advanced · 10 weeks",
+    workouts: "30 workouts",
+    image: "https://images.unsplash.com/photo-1517836357463-d25dfeac3438",
   },
   {
-    id: 'p4',
-    title: 'Mobility & Recovery',
-    meta: 'All Levels · 4 weeks',
-    workouts: '10 workouts',
-    image: 'https://images.unsplash.com/photo-1540206276207-3af25c08d53e',
+    id: "p4",
+    title: "Mobility & Recovery",
+    meta: "All Levels · 4 weeks",
+    workouts: "10 workouts",
+    image: "https://images.unsplash.com/photo-1540206276207-3af25c08d53e",
   },
 ];
 
@@ -55,13 +54,9 @@ export default function AllProgramsScreen() {
     <SafeAreaView style={styles.safe}>
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.container}>
-
           {/* HEADER */}
           <View style={styles.header}>
-            <TouchableOpacity
-              style={styles.back}
-              onPress={() => router.back()}
-            >
+            <TouchableOpacity style={styles.back} onPress={() => router.back()}>
               <ArrowLeft size={22} color={Colors.text} />
               <Text style={styles.backText}>Back</Text>
             </TouchableOpacity>
@@ -77,7 +72,7 @@ export default function AllProgramsScreen() {
           </Text>
 
           {/* LIST */}
-          {programs.map(program => (
+          {programs.map((program) => (
             <View key={program.id} style={styles.card}>
               <Image
                 source={{ uri: program.image }}
@@ -86,21 +81,14 @@ export default function AllProgramsScreen() {
               />
 
               <View style={styles.cardBody}>
-                <Text style={styles.cardTitle}>
-                  {program.title}
-                </Text>
+                <Text style={styles.cardTitle}>{program.title}</Text>
 
-                <Text style={styles.cardMeta}>
-                  {program.meta}
-                </Text>
+                <Text style={styles.cardMeta}>{program.meta}</Text>
 
-                <Text style={styles.cardSub}>
-                  {program.workouts}
-                </Text>
+                <Text style={styles.cardSub}>{program.workouts}</Text>
               </View>
             </View>
           ))}
-
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -121,15 +109,15 @@ const styles = StyleSheet.create({
 
   /* Header */
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginTop: 8,
     marginBottom: 24,
   },
   back: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   backText: {
     fontSize: 16,
@@ -143,13 +131,13 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.card,
     borderWidth: 0.5,
     borderColor: Colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   title: {
     fontSize: 32,
-    fontWeight: '700',
+    fontWeight: "700",
     color: Colors.text,
     marginBottom: 8,
   },
@@ -163,11 +151,11 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: Colors.card,
     borderRadius: 24,
-    overflow: 'hidden',
+    overflow: "hidden",
     marginBottom: 24,
     ...Platform.select({
       ios: {
-        shadowColor: '#000',
+        shadowColor: "#000",
         shadowOpacity: 0.05,
         shadowRadius: 14,
         shadowOffset: { width: 0, height: 8 },
@@ -178,7 +166,7 @@ const styles = StyleSheet.create({
     }),
   },
   image: {
-    width: '100%',
+    width: "100%",
     height: 200,
   },
   cardBody: {
@@ -186,7 +174,7 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     fontSize: 22,
-    fontWeight: '600',
+    fontWeight: "600",
     color: Colors.text,
     marginBottom: 6,
   },

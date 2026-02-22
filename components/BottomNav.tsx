@@ -6,5 +6,5 @@ function BottomNav() {
       <div>Progress</div>
       <div>Profile</div>
     </div>
-  )
+  );
 }

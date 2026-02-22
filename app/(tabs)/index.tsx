@@ -1,7 +1,9 @@
-import { Colors } from '@/styles/colors';
-import { useRouter } from 'expo-router';
-import { Moon } from 'lucide-react-native';
-import React from 'react';
+// app/(tabs)/index.tsx
+
+import { Colors } from "@/styles/colors";
+import { useRouter } from "expo-router";
+import { Moon } from "lucide-react-native";
+import React from "react";
 import {
   ImageBackground,
   ScrollView,
@@ -9,10 +11,10 @@ import {
   Text,
   TouchableOpacity,
   View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-type CtaState = 'start' | 'resume' | 'completed' | 'rest';
+type CtaState = "start" | "resume" | "completed" | "rest";
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -21,14 +23,14 @@ export default function HomeScreen() {
   const weeklyDone = 0;
   const weeklyTotal = 3;
 
-  const programTitle = 'Strength Foundations';
-  const programMeta = 'Intermediate · Gym';
-  const phaseLabel = 'Foundation Phase';
-  const focusLabel = 'Upper Body Focus';
+  const programTitle = "Strength Foundations";
+  const programMeta = "Intermediate · Gym";
+  const phaseLabel = "Foundation Phase";
+  const focusLabel = "Upper Body Focus";
 
-  const weekLabel = 'Week 2';
-  const workoutLabel = 'Workout 4';
-  const workoutName = 'Hypertrophy Focus';
+  const weekLabel = "Week 2";
+  const workoutLabel = "Workout 4";
+  const workoutName = "Hypertrophy Focus";
 
   const programCompleted = 3;
   const programTotal = 21;
@@ -36,38 +38,34 @@ export default function HomeScreen() {
   const estMinutes = 25;
   const streakDays = 3;
 
-  // CTA state demo:
-  // - 'start'     => start workout
-  // - 'resume'    => resume workout (in progress)
-  // - 'completed' => completed today
-  // - 'rest'      => rest day (no workout)
-  const ctaState: CtaState = 'start';
+  const ctaState: CtaState = "start";
 
   /* ─────────────── Derived values ─────────────── */
   const weeklyProgress = weeklyTotal > 0 ? weeklyDone / weeklyTotal : 0;
   const programProgress = programTotal > 0 ? programCompleted / programTotal : 0;
   const progressPct = Math.round(Math.max(0, Math.min(1, programProgress)) * 100);
 
-  const greetingTitle = getLuxuryGreetingTitle({ ctaState, streakDays, weeklyDone });
+  const greetingTitle = getLuxuryGreetingTitle({
+    ctaState,
+    streakDays,
+    weeklyDone,
+  });
   const greetingSub = `${weeklyDone} of ${weeklyTotal} workouts completed this week`;
 
-  const todayLine =
-    ctaState === 'rest'
-      ? 'Today · Recovery'
-      : `Today · ${focusLabel}`;
+  const todayLine = ctaState === "rest" ? "Today · Recovery" : `Today · ${focusLabel}`;
 
   const cta = getCtaCopy({ ctaState, workoutLabel });
   const heroHint =
-    ctaState === 'completed'
-      ? 'You earned it. Recovery keeps you sharp.'
-      : ctaState === 'rest'
-      ? 'Stay loose. Keep the engine warm.'
-      : 'One session. Clean execution.';
+    ctaState === "completed"
+      ? "You earned it. Recovery keeps you sharp."
+      : ctaState === "rest"
+        ? "Stay loose. Keep the engine warm."
+        : "One session. Clean execution.";
 
   const onPressCta = () => {
-    if (ctaState === 'completed') return;
-    if (ctaState === 'rest') return;
-    router.push('/workout');
+    if (ctaState === "completed") return;
+    if (ctaState === "rest") return;
+    router.push("/workout");
   };
 
   return (
@@ -77,25 +75,27 @@ export default function HomeScreen() {
         contentContainerStyle={styles.container}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <Text style={styles.greetingTitle}>{greetingTitle}</Text>
-            <Text style={styles.greetingSub}>{greetingSub}</Text>
+        {/* Consistent app header */}
+        <AppHeader
+          title={greetingTitle}
+          subtitle={greetingSub}
+          right={
+            <TouchableOpacity style={styles.iconButton} activeOpacity={0.85}>
+              <Moon size={18} color={Colors.text} />
+            </TouchableOpacity>
+          }
+        />
 
-            <View style={styles.weekProgressBg}>
-              <View
-                style={[
-                  styles.weekProgressFill,
-                  { width: `${Math.max(0, Math.min(1, weeklyProgress)) * 100}%` },
-                ]}
-              />
-            </View>
-          </View>
-
-          <TouchableOpacity style={styles.iconButton} activeOpacity={0.85}>
-            <Moon size={18} color={Colors.text} />
-          </TouchableOpacity>
+        {/* Weekly progress bar (kept, but aligned under header) */}
+        <View style={styles.weekProgressBg}>
+          <View
+            style={[
+              styles.weekProgressFill,
+              {
+                width: `${Math.max(0, Math.min(1, weeklyProgress)) * 100}%`,
+              },
+            ]}
+          />
         </View>
 
         {/* Today row */}
@@ -111,7 +111,7 @@ export default function HomeScreen() {
         <View style={styles.heroCard}>
           <ImageBackground
             source={{
-              uri: 'https://cdn.prod.website-files.com/6442b6aa142c4cb61a9a549d/685bf886d23017768f4614b5_img%20(1).png',
+              uri: "https://cdn.prod.website-files.com/6442b6aa142c4cb61a9a549d/685bf886d23017768f4614b5_img%20(1).png",
             }}
             style={styles.heroImage}
             imageStyle={styles.heroImageRadius}
@@ -149,7 +149,9 @@ export default function HomeScreen() {
                 <View
                   style={[
                     styles.heroProgressFill,
-                    { width: `${Math.max(0, Math.min(1, programProgress)) * 100}%` },
+                    {
+                      width: `${Math.max(0, Math.min(1, programProgress)) * 100}%`,
+                    },
                   ]}
                 />
               </View>
@@ -173,8 +175,8 @@ export default function HomeScreen() {
               <TouchableOpacity
                 style={[
                   styles.heroCta,
-                  ctaState === 'completed' ? styles.heroCtaDisabled : null,
-                  ctaState === 'rest' ? styles.heroCtaDisabled : null,
+                  ctaState === "completed" ? styles.heroCtaDisabled : null,
+                  ctaState === "rest" ? styles.heroCtaDisabled : null,
                 ]}
                 onPress={onPressCta}
                 activeOpacity={0.9}
@@ -186,16 +188,14 @@ export default function HomeScreen() {
               {/* Next up / hint */}
               <Text style={styles.heroHint}>{heroHint}</Text>
 
-              {ctaState !== 'rest' && (
+              {ctaState !== "rest" && (
                 <Text style={styles.heroNextUp}>
                   Next up: {workoutLabel} · {workoutName}
                 </Text>
               )}
 
-              {ctaState === 'rest' && (
-                <Text style={styles.heroNextUp}>
-                  Suggested: Mobility · 12 min
-                </Text>
+              {ctaState === "rest" && (
+                <Text style={styles.heroNextUp}>Suggested: Mobility · 12 min</Text>
               )}
             </View>
           </ImageBackground>
@@ -234,11 +234,11 @@ function getLuxuryGreetingTitle({
   streakDays: number;
   weeklyDone: number;
 }) {
-  if (ctaState === 'completed') return 'Executed.';
-  if (ctaState === 'rest') return 'Reset. Refine. Return.';
-  if (streakDays >= 3) return 'Momentum looks good.';
-  if (weeklyDone === 0) return 'Welcome back.';
-  return 'Stay sharp.';
+  if (ctaState === "completed") return "Executed.";
+  if (ctaState === "rest") return "Reset. Refine. Return.";
+  if (streakDays >= 3) return "Momentum looks good.";
+  if (weeklyDone === 0) return "Welcome back.";
+  return "Stay sharp.";
 }
 
 function getCtaCopy({
@@ -248,10 +248,10 @@ function getCtaCopy({
   ctaState: CtaState;
   workoutLabel: string;
 }) {
-  if (ctaState === 'resume') return { icon: '▶', text: 'Resume workout' };
-  if (ctaState === 'completed') return { icon: '✓', text: 'Workout complete' };
-  if (ctaState === 'rest') return { icon: '•', text: 'Recovery day' };
-  return { icon: '▶', text: `Start workout: ${workoutLabel}` };
+  if (ctaState === "resume") return { icon: "▶", text: "Resume workout" };
+  if (ctaState === "completed") return { icon: "✓", text: "Workout complete" };
+  if (ctaState === "rest") return { icon: "•", text: "Recovery day" };
+  return { icon: "▶", text: `Start workout: ${workoutLabel}` };
 }
 
 /* ───────────────────────── Styles ───────────────────────── */
@@ -265,66 +265,48 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
   },
   container: {
-    paddingHorizontal: 24,
     paddingTop: 8,
+    paddingBottom: 32,
   },
 
-  /* Header */
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 18,
-  },
-  headerLeft: {
-    flex: 1,
-    paddingRight: 16,
-  },
-  greetingTitle: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: Colors.text,
-    letterSpacing: -0.2,
-  },
-  greetingSub: {
-    fontSize: 15,
-    color: Colors.muted,
-    marginTop: 6,
-    fontWeight: '600',
-  },
-  weekProgressBg: {
-    marginTop: 12,
-    height: 6,
-    backgroundColor: 'rgba(0,0,0,0.08)',
-    borderRadius: 999,
-    overflow: 'hidden',
-  },
-  weekProgressFill: {
-    height: 6,
-    backgroundColor: '#000000',
-    borderRadius: 999,
-  },
+  /* Icon button (right side of DashboardHeader) */
   iconButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: Colors.card,
-    borderWidth: 0.5,
+    backgroundColor: Colors.surface, // keep clean white
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  /* Weekly progress bar (moved under header) */
+  weekProgressBg: {
+    marginTop: 2,
+    marginHorizontal: 24,
+    height: 6,
+    backgroundColor: "rgba(0,0,0,0.08)",
+    borderRadius: 999,
+    overflow: "hidden",
+  },
+  weekProgressFill: {
+    height: 6,
+    backgroundColor: Colors.text,
+    borderRadius: 999,
   },
 
   /* Today row */
   todayRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-    marginTop: 6,
+    marginTop: 18,
+    marginHorizontal: 24,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-end",
   },
   todayTitle: {
-    fontSize: 26,
-    fontWeight: '800',
+    fontSize: 22,
+    fontWeight: "900",
     color: Colors.text,
     letterSpacing: -0.2,
   },
@@ -333,82 +315,86 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   planLinkText: {
-    fontSize: 15,
+    fontSize: 14,
     color: Colors.muted,
-    fontWeight: '700',
+    fontWeight: "800",
   },
   todaySub: {
-    fontSize: 16,
+    marginHorizontal: 24,
+    fontSize: 14,
     color: Colors.muted,
-    marginTop: 8,
+    marginTop: 6,
     marginBottom: 14,
-    fontWeight: '700',
+    fontWeight: "700",
   },
 
   /* Hero */
   heroCard: {
+    marginHorizontal: 24,
     borderRadius: 28,
-    overflow: 'hidden',
-    backgroundColor: Colors.card,
+    overflow: "hidden",
+    backgroundColor: Colors.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
   },
   heroImage: {
-    width: '100%',
+    width: "100%",
     height: 540,
-    justifyContent: 'space-between',
+    justifyContent: "space-between",
   },
   heroImageRadius: {
     borderRadius: 28,
   },
   heroOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.30)',
+    backgroundColor: "rgba(0,0,0,0.30)",
   },
   heroTop: {
     marginTop: 16,
     paddingHorizontal: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
   },
   leftChips: {
     gap: 10,
   },
   chipLight: {
-    backgroundColor: 'rgba(255,255,255,0.82)',
+    backgroundColor: "rgba(255,255,255,0.82)",
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 999,
   },
   chipLightText: {
-    color: '#111111',
+    color: "#111111",
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: "800",
   },
   chipDark: {
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    backgroundColor: "rgba(0,0,0,0.55)",
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 999,
     borderWidth: 0.5,
-    borderColor: 'rgba(255,255,255,0.18)',
+    borderColor: "rgba(255,255,255,0.18)",
   },
   chipDarkText: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: "800",
   },
   chipOutline: {
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 999,
     borderWidth: 0.8,
-    borderColor: 'rgba(255,255,255,0.35)',
-    backgroundColor: 'rgba(0,0,0,0.22)',
+    borderColor: "rgba(255,255,255,0.35)",
+    backgroundColor: "rgba(0,0,0,0.22)",
   },
   chipOutlineText: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: "800",
   },
 
   heroBottom: {
@@ -416,60 +402,60 @@ const styles = StyleSheet.create({
     paddingBottom: 18,
   },
   heroTitle: {
-    color: '#FFFFFF',
-    fontSize: 34,
-    fontWeight: '900',
+    color: "#FFFFFF",
+    fontSize: 30, // tightened to match app hierarchy
+    fontWeight: "900",
     letterSpacing: -0.3,
   },
   heroMeta: {
     marginTop: 8,
-    color: 'rgba(255,255,255,0.86)',
-    fontSize: 15,
-    fontWeight: '700',
+    color: "rgba(255,255,255,0.86)",
+    fontSize: 14,
+    fontWeight: "700",
   },
 
   heroProgressBg: {
     marginTop: 14,
     height: 10,
-    backgroundColor: 'rgba(255,255,255,0.22)',
+    backgroundColor: "rgba(255,255,255,0.22)",
     borderRadius: 999,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   heroProgressFill: {
     height: 10,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderRadius: 999,
   },
 
   metricsRow: {
     marginTop: 14,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: 10,
   },
   metricPill: {
-    backgroundColor: 'rgba(0,0,0,0.40)',
+    backgroundColor: "rgba(0,0,0,0.40)",
     borderRadius: 999,
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderWidth: 0.5,
-    borderColor: 'rgba(255,255,255,0.18)',
+    borderColor: "rgba(255,255,255,0.18)",
   },
   metricPillText: {
-    color: 'rgba(255,255,255,0.92)',
+    color: "rgba(255,255,255,0.92)",
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: "800",
   },
 
   heroCta: {
     marginTop: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderRadius: 999,
     paddingVertical: 16,
     paddingHorizontal: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
     gap: 10,
   },
   heroCtaDisabled: {
@@ -477,54 +463,60 @@ const styles = StyleSheet.create({
   },
   heroCtaIcon: {
     fontSize: 16,
-    color: '#000000',
-    fontWeight: '900',
+    color: "#000000",
+    fontWeight: "900",
   },
   heroCtaText: {
-    fontSize: 17,
-    fontWeight: '900',
-    color: '#000000',
+    fontSize: 16,
+    fontWeight: "900",
+    color: "#000000",
     letterSpacing: -0.1,
   },
 
   heroHint: {
     marginTop: 12,
-    textAlign: 'center',
-    color: 'rgba(255,255,255,0.86)',
-    fontSize: 14,
-    fontWeight: '700',
+    textAlign: "center",
+    color: "rgba(255,255,255,0.86)",
+    fontSize: 13,
+    fontWeight: "700",
   },
   heroNextUp: {
     marginTop: 10,
-    textAlign: 'center',
-    color: 'rgba(255,255,255,0.78)',
-    fontSize: 15,
-    fontWeight: '700',
+    textAlign: "center",
+    color: "rgba(255,255,255,0.78)",
+    fontSize: 14,
+    fontWeight: "700",
   },
 
   /* Switch program */
   switchProgram: {
-    alignItems: 'center',
+    alignItems: "center",
     marginTop: 20,
     marginBottom: 26,
   },
   switchText: {
-    fontSize: 17,
-    fontWeight: '800',
+    fontSize: 16,
+    fontWeight: "900",
     color: Colors.text,
+    letterSpacing: -0.2,
   },
 
   /* Quick Access */
   quickTitle: {
-    fontSize: 22,
-    fontWeight: '800',
+    marginHorizontal: 24,
+    fontSize: 20,
+    fontWeight: "900",
     marginBottom: 14,
     color: Colors.text,
+    letterSpacing: -0.2,
   },
   quickCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.card,
+    marginHorizontal: 24,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Colors.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
     borderRadius: 20,
     padding: 18,
   },
@@ -532,26 +524,27 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#000000',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: Colors.text,
+    alignItems: "center",
+    justifyContent: "center",
     marginRight: 14,
   },
   quickIconText: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: "900",
   },
   quickText: {
-    fontSize: 18,
-    fontWeight: '800',
+    fontSize: 16,
+    fontWeight: "900",
     color: Colors.text,
     flex: 1,
+    letterSpacing: -0.2,
   },
   chevron: {
     fontSize: 22,
     color: Colors.muted,
-    fontWeight: '800',
+    fontWeight: "800",
   },
 
   bottomSpacer: {

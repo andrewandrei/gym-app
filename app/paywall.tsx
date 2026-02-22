@@ -34,7 +34,12 @@ export default function PaywallScreen() {
         accessibilityLabel="Dismiss"
       />
 
-      <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 12) + 12 }]}>
+      <View
+        style={[
+          styles.sheet,
+          { paddingBottom: Math.max(insets.bottom, 12) + 12 },
+        ]}
+      >
         {/* Grabber */}
         <View style={styles.grabber} />
 
@@ -58,7 +63,8 @@ export default function PaywallScreen() {
         {/* Body copy */}
         <Text style={styles.title}>Full access to every program.</Text>
         <Text style={styles.subtitle}>
-          Your plan is structured end-to-end. Upgrade when you’re ready — no pressure.
+          Your plan is structured end-to-end. Upgrade when you’re ready — no
+          pressure.
         </Text>
 
         {/* Benefits group */}
@@ -69,7 +75,9 @@ export default function PaywallScreen() {
             </View>
             <View style={styles.benefitText}>
               <Text style={styles.benefitTitle}>All weeks, all sessions</Text>
-              <Text style={styles.benefitMeta}>Complete the program exactly as designed.</Text>
+              <Text style={styles.benefitMeta}>
+                Complete the program exactly as designed.
+              </Text>
             </View>
           </View>
 
@@ -81,7 +89,9 @@ export default function PaywallScreen() {
             </View>
             <View style={styles.benefitText}>
               <Text style={styles.benefitTitle}>Progress tracking</Text>
-              <Text style={styles.benefitMeta}>Sessions, streaks, and completion.</Text>
+              <Text style={styles.benefitMeta}>
+                Sessions, streaks, and completion.
+              </Text>
             </View>
           </View>
 
@@ -93,7 +103,9 @@ export default function PaywallScreen() {
             </View>
             <View style={styles.benefitText}>
               <Text style={styles.benefitTitle}>Recipes library</Text>
-              <Text style={styles.benefitMeta}>Macro-focused meals (coming soon).</Text>
+              <Text style={styles.benefitMeta}>
+                Macro-focused meals (coming soon).
+              </Text>
             </View>
           </View>
         </View>
@@ -108,12 +120,18 @@ export default function PaywallScreen() {
           <Text style={styles.ctaText}>Continue on website</Text>
         </PressableScale>
 
-        <PressableScale onPress={onClose} style={styles.secondary} scaleTo={0.99} opacityTo={0.9}>
+        <PressableScale
+          onPress={onClose}
+          style={styles.secondary}
+          scaleTo={0.99}
+          opacityTo={0.9}
+        >
           <Text style={styles.secondaryText}>Not now</Text>
         </PressableScale>
 
         <Text style={styles.legal}>
-          Payments are handled on the website. Manage your plan anytime in Profile.
+          Payments are handled on the website. Manage your plan anytime in
+          Profile.
         </Text>
       </View>
     </View>

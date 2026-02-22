@@ -1,9 +1,9 @@
 import React from "react";
 import { Pressable, PressableProps } from "react-native";
 import Animated, {
-    useAnimatedStyle,
-    useSharedValue,
-    withTiming,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
 } from "react-native-reanimated";
 
 type Props = PressableProps & {
@@ -26,7 +26,9 @@ export function PressableScale({
   const aStyle = useAnimatedStyle(() => {
     const t = pressed.value;
     return {
-      transform: [{ scale: withTiming(t ? scaleTo : 1, { duration: durationMs }) }],
+      transform: [
+        { scale: withTiming(t ? scaleTo : 1, { duration: durationMs }) },
+      ],
       opacity: withTiming(t ? opacityTo : 1, { duration: durationMs }),
     };
   });

@@ -1,385 +1,639 @@
 import { Colors } from "@/styles/colors";
 import { Spacing } from "@/styles/spacing";
-import { StyleSheet } from "react-native";
+import { Platform, StyleSheet } from "react-native";
 
 const HAIR = StyleSheet.hairlineWidth;
 
-export const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: Colors.surface,
+export const S = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: Colors.surface },
+  page: { flex: 1, backgroundColor: Colors.surface },
+
+  scroll: { flex: 1, backgroundColor: Colors.surface },
+  scrollWeb: {
+    // @ts-ignore
+    scrollbarWidth: "none",
+    // @ts-ignore
+    msOverflowStyle: "none",
+  },
+  scrollContent: {
+    paddingBottom: 18,
   },
 
-  // Top bar
-  topBar: {
+  /* ───────────────────────── PREVIEW ───────────────────────── */
+  previewPage: { flex: 1, backgroundColor: Colors.surface },
+
+  previewContent: {
     paddingTop: 10,
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: 8,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    paddingBottom: 18,
   },
-  topBarLeft: {
-    flexDirection: "row",
-    alignItems: "center",
+
+  previewList: {
+    paddingHorizontal: Spacing.lg,
+    paddingTop: 12,
     gap: 10,
   },
-  backLabel: {
-    fontSize: 18,
-    fontWeight: "800",
+
+  previewCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Colors.surface,
+    borderRadius: 18,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderWidth: HAIR,
+    borderColor: Colors.border,
+  },
+
+  previewCardLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginRight: 12,
+  },
+
+  previewNumber: {
+    width: 26,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+
+  previewNumberText: {
+    fontSize: 15,
+    fontWeight: "900",
+    color: "rgba(0,0,0,0.35)",
+    letterSpacing: -0.2,
+  },
+
+  previewImage: {
+    width: 58,
+    height: 58,
+    borderRadius: 14,
+    backgroundColor: "rgba(0,0,0,0.04)",
+  },
+
+  previewCardRight: { flex: 1 },
+
+  previewExName: {
+    fontSize: 15,
+    lineHeight: 19,
+    fontWeight: "900",
     color: Colors.text,
     letterSpacing: -0.2,
   },
-  iconBtn: {
-    width: 40,
-    height: 40,
+
+  previewExMeta: {
+    marginTop: 4,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: "700",
+    color: "rgba(0,0,0,0.45)",
+  },
+
+  previewBottom: {
+    paddingHorizontal: Spacing.lg,
+    paddingTop: 12,
+    paddingBottom: 14,
+    backgroundColor: Colors.surface,
+    borderTopWidth: HAIR,
+    borderTopColor: Colors.border,
+  },
+
+  startBtn: {
+    height: 56,
     borderRadius: 999,
+    backgroundColor: Colors.text,
     alignItems: "center",
     justifyContent: "center",
   },
 
-  // Header (title / status / progress)
+  startBtnText: {
+    color: Colors.surface,
+    fontWeight: "900",
+    fontSize: 16,
+    letterSpacing: -0.2,
+  },
+
+  /* ───────────────────────── WORKOUT ───────────────────────── */
   header: {
     paddingHorizontal: Spacing.lg,
-    paddingTop: 4,
-    paddingBottom: 14,
+    paddingTop: 12,
+    paddingBottom: 6,
   },
-  title: {
-    fontSize: 40, // tightened from oversized
-    lineHeight: 44,
-    fontWeight: "900",
-    letterSpacing: -0.8,
-    color: Colors.text,
-  },
-  status: {
-    marginTop: 10,
-    fontSize: 18,
-    fontWeight: "700",
-    color: "rgba(0,0,0,0.35)",
-  },
+
   setsLine: {
-    marginTop: 18,
-    fontSize: 34, // tightened
-    lineHeight: 38,
+    fontSize: 14,
     fontWeight: "900",
-    letterSpacing: -0.7,
-    color: "rgba(0,0,0,0.62)",
+    color: "rgba(0,0,0,0.70)",
+    letterSpacing: -0.2,
   },
+
   progressTrack: {
-    marginTop: 12,
-    height: 12,
+    marginTop: 10,
+    height: 8,
     borderRadius: 999,
-    backgroundColor: "rgba(0,0,0,0.06)",
+    backgroundColor: "rgba(0,0,0,0.08)",
     overflow: "hidden",
   },
   progressFill: {
-    height: 12,
+    height: 8,
     borderRadius: 999,
     backgroundColor: Colors.text,
   },
 
-  // Exercise card
+  exerciseList: { paddingTop: 10, gap: 12 },
+
   card: {
-    marginTop: 10,
     marginHorizontal: Spacing.lg,
-    borderRadius: 22,
-    backgroundColor: Colors.surface,
+    borderRadius: 20,
     borderWidth: HAIR,
     borderColor: Colors.border,
+    backgroundColor: Colors.surface,
     overflow: "hidden",
   },
-  cardInner: {
-    padding: 16,
-  },
 
-  exerciseRow: {
+  cardInner: { padding: 12 },
+
+  exerciseHeader: {
     flexDirection: "row",
     alignItems: "center",
+    minHeight: 62,
+    paddingBottom: 10,
   },
-  thumb: {
-    width: 54, // tightened
-    height: 54,
-    borderRadius: 14,
-    backgroundColor: "rgba(0,0,0,0.06)",
-  },
+
+  thumb: { width: 58, height: 58, borderRadius: 14 },
+
   exerciseText: {
     flex: 1,
-    paddingLeft: 14,
-    paddingRight: 10,
+    paddingLeft: 12,
+    paddingRight: 8,
+    justifyContent: "center",
   },
+
   exerciseTitle: {
-    fontSize: 40, // still bold but not insane
-    lineHeight: 42,
+    fontSize: 16,
+    lineHeight: 20,
     fontWeight: "900",
-    letterSpacing: -0.8,
     color: Colors.text,
-  },
-  exerciseSub: {
-    marginTop: 6,
-    fontSize: 20,
-    fontWeight: "800",
-    color: "rgba(0,0,0,0.35)",
     letterSpacing: -0.2,
   },
+
+  exerciseSub: {
+    marginTop: 4,
+    fontSize: 12,
+    fontWeight: "700",
+    color: "rgba(0,0,0,0.45)",
+  },
+
   menuBtn: {
     width: 40,
     height: 40,
     borderRadius: 999,
     alignItems: "center",
     justifyContent: "center",
-  },
-
-  divider: {
-    marginTop: 14,
-    height: HAIR,
-    backgroundColor: Colors.border,
-  },
-
-  // Table header
-  tableHead: {
-    paddingTop: 16,
-    paddingBottom: 10,
-    paddingHorizontal: 16,
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  thSet: {
-    width: 34,
-    fontSize: 18,
-    fontWeight: "900",
-    color: "rgba(0,0,0,0.38)",
-    letterSpacing: 2.2,
-  },
-  thCell: {
-    flex: 1,
-    fontSize: 18,
-    fontWeight: "900",
-    color: "rgba(0,0,0,0.38)",
-    letterSpacing: 2.2,
-    textAlign: "center",
-  },
-  thCheck: {
-    width: 62, // space for check button
-    fontSize: 18,
-    fontWeight: "900",
-    color: "rgba(0,0,0,0.38)",
-    letterSpacing: 2.2,
-    textAlign: "center",
-  },
-
-  // Rows
-  rowsWrap: {
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-  },
-  rowDivider: {
-    height: HAIR,
-    backgroundColor: "rgba(0,0,0,0.06)",
-  },
-
-  row: {
-    height: 72, // tighter than before
-    flexDirection: "row",
-    alignItems: "center",
-  },
-
-  setIndex: {
-    width: 34,
-    fontSize: 36,
-    fontWeight: "900",
-    color: "rgba(0,0,0,0.45)",
-    letterSpacing: -0.6,
-  },
-
-  // This is the BIG fix:
-  // - enforce minWidth so cells never collapse into circles
-  // - keep them as rounded rectangles
-  cell: {
-    flex: 1,
-    minWidth: 86,
-    height: 52,
-    marginHorizontal: 8,
-    borderRadius: 18,
-    borderWidth: 2,
-    borderColor: "rgba(0,0,0,0.14)",
-    backgroundColor: Colors.surface,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  cellText: {
-    fontSize: 28, // tightened
-    fontWeight: "900",
-    color: Colors.text,
-    letterSpacing: -0.4,
-  },
-  cellPlaceholder: {
-    fontSize: 28,
-    fontWeight: "900",
-    color: "rgba(0,0,0,0.25)",
-    letterSpacing: -0.4,
-  },
-  input: {
-    width: "100%",
-    height: "100%",
-    textAlign: "center",
-    fontSize: 28,
-    fontWeight: "900",
-    color: Colors.text,
-  },
-
-  // Check column
-  checkCol: {
-    width: 62,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  checkBtn: {
-    width: 48, // tighter than your oversized version
-    height: 48,
-    borderRadius: 24,
-    borderWidth: 3,
-    borderColor: "rgba(0,0,0,0.18)",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: Colors.surface,
-  },
-  checkBtnOn: {
-    backgroundColor: Colors.text,
-    borderColor: Colors.text,
-  },
-
-  // Swipe background (delete)
-  swipeBg: {
-    height: 72,
-    justifyContent: "center",
-    alignItems: "flex-end",
-    paddingRight: 14,
-    backgroundColor: "rgba(0,0,0,0.03)",
-  },
-  deletePill: {
-    paddingHorizontal: 18,
-    height: 44,
-    borderRadius: 22,
-    alignItems: "center",
-    justifyContent: "center",
     borderWidth: HAIR,
     borderColor: Colors.border,
-    backgroundColor: "rgba(0,0,0,0.05)",
-  },
-  deleteText: {
-    fontSize: 16,
-    fontWeight: "900",
-    color: Colors.text,
-    letterSpacing: -0.2,
   },
 
-  // Bottom buttons inside card
-  cardActions: {
-    paddingTop: 10,
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-    flexDirection: "row",
-    gap: 14,
-  },
-  ghostBtn: {
-    flex: 1,
-    height: 56, // tighter
-    borderRadius: 999,
-    borderWidth: 2,
-    borderColor: "rgba(0,0,0,0.16)",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: Colors.surface,
-  },
-  ghostText: {
-    fontSize: 22, // tighter
-    fontWeight: "900",
-    color: Colors.text,
-    letterSpacing: -0.4,
-  },
-
-  // Sticky CTA
-  bottomBar: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    paddingHorizontal: Spacing.lg,
-    paddingTop: 10,
-    paddingBottom: 14,
-    backgroundColor: Colors.surface,
-    borderTopWidth: HAIR,
-    borderTopColor: "rgba(0,0,0,0.08)",
-  },
-  cta: {
-    height: 72, // tighter than giant
-    borderRadius: 999,
-    backgroundColor: Colors.text,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  ctaText: {
-    color: "#FFFFFF",
-    fontSize: 30, // tighter
-    fontWeight: "900",
-    letterSpacing: -0.6,
-  },
-
-  // Spacer so content doesn’t hide behind CTA
-  bottomSpacer: {
-    height: 110,
-  },
-
-  // Modal
-  modalSheet: {
-    marginHorizontal: Spacing.lg,
-    borderRadius: 22,
-    backgroundColor: Colors.surface,
-    borderWidth: HAIR,
-    borderColor: Colors.border,
-    overflow: "hidden",
-  },
-  modalHeader: {
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: "900",
-    color: Colors.text,
-    letterSpacing: -0.2,
-  },
-  modalBody: {
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-  },
-  modalRow: {
+  cols: {
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 10,
     borderTopWidth: HAIR,
     borderTopColor: "rgba(0,0,0,0.06)",
+    borderBottomWidth: HAIR,
+    borderBottomColor: "rgba(0,0,0,0.06)",
   },
-  modalRowLeft: {
+
+  colLabel: {
     flex: 1,
+    fontSize: 11,
+    fontWeight: "900",
+    color: "rgba(0,0,0,0.32)",
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+    textAlign: "center",
   },
-  modalRowTitle: {
-    fontSize: 15,
-    fontWeight: "800",
-    color: Colors.text,
+
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    height: 58,
+    borderBottomWidth: HAIR,
+    borderBottomColor: "rgba(0,0,0,0.06)",
+    backgroundColor: Colors.surface,
   },
-  modalRowMeta: {
-    marginTop: 4,
-    fontSize: 13,
-    fontWeight: "700",
-    color: Colors.muted,
+
+  setIndex: {
+    width: 40,
+    fontSize: 14,
+    fontWeight: "900",
+    color: "rgba(0,0,0,0.50)",
+    textAlign: "center",
   },
-  modalRowRight: {
-    fontSize: 15,
+
+  cell: {
+    flex: 1,
+    height: 46,
+    marginHorizontal: 6,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: "rgba(0,0,0,0.14)",
+    justifyContent: "center",
+    backgroundColor: Colors.surface,
+  },
+
+  input: {
+    textAlign: "center",
+    fontSize: 16,
     fontWeight: "900",
     color: Colors.text,
+    paddingVertical: 0,
+    paddingHorizontal: 8,
+    height: "100%",
+    ...(Platform.OS === "android" ? { paddingBottom: 2 } : null),
   },
+
+  checkBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: "rgba(0,0,0,0.18)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: 4,
+    backgroundColor: Colors.surface,
+  },
+
+  checkBtnOn: {
+    backgroundColor: Colors.text,
+    borderColor: Colors.text,
+  },
+
+  swipeBg: {
+    justifyContent: "center",
+    alignItems: "flex-end",
+    paddingRight: 12,
+    backgroundColor: Colors.surface,
+  },
+
+  deletePill: {
+    paddingHorizontal: 14,
+    height: 40,
+    borderRadius: 999,
+    backgroundColor: "rgba(0,0,0,0.06)",
+    borderWidth: HAIR,
+    borderColor: Colors.border,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  deleteText: { fontWeight: "900", color: Colors.text, letterSpacing: -0.2 },
+
+  cardActions: { flexDirection: "row", gap: 10, marginTop: 12 },
+
+  ghostBtn: {
+    flex: 1,
+    height: 46,
+    borderRadius: 999,
+    borderWidth: 1.5,
+    borderColor: "rgba(0,0,0,0.16)",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: Colors.surface,
+  },
+
+  ghostText: { fontWeight: "900", color: Colors.text, fontSize: 13 },
+
+  finishSection: {
+    marginTop: 18,
+    marginHorizontal: Spacing.lg,
+    paddingBottom: 12,
+  },
+
+  finishBtn: {
+    height: 56,
+    borderRadius: 999,
+    backgroundColor: Colors.text,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  finishBtnText: {
+    color: Colors.surface,
+    fontWeight: "900",
+    fontSize: 16,
+    letterSpacing: -0.2,
+  },
+
+  /* ───────────────────────── TIMER PILL ───────────────────────── */
+  timerPill: {
+    position: "absolute",
+    top: 12,
+    left: 16,
+    right: 16,
+    backgroundColor: Colors.text,
+    borderRadius: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    zIndex: 998,
+    elevation: 18,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.22,
+    shadowRadius: 10,
+  },
+
+  timerPillContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+
+  timerPillLeft: { flex: 1 },
+
+  timerPillTime: {
+    fontSize: 18,
+    fontWeight: "900",
+    color: Colors.surface,
+    letterSpacing: -0.4,
+  },
+
+  timerPillProgress: {
+    marginTop: 6,
+    height: 3,
+    borderRadius: 999,
+    backgroundColor: "rgba(255,255,255,0.24)",
+    overflow: "hidden",
+    width: "100%",
+  },
+
+  timerPillProgressFill: { height: 3, backgroundColor: Colors.surface },
+
+  timerPillActions: { flexDirection: "row", gap: 8, marginLeft: 12 },
+
+  timerPillBtn: {
+    paddingHorizontal: 10,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.14)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  timerPillBtnText: { fontSize: 12, fontWeight: "900", color: Colors.surface },
+
+  timerPillBtnSkip: {
+    paddingHorizontal: 10,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: Colors.surface,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  timerPillBtnTextSkip: { fontSize: 12, fontWeight: "900", color: Colors.text },
+
+  /* ───────────────────────── INPUT ACCESSORY ───────────────────────── */
+  accessory: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: Colors.surface,
+    borderTopWidth: HAIR,
+    borderTopColor: Colors.border,
+    alignItems: "flex-end",
+  },
+
+  accessoryBtn: {
+    paddingHorizontal: 14,
+    height: 36,
+    borderRadius: 999,
+    backgroundColor: Colors.text,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  accessoryText: { color: Colors.surface, fontWeight: "900" },
+
+  /* ───────────────────────── MODALS ───────────────────────── */
+  modalOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.40)" },
+
+  modalSheet: {
+    marginTop: "auto",
+    backgroundColor: Colors.surface,
+    padding: 16,
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
+    borderTopWidth: HAIR,
+    borderTopColor: Colors.border,
+  },
+
+  modalSheetLarge: {
+    marginTop: "auto",
+    backgroundColor: Colors.surface,
+    padding: 16,
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
+    borderTopWidth: HAIR,
+    borderTopColor: Colors.border,
+  },
+
+  modalHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+
+  modalTitle: { fontSize: 15, fontWeight: "900", color: Colors.text, letterSpacing: -0.2 },
+
+  modalX: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(0,0,0,0.06)",
+    borderWidth: HAIR,
+    borderColor: Colors.border,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  modalBody: {
+    marginTop: 10,
+    color: "rgba(0,0,0,0.65)",
+    fontWeight: "700",
+    lineHeight: 18,
+  },
+
+  modalActions: { flexDirection: "row", gap: 10, marginTop: 14 },
+
+  modalGhost: {
+    flex: 1,
+    height: 46,
+    borderRadius: 999,
+    borderWidth: 1.5,
+    borderColor: "rgba(0,0,0,0.16)",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: Colors.surface,
+  },
+
+  modalGhostText: { fontWeight: "900", color: Colors.text },
+
+  modalPrimary: {
+    flex: 1,
+    height: 46,
+    borderRadius: 999,
+    backgroundColor: Colors.text,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  modalPrimaryText: { fontWeight: "900", color: Colors.surface },
+
+  modalDanger: {
+    flex: 1,
+    height: 46,
+    borderRadius: 999,
+    backgroundColor: "#FF3B30",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  modalDangerText: { fontWeight: "900", color: Colors.surface },
+
+  /* MENU / SWAP */
+  menuList: { marginTop: 12, gap: 8 },
+
+  menuItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    padding: 14,
+    borderRadius: 14,
+    backgroundColor: "rgba(0,0,0,0.04)",
+    borderWidth: HAIR,
+    borderColor: Colors.border,
+  },
+
+  menuItemText: { fontSize: 15, fontWeight: "800", color: Colors.text },
+
+  swapList: { marginTop: 12, gap: 10 },
+
+  swapItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    padding: 12,
+    borderRadius: 14,
+    backgroundColor: "rgba(0,0,0,0.04)",
+    borderWidth: HAIR,
+    borderColor: Colors.border,
+  },
+
+  swapThumb: { width: 58, height: 58, borderRadius: 12 },
+
+  swapTextContainer: { flex: 1 },
+
+  swapName: { fontSize: 15, fontWeight: "900", color: Colors.text },
+
+  swapCategory: { fontSize: 12, fontWeight: "700", color: "rgba(0,0,0,0.55)", marginTop: 3 },
+
+  /* HISTORY */
+  prBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "rgba(244,200,74,0.18)",
+    borderWidth: HAIR,
+    borderColor: "rgba(244,200,74,0.55)",
+    borderRadius: 12,
+    padding: 10,
+    marginTop: 10,
+    marginBottom: 4,
+  },
+
+  prText: { fontSize: 12, fontWeight: "900", color: Colors.text },
+
+  prDate: { fontSize: 11, fontWeight: "700", color: "rgba(0,0,0,0.55)" },
+
+  historyCard: {
+    borderWidth: HAIR,
+    borderColor: "rgba(0,0,0,0.10)",
+    borderRadius: 14,
+    padding: 12,
+    marginTop: 10,
+    backgroundColor: Colors.surface,
+  },
+
+  historyCardSpaced: { marginTop: 18 },
+
+  historyCardHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 10,
+  },
+
+  historyDate: { fontWeight: "900", color: Colors.text },
+
+  useSessionBtn: {
+    paddingHorizontal: 10,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: Colors.text,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  useSessionText: {
+    fontSize: 11,
+    fontWeight: "900",
+    color: Colors.surface,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+
+  historyTableHead: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 8,
+    borderTopWidth: HAIR,
+    borderTopColor: "rgba(0,0,0,0.06)",
+    borderBottomWidth: HAIR,
+    borderBottomColor: "rgba(0,0,0,0.06)",
+  },
+
+  historyHead: {
+    flex: 1,
+    fontSize: 11,
+    fontWeight: "900",
+    color: "rgba(0,0,0,0.32)",
+    letterSpacing: 1,
+    textTransform: "uppercase",
+    textAlign: "center",
+  },
+
+  historyRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 10,
+    borderBottomWidth: HAIR,
+    borderBottomColor: "rgba(0,0,0,0.06)",
+  },
+
+  historyCellText: {
+    flex: 1,
+    textAlign: "center",
+    fontWeight: "900",
+    color: "rgba(0,0,0,0.78)",
+  },
+
+  historyDot: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    borderWidth: 1.5,
+    borderColor: "rgba(0,0,0,0.18)",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: Colors.surface,
+  },
+
+  historyDotOn: { backgroundColor: Colors.text, borderColor: Colors.text },
 });
