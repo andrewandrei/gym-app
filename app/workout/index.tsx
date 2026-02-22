@@ -251,13 +251,19 @@ export default function WorkoutLogScreen() {
   };
 
   const handleBack = async () => {
-    await Haptics.selectionAsync();
-    if (isPreview) {
+  await Haptics.selectionAsync();
+  if (isPreview) {
+    // FIX: Check if we can go back, otherwise push to home
+    if (router.canGoBack()) {
       router.back();
     } else {
-      setExitConfirmOpen(true);
+      // Fallback for web - replace with your home route
+      router.replace('/'); // or wherever your program list is
     }
-  };
+  } else {
+    setExitConfirmOpen(true);
+  }
+};
 
   const confirmExit = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -482,58 +488,58 @@ export default function WorkoutLogScreen() {
   const currentExercise = exercises.find((ex) => ex.id === menuExerciseId);
 
   // PREVIEW MODE - CLEAN DESIGN
-  if (isPreview) {
-    return (
-      <SafeAreaView style={S.safe}>
-        <View style={S.page}>
-          <ScrollView style={S.scroll} contentContainerStyle={S.previewContent} showsVerticalScrollIndicator={false}>
-            {/* CLEAN HEADER */}
-            <View style={S.previewHeaderClean}>
-              <Pressable onPress={handleBack} style={S.backBtnClean}>
-                <ChevronLeft size={24} color="#111" />
-              </Pressable>
-              <View style={S.previewHeaderText}>
-                <Text style={S.previewTitleClean}>{workoutTitle}</Text>
-                <Text style={S.previewSubtitle}>
-                  {exercises.length} exercises • ~{estimatedTime} min • {totalSets} sets
-                </Text>
-              </View>
-            </View>
-
-            {/* EXERCISE LIST */}
-            <View style={S.previewExerciseList}>
-              {exercises.map((ex, index) => (
-                <View key={ex.id} style={S.previewExerciseCard}>
-                  <View style={S.previewExerciseNumber}>
-                    <Text style={S.previewExerciseNumberText}>{index + 1}</Text>
-                  </View>
-                  <Image source={{ uri: ex.image }} style={S.previewThumb} />
-                  <View style={S.previewExerciseInfo}>
-                    <Text style={S.previewExerciseName} numberOfLines={2}>
-                      {ex.name}
-                    </Text>
-                    <Text style={S.previewExerciseMeta}>
-                      {ex.sets.length} sets • {ex.sets[0]?.reps || "—"} reps • {ex.sets[0]?.rest || "—"}s rest
-                    </Text>
-                  </View>
-                </View>
-              ))}
-            </View>
-
-            <View style={{ height: 100 }} />
-          </ScrollView>
-
-          {/* START BUTTON */}
-          <View style={S.previewBottomBar}>
-            <Pressable onPress={startWorkout} style={S.startBtn}>
-              <Text style={S.startBtnText}>Start Workout</Text>
+// PREVIEW MODE - REFINED & CLEAN
+if (isPreview) {
+  return (
+    <SafeAreaView style={S.safe}>
+      <View style={S.page}>
+        <ScrollView style={S.scroll} contentContainerStyle={S.previewContent} showsVerticalScrollIndicator={false}>
+          {/* HEADER */}
+          <View style={S.previewHeader}>
+            <Pressable onPress={handleBack} style={S.backBtn}>
+              <ChevronLeft size={24} color={Colors.text} />
             </Pressable>
+            <Text style={S.previewTitle}>{workoutTitle}</Text>
+            <Text style={S.previewMeta}>
+              {exercises.length} exercises • ~{estimatedTime} min • {totalSets} sets
+            </Text>
           </View>
-        </View>
-      </SafeAreaView>
-    );
-  }
 
+          {/* EXERCISE LIST */}
+          <View style={S.previewList}>
+            {exercises.map((ex, index) => (
+              <View key={ex.id} style={S.previewCard}>
+                <View style={S.previewCardLeft}>
+                  <View style={S.previewNumber}>
+                    <Text style={S.previewNumberText}>{index + 1}</Text>
+                  </View>
+                  <Image source={{ uri: ex.image }} style={S.previewImage} />
+                </View>
+                <View style={S.previewCardRight}>
+                  <Text style={S.previewExName} numberOfLines={2}>
+                    {ex.name}
+                  </Text>
+                  <Text style={S.previewExMeta}>
+                    {ex.sets.length} sets • {ex.sets[0]?.reps || "—"} reps • {ex.sets[0]?.rest || "—"}s rest
+                  </Text>
+                </View>
+              </View>
+            ))}
+          </View>
+
+          <View style={{ height: 100 }} />
+        </ScrollView>
+
+        {/* START BUTTON */}
+        <View style={S.previewBottom}>
+          <Pressable onPress={startWorkout} style={S.startBtn}>
+            <Text style={S.startBtnText}>Start Workout</Text>
+          </Pressable>
+        </View>
+      </View>
+    </SafeAreaView>
+  );
+}
   // WORKOUT MODE
   return (
     <SafeAreaView style={S.safe}>
@@ -925,117 +931,118 @@ const S = StyleSheet.create({
   scrollContent: {},
 
   // CLEAN PREVIEW STYLES
-  previewContent: {
-    paddingTop: 0,
-  },
+// PREVIEW STYLES - REFINED
+previewContent: {
+  paddingTop: 0,
+},
 
-  previewHeaderClean: {
-    paddingHorizontal: Spacing.lg,
-    paddingTop: 12,
-    paddingBottom: 20,
-    backgroundColor: Colors.surface,
-  },
+previewHeader: {
+  paddingHorizontal: Spacing.lg,
+  paddingTop: Spacing.md,
+  paddingBottom: Spacing.lg,
+},
 
-  backBtnClean: {
-    width: 40,
-    height: 40,
-    alignItems: "flex-start",
-    justifyContent: "center",
-    marginBottom: 8,
-  },
+backBtn: {
+  width: 40,
+  height: 40,
+  alignItems: "flex-start",
+  justifyContent: "center",
+  marginBottom: Spacing.sm,
+},
 
-  previewHeaderText: {},
+previewTitle: {
+  fontSize: 32,
+  fontWeight: "900",
+  color: Colors.text,
+  letterSpacing: -1,
+  marginBottom: Spacing.sm,
+},
 
-  previewTitleClean: {
-    fontSize: 28,
-    fontWeight: "900",
-    color: "#111",
-    letterSpacing: -0.5,
-    marginBottom: 4,
-  },
+previewMeta: {
+  fontSize: 15,
+  fontWeight: "600",
+  color: Colors.muted,
+},
 
-  previewSubtitle: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#666",
-  },
+previewList: {
+  gap: Spacing.md,
+  paddingHorizontal: Spacing.lg,
+},
 
-  previewExerciseList: {
-    gap: 12,
-    paddingHorizontal: Spacing.lg,
-  },
+previewCard: {
+  flexDirection: "row",
+  backgroundColor: Colors.surface,
+  borderRadius: 16,
+  padding: Spacing.md,
+  borderWidth: 1,
+  borderColor: Colors.border,
+},
 
-  previewExerciseCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#fff",
-    borderRadius: 14,
-    padding: 12,
-    borderWidth: HAIR,
-    borderColor: "#eee",
-  },
+previewCardLeft: {
+  flexDirection: "row",
+  alignItems: "center",
+  marginRight: Spacing.md,
+},
 
-  previewExerciseNumber: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "#f5f5f5",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 12,
-  },
+previewNumber: {
+  width: 36,
+  alignItems: "center",
+  justifyContent: "center",
+  marginRight: Spacing.md,
+},
 
-  previewExerciseNumberText: {
-    fontSize: 14,
-    fontWeight: "900",
-    color: "#111",
-  },
+previewNumberText: {
+  fontSize: 24,
+  fontWeight: "900",
+  color: Colors.text,
+  letterSpacing: -0.5,
+},
 
-  previewThumb: {
-    width: 60,
-    height: 60,
-    borderRadius: 12,
-    marginRight: 12,
-  },
+previewImage: {
+  width: 72,
+  height: 72,
+  borderRadius: 12,
+},
 
-  previewExerciseInfo: {
-    flex: 1,
-  },
+previewCardRight: {
+  flex: 1,
+  justifyContent: "center",
+},
 
-  previewExerciseName: {
-    fontSize: 16,
-    fontWeight: "900",
-    color: "#111",
-    lineHeight: 20,
-  },
+previewExName: {
+  fontSize: 17,
+  fontWeight: "800",
+  color: Colors.text,
+  lineHeight: 22,
+  marginBottom: 4,
+},
 
-  previewExerciseMeta: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#666",
-    marginTop: 4,
-  },
+previewExMeta: {
+  fontSize: 14,
+  fontWeight: "600",
+  color: Colors.muted,
+},
 
-  previewBottomBar: {
-    padding: 16,
-    backgroundColor: "#fff",
-    borderTopWidth: HAIR,
-    borderTopColor: "#eee",
-  },
+previewBottom: {
+  padding: Spacing.md,
+  backgroundColor: Colors.surface,
+  borderTopWidth: 1,
+  borderTopColor: Colors.border,
+},
 
-  startBtn: {
-    height: 54,
-    borderRadius: 999,
-    backgroundColor: "#000",
-    alignItems: "center",
-    justifyContent: "center",
-  },
+startBtn: {
+  height: 54,
+  borderRadius: 999,
+  backgroundColor: Colors.text,
+  alignItems: "center",
+  justifyContent: "center",
+},
 
-  startBtnText: {
-    color: "#fff",
-    fontWeight: "900",
-    fontSize: 18,
-  },
+startBtnText: {
+  color: Colors.surface,
+  fontWeight: "900",
+  fontSize: 17,
+},
 
   // WORKOUT MODE STYLES
   header: {
