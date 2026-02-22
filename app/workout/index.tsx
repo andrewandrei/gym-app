@@ -1,6 +1,6 @@
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import { Check, MoreVertical, X } from "lucide-react-native";
+import { Check, ChevronLeft, MoreVertical, Repeat, Trophy, X } from "lucide-react-native";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Image,
@@ -39,6 +39,13 @@ type Exercise = {
   sets: SetRow[];
 };
 
+type ExerciseAlternative = {
+  id: string;
+  name: string;
+  category: string;
+  image: string;
+};
+
 type HistorySet = {
   set: number;
   weight: string;
@@ -59,18 +66,21 @@ const IOS_ACCESSORY_ID = "workoutAccessoryDone";
 export default function WorkoutLogScreen() {
   const workoutTitle = "Foundation & Form";
 
+  const [isPreview, setIsPreview] = useState(true);
+  const [exitConfirmOpen, setExitConfirmOpen] = useState(false);
+
   const initialExercises: Exercise[] = useMemo(
     () => [
       {
         id: "ex-1",
-        name: "Barbell Squat",
+        name: "Barbell Back Squat with Safety Bar and Chains",
         tempo: "3-0-1-0",
         image:
           "https://images.unsplash.com/photo-1517964603305-11c0f6f66012?auto=format&fit=crop&w=1200&q=70",
         unitLabel: "LBS",
         sets: [
-          { id: "s1", weight: "185", reps: "10", rest: "90", done: true },
-          { id: "s2", weight: "185", reps: "10", rest: "90", done: true },
+          { id: "s1", weight: "185", reps: "10", rest: "90", done: false },
+          { id: "s2", weight: "185", reps: "10", rest: "90", done: false },
           { id: "s3", weight: "", reps: "", rest: "90", done: false },
         ],
       },
@@ -86,7 +96,48 @@ export default function WorkoutLogScreen() {
           { id: "s2", weight: "", reps: "", rest: "90", done: false },
         ],
       },
+      {
+        id: "ex-3",
+        name: "Leg Press",
+        tempo: "2-0-2-0",
+        image:
+          "https://images.unsplash.com/photo-1434682881908-b43d0467b798?auto=format&fit=crop&w=1200&q=70",
+        unitLabel: "LBS",
+        sets: [
+          { id: "s1", weight: "", reps: "12", rest: "60", done: false },
+          { id: "s2", weight: "", reps: "12", rest: "60", done: false },
+          { id: "s3", weight: "", reps: "12", rest: "60", done: false },
+        ],
+      },
     ],
+    []
+  );
+
+  const exerciseAlternatives: Record<string, ExerciseAlternative[]> = useMemo(
+    () => ({
+      "ex-1": [
+        {
+          id: "alt-1",
+          name: "Leg Press",
+          category: "gym",
+          image: "https://images.unsplash.com/photo-1434682881908-b43d0467b798?auto=format&fit=crop&w=400&q=70",
+        },
+        {
+          id: "alt-2",
+          name: "Goblet Squat",
+          category: "home",
+          image: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?auto=format&fit=crop&w=400&q=70",
+        },
+      ],
+      "ex-2": [
+        {
+          id: "alt-4",
+          name: "Dumbbell RDL",
+          category: "gym",
+          image: "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?auto=format&fit=crop&w=400&q=70",
+        },
+      ],
+    }),
     []
   );
 
@@ -103,15 +154,6 @@ export default function WorkoutLogScreen() {
             { set: 4, weight: "175", reps: "8", rest: "90", done: true },
           ],
         },
-        {
-          id: "h2",
-          dateLabel: "Feb 11, 2026",
-          sets: [
-            { set: 1, weight: "180", reps: "10", rest: "90", done: true },
-            { set: 2, weight: "180", reps: "10", rest: "90", done: true },
-            { set: 3, weight: "170", reps: "10", rest: "90", done: true },
-          ],
-        },
       ],
       "ex-2": [
         {
@@ -120,7 +162,6 @@ export default function WorkoutLogScreen() {
           sets: [
             { set: 1, weight: "165", reps: "10", rest: "90", done: true },
             { set: 2, weight: "165", reps: "10", rest: "90", done: true },
-            { set: 3, weight: "155", reps: "12", rest: "90", done: true },
           ],
         },
       ],
@@ -139,7 +180,11 @@ export default function WorkoutLogScreen() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyExerciseId, setHistoryExerciseId] = useState<string | null>(null);
 
-  // REST TIMER STATE
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuExerciseId, setMenuExerciseId] = useState<string | null>(null);
+
+  const [swapOpen, setSwapOpen] = useState(false);
+
   const [activeTimer, setActiveTimer] = useState<{
     exId: string;
     setId: string;
@@ -162,7 +207,6 @@ export default function WorkoutLogScreen() {
     };
   }, []);
 
-  // TIMER COUNTDOWN
   useEffect(() => {
     if (!activeTimer) {
       if (timerIntervalRef.current) {
@@ -182,7 +226,7 @@ export default function WorkoutLogScreen() {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           clearInterval(timerIntervalRef.current!);
           timerIntervalRef.current = null;
-          setTimerDismissed(false); // Show timer again for next set
+          setTimerDismissed(false);
           return null;
         }
 
@@ -200,6 +244,34 @@ export default function WorkoutLogScreen() {
       }
     };
   }, [activeTimer?.exId, activeTimer?.setId]);
+
+  const startWorkout = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setIsPreview(false);
+  };
+
+  const handleBack = async () => {
+    await Haptics.selectionAsync();
+    if (isPreview) {
+      router.back();
+    } else {
+      setExitConfirmOpen(true);
+    }
+  };
+
+  const confirmExit = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setExitConfirmOpen(false);
+    router.back();
+  };
+
+  const estimatedTime = useMemo(() => {
+    const totalSetsCount = exercises.reduce((sum, ex) => sum + ex.sets.length, 0);
+    const avgRestTime = 90;
+    const avgSetTime = 45;
+    const totalMinutes = Math.round((totalSetsCount * (avgSetTime + avgRestTime)) / 60);
+    return totalMinutes;
+  }, [exercises]);
 
   const updateSet = (exId: string, setId: string, patch: Partial<SetRow>) => {
     setExercises((prev) =>
@@ -238,7 +310,7 @@ export default function WorkoutLogScreen() {
         secondsLeft: parseInt(set.rest),
         nextExerciseName,
       });
-      setTimerDismissed(false); // Make sure timer is visible
+      setTimerDismissed(false);
     }
 
     if (set.done && activeTimer?.exId === exId && activeTimer?.setId === setId) {
@@ -324,69 +396,151 @@ export default function WorkoutLogScreen() {
     setHistoryOpen(true);
   };
 
-  const applyLastSessionToExercise = async () => {
+  const openMenu = async (exId: string) => {
+    await Haptics.selectionAsync();
+    setMenuExerciseId(exId);
+    setMenuOpen(true);
+  };
+
+  const swapExercise = async (alternative: ExerciseAlternative) => {
+    if (!menuExerciseId) return;
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    setExercises((prev) =>
+      prev.map((ex) =>
+        ex.id !== menuExerciseId
+          ? ex
+          : {
+              ...ex,
+              name: alternative.name,
+              image: alternative.image,
+              sets: ex.sets.map((s) => ({
+                ...s,
+                weight: "",
+                reps: "",
+                done: false,
+              })),
+            }
+      )
+    );
+
+    setSwapOpen(false);
+    setMenuOpen(false);
+    setMenuExerciseId(null);
+  };
+
+  const getPersonalBest = (exId: string) => {
+    const sessions = historyByExerciseId[exId] ?? [];
+    if (!sessions.length) return null;
+
+    let maxWeight = 0;
+    let maxReps = 0;
+    let prDate = "";
+
+    sessions.forEach((session) => {
+      session.sets.forEach((set) => {
+        const weight = parseFloat(set.weight);
+        const reps = parseFloat(set.reps);
+        if (weight > maxWeight || (weight === maxWeight && reps > maxReps)) {
+          maxWeight = weight;
+          maxReps = reps;
+          prDate = session.dateLabel;
+        }
+      });
+    });
+
+    return maxWeight > 0 ? { weight: maxWeight, reps: maxReps, date: prDate } : null;
+  };
+
+  const applySpecificSession = async (sessionId: string) => {
     if (!historyExerciseId) return;
     const sessions = historyByExerciseId[historyExerciseId] ?? [];
-    if (!sessions.length) return;
+    const session = sessions.find((s) => s.id === sessionId);
+    if (!session) return;
 
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    const latest = sessions[0];
     setExercises((prev) =>
       prev.map((ex) => {
         if (ex.id !== historyExerciseId) return ex;
 
-        const incoming = latest.sets;
-        const nextSets: SetRow[] = [...ex.sets].map((s) => ({ ...s }));
-        let incomingIdx = 0;
+        const newSets: SetRow[] = session.sets.map((historySet, index) => ({
+          id: `s${index + 1}`,
+          weight: historySet.weight,
+          reps: historySet.reps,
+          rest: historySet.rest,
+          done: false,
+        }));
 
-        for (let i = 0; i < nextSets.length && incomingIdx < incoming.length; i++) {
-          const s = nextSets[i];
-          const isEmpty =
-            (!s.weight || s.weight.trim() === "") &&
-            (!s.reps || s.reps.trim() === "") &&
-            (!s.rest || s.rest.trim() === "");
-
-          if (isEmpty) {
-            const inc = incoming[incomingIdx++];
-            nextSets[i] = {
-              ...s,
-              weight: inc.weight,
-              reps: inc.reps,
-              rest: inc.rest,
-              done: false,
-            };
-          }
-        }
-
-        while (incomingIdx < incoming.length) {
-          const inc = incoming[incomingIdx++];
-          nextSets.push({
-            id: `s${nextSets.length + 1}`,
-            weight: inc.weight,
-            reps: inc.reps,
-            rest: inc.rest,
-            done: false,
-          });
-        }
-
-        return { ...ex, sets: nextSets };
+        return { ...ex, sets: newSets };
       })
     );
 
     setHistoryOpen(false);
   };
 
+  const currentExercise = exercises.find((ex) => ex.id === menuExerciseId);
+
+  // PREVIEW MODE - CLEAN DESIGN
+  if (isPreview) {
+    return (
+      <SafeAreaView style={S.safe}>
+        <View style={S.page}>
+          <ScrollView style={S.scroll} contentContainerStyle={S.previewContent} showsVerticalScrollIndicator={false}>
+            {/* CLEAN HEADER */}
+            <View style={S.previewHeaderClean}>
+              <Pressable onPress={handleBack} style={S.backBtnClean}>
+                <ChevronLeft size={24} color="#111" />
+              </Pressable>
+              <View style={S.previewHeaderText}>
+                <Text style={S.previewTitleClean}>{workoutTitle}</Text>
+                <Text style={S.previewSubtitle}>
+                  {exercises.length} exercises • ~{estimatedTime} min • {totalSets} sets
+                </Text>
+              </View>
+            </View>
+
+            {/* EXERCISE LIST */}
+            <View style={S.previewExerciseList}>
+              {exercises.map((ex, index) => (
+                <View key={ex.id} style={S.previewExerciseCard}>
+                  <View style={S.previewExerciseNumber}>
+                    <Text style={S.previewExerciseNumberText}>{index + 1}</Text>
+                  </View>
+                  <Image source={{ uri: ex.image }} style={S.previewThumb} />
+                  <View style={S.previewExerciseInfo}>
+                    <Text style={S.previewExerciseName} numberOfLines={2}>
+                      {ex.name}
+                    </Text>
+                    <Text style={S.previewExerciseMeta}>
+                      {ex.sets.length} sets • {ex.sets[0]?.reps || "—"} reps • {ex.sets[0]?.rest || "—"}s rest
+                    </Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+
+            <View style={{ height: 100 }} />
+          </ScrollView>
+
+          {/* START BUTTON */}
+          <View style={S.previewBottomBar}>
+            <Pressable onPress={startWorkout} style={S.startBtn}>
+              <Text style={S.startBtnText}>Start Workout</Text>
+            </Pressable>
+          </View>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // WORKOUT MODE
   return (
     <SafeAreaView style={S.safe}>
       <KeyboardAvoidingView style={S.safe} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <View style={S.page}>
-          {/* COMPACT TIMER PILL AT TOP */}
           {activeTimer && !timerDismissed && (
-            <Pressable 
-              onPress={() => setTimerDismissed(true)}
-              style={S.timerPill}
-            >
+            <Pressable onPress={() => setTimerDismissed(true)} style={S.timerPill}>
               <View style={S.timerPillContent}>
                 <View style={S.timerPillLeft}>
                   <Text style={S.timerPillTime}>
@@ -437,8 +591,12 @@ export default function WorkoutLogScreen() {
             onScrollBeginDrag={closeOpenRow}
             showsVerticalScrollIndicator={false}
           >
-            {/* HEADER */}
             <View style={S.header}>
+              <Pressable onPress={handleBack} style={S.headerBackBtn}>
+                <ChevronLeft size={20} color="#111" />
+                <Text style={S.headerBackText}>Exit</Text>
+              </Pressable>
+
               <Text style={S.title} numberOfLines={1} ellipsizeMode="tail">
                 {workoutTitle}
               </Text>
@@ -453,7 +611,6 @@ export default function WorkoutLogScreen() {
               </View>
             </View>
 
-            {/* EXERCISES */}
             <View style={S.exerciseList}>
               {exercises.map((ex) => (
                 <View key={ex.id} style={S.card}>
@@ -461,12 +618,12 @@ export default function WorkoutLogScreen() {
                     <View style={S.exerciseHeader}>
                       <Image source={{ uri: ex.image }} style={S.thumb} />
                       <View style={S.exerciseText}>
-                        <Text style={S.exerciseTitle} numberOfLines={1} ellipsizeMode="tail">
+                        <Text style={S.exerciseTitle} numberOfLines={2}>
                           {ex.name}
                         </Text>
                         <Text style={S.exerciseSub}>Tempo: {ex.tempo}</Text>
                       </View>
-                      <Pressable style={S.menuBtn} onPress={() => {}}>
+                      <Pressable style={S.menuBtn} onPress={() => openMenu(ex.id)}>
                         <MoreVertical size={18} color={Colors.text} />
                       </Pressable>
                     </View>
@@ -548,17 +705,14 @@ export default function WorkoutLogScreen() {
               ))}
             </View>
 
-            <View style={{ height: 120 }} />
-          </ScrollView>
-
-          {/* CTA */}
-          <View style={S.bottomBar} pointerEvents="box-none">
-            <View style={S.bottomBarInner}>
-              <Pressable onPress={openFinish} style={S.cta} accessibilityRole="button">
-                <Text style={S.ctaText}>Complete workout</Text>
+            <View style={S.finishSection}>
+              <Pressable onPress={openFinish} style={S.finishBtn} accessibilityRole="button">
+                <Text style={S.finishBtnText}>Complete Workout</Text>
               </Pressable>
             </View>
-          </View>
+
+            <View style={{ height: 40 }} />
+          </ScrollView>
 
           {Platform.OS === "ios" && (
             <InputAccessoryView nativeID={IOS_ACCESSORY_ID}>
@@ -573,7 +727,29 @@ export default function WorkoutLogScreen() {
             </InputAccessoryView>
           )}
 
-          {/* FINISH MODAL */}
+          <Modal visible={exitConfirmOpen} transparent animationType="fade" onRequestClose={() => setExitConfirmOpen(false)}>
+            <Pressable style={S.modalOverlay} onPress={() => setExitConfirmOpen(false)} />
+            <View style={S.modalSheet}>
+              <View style={S.modalHeader}>
+                <Text style={S.modalTitle}>Exit Workout?</Text>
+                <Pressable onPress={() => setExitConfirmOpen(false)} style={S.modalX}>
+                  <X size={18} color="#111" />
+                </Pressable>
+              </View>
+
+              <Text style={S.modalBody}>Your progress will be lost. Are you sure you want to exit?</Text>
+
+              <View style={S.modalActions}>
+                <Pressable onPress={() => setExitConfirmOpen(false)} style={S.modalGhost}>
+                  <Text style={S.modalGhostText}>Keep Going</Text>
+                </Pressable>
+                <Pressable onPress={confirmExit} style={S.modalDanger}>
+                  <Text style={S.modalDangerText}>Exit</Text>
+                </Pressable>
+              </View>
+            </View>
+          </Modal>
+
           <Modal visible={finishOpen} transparent animationType="fade" onRequestClose={() => setFinishOpen(false)}>
             <Pressable style={S.modalOverlay} onPress={() => setFinishOpen(false)} />
             <View style={S.modalSheet}>
@@ -601,7 +777,62 @@ export default function WorkoutLogScreen() {
             </View>
           </Modal>
 
-          {/* HISTORY MODAL */}
+          <Modal visible={menuOpen} transparent animationType="fade" onRequestClose={() => setMenuOpen(false)}>
+            <Pressable style={S.modalOverlay} onPress={() => setMenuOpen(false)} />
+            <View style={S.modalSheet}>
+              <View style={S.modalHeader}>
+                <Text style={S.modalTitle}>{currentExercise?.name}</Text>
+                <Pressable onPress={() => setMenuOpen(false)} style={S.modalX}>
+                  <X size={18} color="#111" />
+                </Pressable>
+              </View>
+
+              <View style={S.menuList}>
+                <Pressable
+                  onPress={() => {
+                    setMenuOpen(false);
+                    setSwapOpen(true);
+                  }}
+                  style={S.menuItem}
+                >
+                  <Repeat size={20} color="#111" />
+                  <Text style={S.menuItemText}>Swap Exercise</Text>
+                </Pressable>
+              </View>
+            </View>
+          </Modal>
+
+          <Modal visible={swapOpen} transparent animationType="fade" onRequestClose={() => setSwapOpen(false)}>
+            <Pressable style={S.modalOverlay} onPress={() => setSwapOpen(false)} />
+            <View style={S.modalSheetLarge}>
+              <View style={S.modalHeader}>
+                <Text style={S.modalTitle}>Swap Exercise</Text>
+                <Pressable onPress={() => setSwapOpen(false)} style={S.modalX}>
+                  <X size={18} color="#111" />
+                </Pressable>
+              </View>
+
+              <ScrollView style={{ maxHeight: 500 }} showsVerticalScrollIndicator={false}>
+                <View style={S.swapList}>
+                  {menuExerciseId &&
+                    exerciseAlternatives[menuExerciseId]?.map((alt) => (
+                      <Pressable key={alt.id} onPress={() => swapExercise(alt)} style={S.swapItem}>
+                        <Image source={{ uri: alt.image }} style={S.swapThumb} />
+                        <View style={S.swapTextContainer}>
+                          <Text style={S.swapName}>{alt.name}</Text>
+                          <Text style={S.swapCategory}>
+                            {alt.category === "gym" && "🏋️ Gym"}
+                            {alt.category === "home" && "🏠 Home"}
+                            {alt.category === "bodyweight" && "🤸 Bodyweight"}
+                          </Text>
+                        </View>
+                      </Pressable>
+                    ))}
+                </View>
+              </ScrollView>
+            </View>
+          </Modal>
+
           <Modal visible={historyOpen} transparent animationType="fade" onRequestClose={() => setHistoryOpen(false)}>
             <Pressable style={S.modalOverlay} onPress={() => setHistoryOpen(false)} />
             <View style={S.modalSheetLarge}>
@@ -612,48 +843,63 @@ export default function WorkoutLogScreen() {
                 </Pressable>
               </View>
 
+              {historyExerciseId && getPersonalBest(historyExerciseId) && (
+                <View style={S.prBanner}>
+                  <Trophy size={16} color="#FFD700" />
+                  <Text style={S.prText}>
+                    PR: {getPersonalBest(historyExerciseId)!.weight} lbs × {getPersonalBest(historyExerciseId)!.reps}{" "}
+                    reps
+                  </Text>
+                  <Text style={S.prDate}>({getPersonalBest(historyExerciseId)!.date})</Text>
+                </View>
+              )}
+
               <ScrollView
                 style={{ maxHeight: 420 }}
                 contentContainerStyle={{ paddingBottom: 12 }}
                 showsVerticalScrollIndicator={false}
               >
                 {(historyExerciseId ? historyByExerciseId[historyExerciseId] : [])?.length ? (
-                  (historyByExerciseId[historyExerciseId as string] ?? []).map((session) => (
-                    <View key={session.id} style={S.historyCard}>
-                      <Text style={S.historyDate}>{session.dateLabel}</Text>
-
-                      <View style={S.historyTableHead}>
-                        <Text style={[S.historyHead, { width: 40 }]}>SET</Text>
-                        <Text style={S.historyHead}>W</Text>
-                        <Text style={S.historyHead}>R</Text>
-                        <Text style={S.historyHead}>REST</Text>
-                        <Text style={[S.historyHead, { width: 42, textAlign: "center" }]}>✓</Text>
-                      </View>
-
-                      {session.sets.map((hs) => (
-                        <View key={`${session.id}-${hs.set}`} style={S.historyRow}>
-                          <Text style={[S.historyCellText, { width: 40 }]}>{hs.set}</Text>
-                          <Text style={S.historyCellText}>{hs.weight}</Text>
-                          <Text style={S.historyCellText}>{hs.reps}</Text>
-                          <Text style={S.historyCellText}>{hs.rest}</Text>
-                          <View style={[S.historyDot, hs.done && S.historyDotOn]}>
-                            {hs.done && <Check size={14} color="#fff" />}
-                          </View>
+                  (historyByExerciseId[historyExerciseId as string] ?? []).map((session, index) => (
+                    <View key={session.id}>
+                      <View style={[S.historyCard, index > 0 && S.historyCardSpaced]}>
+                        <View style={S.historyCardHeader}>
+                          <Text style={S.historyDate}>{session.dateLabel}</Text>
+                          <Pressable onPress={() => applySpecificSession(session.id)} style={S.useSessionBtn}>
+                            <Text style={S.useSessionText}>Copy Sets</Text>
+                          </Pressable>
                         </View>
-                      ))}
+
+                        <View style={S.historyTableHead}>
+                          <Text style={[S.historyHead, { width: 40 }]}>SET</Text>
+                          <Text style={S.historyHead}>W</Text>
+                          <Text style={S.historyHead}>R</Text>
+                          <Text style={S.historyHead}>REST</Text>
+                          <Text style={[S.historyHead, { width: 42, textAlign: "center" }]}>✓</Text>
+                        </View>
+
+                        {session.sets.map((hs) => (
+                          <View key={`${session.id}-${hs.set}`} style={S.historyRow}>
+                            <Text style={[S.historyCellText, { width: 40 }]}>{hs.set}</Text>
+                            <Text style={S.historyCellText}>{hs.weight}</Text>
+                            <Text style={S.historyCellText}>{hs.reps}</Text>
+                            <Text style={S.historyCellText}>{hs.rest}</Text>
+                            <View style={[S.historyDot, hs.done && S.historyDotOn]}>
+                              {hs.done && <Check size={14} color="#fff" />}
+                            </View>
+                          </View>
+                        ))}
+                      </View>
                     </View>
                   ))
                 ) : (
-                  <Text style={{ color: "#666", fontWeight: "700" }}>No history yet.</Text>
+                  <Text style={{ color: "#666", fontWeight: "700", marginTop: 12 }}>No history yet.</Text>
                 )}
               </ScrollView>
 
               <View style={S.modalActions}>
-                <Pressable onPress={() => setHistoryOpen(false)} style={S.modalGhost}>
-                  <Text style={S.modalGhostText}>Close</Text>
-                </Pressable>
-                <Pressable onPress={applyLastSessionToExercise} style={S.modalPrimary}>
-                  <Text style={S.modalPrimaryText}>Add to this exercise</Text>
+                <Pressable onPress={() => setHistoryOpen(false)} style={S.modalPrimary}>
+                  <Text style={S.modalPrimaryText}>Close</Text>
                 </Pressable>
               </View>
             </View>
@@ -663,8 +909,6 @@ export default function WorkoutLogScreen() {
     </SafeAreaView>
   );
 }
-
-/* STYLES */
 
 const S = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.surface },
@@ -680,10 +924,137 @@ const S = StyleSheet.create({
 
   scrollContent: {},
 
+  // CLEAN PREVIEW STYLES
+  previewContent: {
+    paddingTop: 0,
+  },
+
+  previewHeaderClean: {
+    paddingHorizontal: Spacing.lg,
+    paddingTop: 12,
+    paddingBottom: 20,
+    backgroundColor: Colors.surface,
+  },
+
+  backBtnClean: {
+    width: 40,
+    height: 40,
+    alignItems: "flex-start",
+    justifyContent: "center",
+    marginBottom: 8,
+  },
+
+  previewHeaderText: {},
+
+  previewTitleClean: {
+    fontSize: 28,
+    fontWeight: "900",
+    color: "#111",
+    letterSpacing: -0.5,
+    marginBottom: 4,
+  },
+
+  previewSubtitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#666",
+  },
+
+  previewExerciseList: {
+    gap: 12,
+    paddingHorizontal: Spacing.lg,
+  },
+
+  previewExerciseCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: HAIR,
+    borderColor: "#eee",
+  },
+
+  previewExerciseNumber: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#f5f5f5",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+
+  previewExerciseNumberText: {
+    fontSize: 14,
+    fontWeight: "900",
+    color: "#111",
+  },
+
+  previewThumb: {
+    width: 60,
+    height: 60,
+    borderRadius: 12,
+    marginRight: 12,
+  },
+
+  previewExerciseInfo: {
+    flex: 1,
+  },
+
+  previewExerciseName: {
+    fontSize: 16,
+    fontWeight: "900",
+    color: "#111",
+    lineHeight: 20,
+  },
+
+  previewExerciseMeta: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#666",
+    marginTop: 4,
+  },
+
+  previewBottomBar: {
+    padding: 16,
+    backgroundColor: "#fff",
+    borderTopWidth: HAIR,
+    borderTopColor: "#eee",
+  },
+
+  startBtn: {
+    height: 54,
+    borderRadius: 999,
+    backgroundColor: "#000",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  startBtnText: {
+    color: "#fff",
+    fontWeight: "900",
+    fontSize: 18,
+  },
+
+  // WORKOUT MODE STYLES
   header: {
     paddingHorizontal: Spacing.lg,
     paddingTop: 8,
     paddingBottom: 12,
+  },
+
+  headerBackBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginBottom: 8,
+  },
+
+  headerBackText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#111",
   },
 
   title: { fontSize: 26, fontWeight: "900", color: Colors.text, letterSpacing: -0.2 },
@@ -709,15 +1080,29 @@ const S = StyleSheet.create({
   exerciseHeader: {
     flexDirection: "row",
     alignItems: "center",
-    minHeight: 54,
+    minHeight: 64,
     paddingBottom: 8,
   },
 
-  thumb: { width: 48, height: 48, borderRadius: 12 },
+  thumb: {
+    width: 64,
+    height: 64,
+    borderRadius: 14,
+  },
 
-  exerciseText: { flex: 1, paddingLeft: 12, justifyContent: "center" },
+  exerciseText: {
+    flex: 1,
+    paddingLeft: 12,
+    justifyContent: "center",
+    paddingRight: 8,
+  },
 
-  exerciseTitle: { fontSize: 20, fontWeight: "900", color: Colors.text },
+  exerciseTitle: {
+    fontSize: 18,
+    fontWeight: "900",
+    color: Colors.text,
+    lineHeight: 22,
+  },
 
   exerciseSub: { marginTop: 3, fontSize: 12, color: "#666", fontWeight: "700" },
 
@@ -747,7 +1132,7 @@ const S = StyleSheet.create({
   row: {
     flexDirection: "row",
     alignItems: "center",
-    height: 54,
+    height: 60,
     borderBottomWidth: HAIR,
     borderBottomColor: "#eee",
     backgroundColor: "#fff",
@@ -757,7 +1142,7 @@ const S = StyleSheet.create({
 
   cell: {
     flex: 1,
-    height: 42,
+    height: 48,
     marginHorizontal: 6,
     borderRadius: 14,
     borderWidth: 2,
@@ -768,11 +1153,12 @@ const S = StyleSheet.create({
 
   input: {
     textAlign: "center",
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: "900",
     color: "#111",
     paddingVertical: 0,
     paddingHorizontal: 8,
+    height: "100%",
   },
 
   checkBtn: {
@@ -821,7 +1207,25 @@ const S = StyleSheet.create({
 
   ghostText: { fontWeight: "900", color: "#111" },
 
-  // COMPACT TIMER PILL (NEW!)
+  finishSection: {
+    marginTop: 24,
+    marginHorizontal: Spacing.lg,
+  },
+
+  finishBtn: {
+    height: 54,
+    borderRadius: 999,
+    backgroundColor: "#000",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  finishBtnText: {
+    color: "#fff",
+    fontWeight: "900",
+    fontSize: 18,
+  },
+
   timerPill: {
     position: "absolute",
     top: 16,
@@ -902,33 +1306,6 @@ const S = StyleSheet.create({
     color: "#000",
   },
 
-  // CTA
-  bottomBar: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: 999,
-    elevation: 20,
-  },
-
-  bottomBarInner: {
-    padding: 14,
-    backgroundColor: "#fff",
-    borderTopWidth: HAIR,
-    borderTopColor: "#eee",
-  },
-
-  cta: {
-    height: 54,
-    borderRadius: 999,
-    backgroundColor: "#000",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  ctaText: { color: "#fff", fontWeight: "900", fontSize: 18 },
-
   accessory: {
     padding: 10,
     backgroundColor: "#f7f7f7",
@@ -995,6 +1372,100 @@ const S = StyleSheet.create({
   },
   modalPrimaryText: { fontWeight: "900", color: "#fff" },
 
+  modalDanger: {
+    flex: 1,
+    height: 46,
+    borderRadius: 999,
+    backgroundColor: "#ff3b30",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalDangerText: { fontWeight: "900", color: "#fff" },
+
+  menuList: {
+    marginTop: 12,
+    gap: 8,
+  },
+
+  menuItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    padding: 14,
+    borderRadius: 12,
+    backgroundColor: "#f9f9f9",
+    borderWidth: HAIR,
+    borderColor: "#eee",
+  },
+
+  menuItemText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#111",
+  },
+
+  swapList: {
+    marginTop: 12,
+    gap: 10,
+  },
+
+  swapItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: "#f9f9f9",
+    borderWidth: HAIR,
+    borderColor: "#eee",
+  },
+
+  swapThumb: {
+    width: 60,
+    height: 60,
+    borderRadius: 10,
+  },
+
+  swapTextContainer: {
+    flex: 1,
+  },
+
+  swapName: {
+    fontSize: 16,
+    fontWeight: "900",
+    color: "#111",
+  },
+
+  swapCategory: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#666",
+    marginTop: 2,
+  },
+
+  prBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "#FFF9E6",
+    borderWidth: 1,
+    borderColor: "#FFD700",
+    borderRadius: 12,
+    padding: 10,
+    marginTop: 10,
+    marginBottom: 4,
+  },
+  prText: {
+    fontSize: 13,
+    fontWeight: "900",
+    color: "#111",
+  },
+  prDate: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#666",
+  },
+
   historyCard: {
     borderWidth: HAIR,
     borderColor: "#e7e7e7",
@@ -1004,7 +1475,37 @@ const S = StyleSheet.create({
     backgroundColor: "#fff",
   },
 
-  historyDate: { fontWeight: "900", color: "#111", marginBottom: 8 },
+  historyCardSpaced: {
+    marginTop: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+
+  historyCardHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
+
+  historyDate: { fontWeight: "900", color: "#111" },
+
+  useSessionBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: "#000",
+    borderRadius: 8,
+  },
+  useSessionText: {
+    fontSize: 11,
+    fontWeight: "900",
+    color: "#fff",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
 
   historyTableHead: {
     flexDirection: "row",
