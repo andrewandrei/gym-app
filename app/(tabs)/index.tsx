@@ -1,6 +1,4 @@
 // app/(tabs)/index.tsx
-
-import { Colors } from "@/styles/colors";
 import { useRouter } from "expo-router";
 import { Moon } from "lucide-react-native";
 import React from "react";
@@ -13,6 +11,11 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+
+import { ScreenHeader } from "@/components/ui/ScreenHeader";
+import { Colors } from "@/styles/colors";
+console.log(Colors.surface);
+
 
 type CtaState = "start" | "resume" | "completed" | "rest";
 
@@ -45,11 +48,7 @@ export default function HomeScreen() {
   const programProgress = programTotal > 0 ? programCompleted / programTotal : 0;
   const progressPct = Math.round(Math.max(0, Math.min(1, programProgress)) * 100);
 
-  const greetingTitle = getLuxuryGreetingTitle({
-    ctaState,
-    streakDays,
-    weeklyDone,
-  });
+  const greetingTitle = getLuxuryGreetingTitle({ ctaState, streakDays, weeklyDone });
   const greetingSub = `${weeklyDone} of ${weeklyTotal} workouts completed this week`;
 
   const todayLine = ctaState === "rest" ? "Today · Recovery" : `Today · ${focusLabel}`;
@@ -75,8 +74,8 @@ export default function HomeScreen() {
         contentContainerStyle={styles.container}
         showsVerticalScrollIndicator={false}
       >
-        {/* Consistent app header */}
-        <AppHeader
+        {/* ✅ GLOBAL HEADER (consistent everywhere) */}
+        <ScreenHeader
           title={greetingTitle}
           subtitle={greetingSub}
           right={
@@ -86,14 +85,12 @@ export default function HomeScreen() {
           }
         />
 
-        {/* Weekly progress bar (kept, but aligned under header) */}
+        {/* Weekly progress (kept under header for premium rhythm) */}
         <View style={styles.weekProgressBg}>
           <View
             style={[
               styles.weekProgressFill,
-              {
-                width: `${Math.max(0, Math.min(1, weeklyProgress)) * 100}%`,
-              },
+              { width: `${Math.max(0, Math.min(1, weeklyProgress)) * 100}%` },
             ]}
           />
         </View>
@@ -149,9 +146,7 @@ export default function HomeScreen() {
                 <View
                   style={[
                     styles.heroProgressFill,
-                    {
-                      width: `${Math.max(0, Math.min(1, programProgress)) * 100}%`,
-                    },
+                    { width: `${Math.max(0, Math.min(1, programProgress)) * 100}%` },
                   ]}
                 />
               </View>
@@ -185,16 +180,14 @@ export default function HomeScreen() {
                 <Text style={styles.heroCtaText}>{cta.text}</Text>
               </TouchableOpacity>
 
-              {/* Next up / hint */}
+              {/* Hint */}
               <Text style={styles.heroHint}>{heroHint}</Text>
 
-              {ctaState !== "rest" && (
+              {ctaState !== "rest" ? (
                 <Text style={styles.heroNextUp}>
                   Next up: {workoutLabel} · {workoutName}
                 </Text>
-              )}
-
-              {ctaState === "rest" && (
+              ) : (
                 <Text style={styles.heroNextUp}>Suggested: Mobility · 12 min</Text>
               )}
             </View>
@@ -257,46 +250,31 @@ function getCtaCopy({
 /* ───────────────────────── Styles ───────────────────────── */
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: Colors.surface,
-  },
-  scroll: {
-    backgroundColor: Colors.surface,
-  },
-  container: {
-    paddingTop: 8,
-    paddingBottom: 32,
-  },
+  safe: { flex: 1, backgroundColor: Colors.surface },
+  scroll: { backgroundColor: Colors.surface },
+  container: { paddingTop: 4, paddingBottom: 24 },
 
-  /* Icon button (right side of DashboardHeader) */
   iconButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: Colors.surface, // keep clean white
-    borderWidth: StyleSheet.hairlineWidth,
+    backgroundColor: Colors.card,
+    borderWidth: 0.5,
     borderColor: Colors.border,
     alignItems: "center",
     justifyContent: "center",
   },
 
-  /* Weekly progress bar (moved under header) */
   weekProgressBg: {
-    marginTop: 2,
+    marginTop: 6,
     marginHorizontal: 24,
     height: 6,
     backgroundColor: "rgba(0,0,0,0.08)",
     borderRadius: 999,
     overflow: "hidden",
   },
-  weekProgressFill: {
-    height: 6,
-    backgroundColor: Colors.text,
-    borderRadius: 999,
-  },
+  weekProgressFill: { height: 6, backgroundColor: "#000", borderRadius: 999 },
 
-  /* Today row */
   todayRow: {
     marginTop: 18,
     marginHorizontal: 24,
@@ -305,50 +283,32 @@ const styles = StyleSheet.create({
     alignItems: "flex-end",
   },
   todayTitle: {
-    fontSize: 22,
-    fontWeight: "900",
+    fontSize: 26,
+    fontWeight: "800",
     color: Colors.text,
     letterSpacing: -0.2,
   },
-  planLink: {
-    paddingVertical: 6,
-    paddingHorizontal: 8,
-  },
-  planLinkText: {
-    fontSize: 14,
-    color: Colors.muted,
-    fontWeight: "800",
-  },
+  planLink: { paddingVertical: 6, paddingHorizontal: 8 },
+  planLinkText: { fontSize: 15, color: Colors.muted, fontWeight: "700" },
   todaySub: {
     marginHorizontal: 24,
-    fontSize: 14,
+    fontSize: 16,
     color: Colors.muted,
-    marginTop: 6,
+    marginTop: 8,
     marginBottom: 14,
     fontWeight: "700",
   },
 
-  /* Hero */
   heroCard: {
     marginHorizontal: 24,
     borderRadius: 28,
     overflow: "hidden",
-    backgroundColor: Colors.surface,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Colors.border,
+    backgroundColor: Colors.card,
   },
-  heroImage: {
-    width: "100%",
-    height: 540,
-    justifyContent: "space-between",
-  },
-  heroImageRadius: {
-    borderRadius: 28,
-  },
-  heroOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.30)",
-  },
+  heroImage: { width: "100%", height: 540, justifyContent: "space-between" },
+  heroImageRadius: { borderRadius: 28 },
+  heroOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.30)" },
+
   heroTop: {
     marginTop: 16,
     paddingHorizontal: 16,
@@ -356,20 +316,16 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "flex-start",
   },
-  leftChips: {
-    gap: 10,
-  },
+  leftChips: { gap: 10 },
+
   chipLight: {
     backgroundColor: "rgba(255,255,255,0.82)",
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 999,
   },
-  chipLightText: {
-    color: "#111111",
-    fontSize: 13,
-    fontWeight: "800",
-  },
+  chipLightText: { color: "#111", fontSize: 13, fontWeight: "800" },
+
   chipDark: {
     backgroundColor: "rgba(0,0,0,0.55)",
     paddingVertical: 8,
@@ -378,11 +334,8 @@ const styles = StyleSheet.create({
     borderWidth: 0.5,
     borderColor: "rgba(255,255,255,0.18)",
   },
-  chipDarkText: {
-    color: "#FFFFFF",
-    fontSize: 13,
-    fontWeight: "800",
-  },
+  chipDarkText: { color: "#FFF", fontSize: 13, fontWeight: "800" },
+
   chipOutline: {
     paddingVertical: 8,
     paddingHorizontal: 12,
@@ -391,26 +344,14 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.35)",
     backgroundColor: "rgba(0,0,0,0.22)",
   },
-  chipOutlineText: {
-    color: "#FFFFFF",
-    fontSize: 13,
-    fontWeight: "800",
-  },
+  chipOutlineText: { color: "#FFF", fontSize: 13, fontWeight: "800" },
 
-  heroBottom: {
-    paddingHorizontal: 18,
-    paddingBottom: 18,
-  },
-  heroTitle: {
-    color: "#FFFFFF",
-    fontSize: 30, // tightened to match app hierarchy
-    fontWeight: "900",
-    letterSpacing: -0.3,
-  },
+  heroBottom: { paddingHorizontal: 18, paddingBottom: 18 },
+  heroTitle: { color: "#FFF", fontSize: 34, fontWeight: "900", letterSpacing: -0.3 },
   heroMeta: {
     marginTop: 8,
     color: "rgba(255,255,255,0.86)",
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: "700",
   },
 
@@ -421,18 +362,9 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     overflow: "hidden",
   },
-  heroProgressFill: {
-    height: 10,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 999,
-  },
+  heroProgressFill: { height: 10, backgroundColor: "#FFF", borderRadius: 999 },
 
-  metricsRow: {
-    marginTop: 14,
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
-  },
+  metricsRow: { marginTop: 14, flexDirection: "row", flexWrap: "wrap", gap: 10 },
   metricPill: {
     backgroundColor: "rgba(0,0,0,0.40)",
     borderRadius: 999,
@@ -441,15 +373,11 @@ const styles = StyleSheet.create({
     borderWidth: 0.5,
     borderColor: "rgba(255,255,255,0.18)",
   },
-  metricPillText: {
-    color: "rgba(255,255,255,0.92)",
-    fontSize: 13,
-    fontWeight: "800",
-  },
+  metricPillText: { color: "rgba(255,255,255,0.92)", fontSize: 13, fontWeight: "800" },
 
   heroCta: {
     marginTop: 16,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#FFF",
     borderRadius: 999,
     paddingVertical: 16,
     paddingHorizontal: 18,
@@ -458,96 +386,51 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 10,
   },
-  heroCtaDisabled: {
-    opacity: 0.82,
-  },
-  heroCtaIcon: {
-    fontSize: 16,
-    color: "#000000",
-    fontWeight: "900",
-  },
-  heroCtaText: {
-    fontSize: 16,
-    fontWeight: "900",
-    color: "#000000",
-    letterSpacing: -0.1,
-  },
+  heroCtaDisabled: { opacity: 0.82 },
+  heroCtaIcon: { fontSize: 16, color: "#000", fontWeight: "900" },
+  heroCtaText: { fontSize: 17, fontWeight: "900", color: "#000", letterSpacing: -0.1 },
 
   heroHint: {
     marginTop: 12,
     textAlign: "center",
     color: "rgba(255,255,255,0.86)",
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: "700",
   },
   heroNextUp: {
     marginTop: 10,
     textAlign: "center",
     color: "rgba(255,255,255,0.78)",
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: "700",
   },
 
-  /* Switch program */
-  switchProgram: {
-    alignItems: "center",
-    marginTop: 20,
-    marginBottom: 26,
-  },
-  switchText: {
-    fontSize: 16,
-    fontWeight: "900",
-    color: Colors.text,
-    letterSpacing: -0.2,
-  },
+  switchProgram: { alignItems: "center", marginTop: 20, marginBottom: 26 },
+  switchText: { fontSize: 17, fontWeight: "800", color: Colors.text },
 
-  /* Quick Access */
-  quickTitle: {
-    marginHorizontal: 24,
-    fontSize: 20,
-    fontWeight: "900",
-    marginBottom: 14,
-    color: Colors.text,
-    letterSpacing: -0.2,
-  },
+  quickTitle: { marginHorizontal: 24, fontSize: 22, fontWeight: "800", marginBottom: 14, color: Colors.text },
   quickCard: {
     marginHorizontal: 24,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: Colors.surface,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Colors.border,
+    backgroundColor: Colors.card,
     borderRadius: 20,
     padding: 18,
+    borderWidth: 0.5,
+    borderColor: Colors.border,
   },
   quickIcon: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: Colors.text,
+    backgroundColor: "#000",
     alignItems: "center",
     justifyContent: "center",
     marginRight: 14,
   },
-  quickIconText: {
-    color: "#FFFFFF",
-    fontSize: 18,
-    fontWeight: "900",
-  },
-  quickText: {
-    fontSize: 16,
-    fontWeight: "900",
-    color: Colors.text,
-    flex: 1,
-    letterSpacing: -0.2,
-  },
-  chevron: {
-    fontSize: 22,
-    color: Colors.muted,
-    fontWeight: "800",
-  },
+  quickIconText: { color: "#FFF", fontSize: 18, fontWeight: "900" },
+  quickText: { fontSize: 18, fontWeight: "800", color: Colors.text, flex: 1 },
+  chevron: { fontSize: 22, color: Colors.muted, fontWeight: "800" },
 
-  bottomSpacer: {
-    height: 32,
-  },
+  bottomSpacer: { height: 32 },
 });

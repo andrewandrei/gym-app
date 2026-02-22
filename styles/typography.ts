@@ -1,39 +1,63 @@
 // styles/typography.ts
+import { Colors } from "@/styles/colors";
+import { Platform } from "react-native";
+
+const font = (w: any) =>
+  Platform.select({
+    ios: { fontWeight: w },
+    android: { fontWeight: w },
+    default: { fontWeight: w },
+  });
+
 export const Typography = {
-  title1: {
-    fontSize: 34,
-    lineHeight: 38,
-    fontWeight: "800" as const,
-    letterSpacing: -0.6,
+  // Tiny labels / kickers
+  micro: {
+    fontSize: 11,
+    lineHeight: 14,
+    letterSpacing: 0.6,
+    textTransform: "uppercase" as const,
+    ...font("800"),
+    color: Colors.text,
   },
-  title2: {
-    fontSize: 24,
-    lineHeight: 28,
-    fontWeight: "800" as const,
-    letterSpacing: -0.3,
+
+  // Small supporting text
+  caption: {
+    fontSize: 12,
+    lineHeight: 16,
+    ...font("700"),
+    color: Colors.muted,
   },
-  headline: {
-    fontSize: 17,
-    lineHeight: 22,
-    fontWeight: "700" as const,
-    letterSpacing: -0.2,
-  },
+
+  // Body
   body: {
     fontSize: 15,
     lineHeight: 20,
-    fontWeight: "500" as const,
-    letterSpacing: -0.1,
+    ...font("600"),
+    color: Colors.text,
   },
-  meta: {
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: "600" as const,
-    letterSpacing: -0.1,
+
+  // Titles
+  title2: {
+    fontSize: 22,
+    lineHeight: 26,
+    letterSpacing: -0.3,
+    ...font("900"),
+    color: Colors.text,
   },
-  micro: {
-    fontSize: 12,
-    lineHeight: 16,
-    fontWeight: "600" as const,
-    letterSpacing: -0.1,
+
+  title1: {
+    fontSize: 28,
+    lineHeight: 32,
+    letterSpacing: -0.4,
+    ...font("900"),
+    color: Colors.text,
   },
-};
+
+  hero: {
+    fontSize: 32,
+    lineHeight: 36,
+    letterSpacing: -0.5,
+    ...font("900"),
+    color: Colors.text,
+  },
+} as const;

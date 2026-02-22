@@ -1,8 +1,8 @@
 // styles/radius.ts
 export const Radius = {
-  xs: 10,
-  sm: 14,
-  md: 18,
-  lg: 22,
-  xl: 28,
+  sm: 10,
+  md: 14,
+  lg: 18,
+  xl: 24,
+  pill: 999,
 };

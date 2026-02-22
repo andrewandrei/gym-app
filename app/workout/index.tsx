@@ -1,6 +1,9 @@
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import { Check, MoreVertical, Repeat, Trophy, X } from "lucide-react-native";
+
+
+import { AppHeader } from "@/components/AppHeader";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Image,
@@ -18,7 +21,6 @@ import {
 } from "react-native";
 import { Swipeable } from "react-native-gesture-handler";
 
-import { AppHeader } from "@/components/AppHeader";
 import { Colors } from "@/styles/colors";
 import { S } from "./workout.styles";
 
@@ -549,10 +551,10 @@ export default function WorkoutLogScreen() {
             keyboardDismissMode="on-drag"
           >
             <AppHeader
-              title={workoutTitle}
-              subtitle={`${exercises.length} exercises • ~${estimatedTime} min • ${totalSets} sets`}
-              onBack={handleBack}
-            />
+  title={workoutTitle}
+  subtitle={`${exercises.length} exercises • ~${estimatedTime} min • ${totalSets} sets`}
+  onBack={handleBack}
+/>
 
             <View style={S.previewList}>
               {exercises.map((ex, index) => (
@@ -656,10 +658,11 @@ export default function WorkoutLogScreen() {
               showsHorizontalScrollIndicator={false}
             >
               <AppHeader
-                title={workoutTitle}
-                subtitle="In progress"
-                onBack={handleBack}
-              />
+  title={workoutTitle}
+  subtitle="In progress"
+  onBack={handleBack}
+  compact
+/>
 
               {/* Keep your existing progress UI (consistent, just now under header) */}
               <View style={S.header}>

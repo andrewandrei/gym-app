@@ -1,47 +1,63 @@
 import { Platform, StyleSheet } from "react-native";
-import { Colors } from "./colors";
-import { Spacing } from "./spacing";
+
+type ShadowPreset = {
+  shadowColor?: string;
+  shadowOffset?: { width: number; height: number };
+  shadowOpacity?: number;
+  shadowRadius?: number;
+  elevation?: number;
+};
+
+const ios = (y: number, blur: number, opacity: number): ShadowPreset => ({
+  shadowColor: "#000",
+  shadowOffset: { width: 0, height: y },
+  shadowOpacity: opacity,
+  shadowRadius: blur,
+});
+
+const android = (elevation: number): ShadowPreset => ({ elevation });
+
+export const Shadow: Record<"soft" | "medium" | "strong", ShadowPreset> = {
+  soft: Platform.select({
+    ios: ios(8, 20, 0.08),
+    android: android(3),
+    default: {},
+  }) as ShadowPreset,
+
+  medium: Platform.select({
+    ios: ios(12, 28, 0.10),
+    android: android(5),
+    default: {},
+  }) as ShadowPreset,
+
+  strong: Platform.select({
+    ios: ios(18, 36, 0.12),
+    android: android(8),
+    default: {},
+  }) as ShadowPreset,
+};
 
 export const Cards = StyleSheet.create({
   base: {
-    backgroundColor: Colors.card,
-    borderRadius: 22,
-    overflow: "hidden",
-    marginRight: Spacing.md,
-    ...Platform.select({
-      ios: {
-        shadowColor: Colors.shadow,
-        shadowOpacity: 0.05,
-        shadowRadius: 14,
-        shadowOffset: { width: 0, height: 8 },
-      },
-      android: {
-        elevation: 2,
-      },
-    }),
-  },
-
-  program: {
-    width: 300,
+    borderRadius: 18,
+    backgroundColor: "#FFFFFF",
+    ...Shadow.soft,
   },
 
   workout: {
-    width: 240,
+    borderRadius: 18,
+    backgroundColor: "#FFFFFF",
+    ...Shadow.medium,
   },
 
-  imageProgram: {
-    width: "100%",
-    height: 170,
+  hero: {
+    borderRadius: 28,
+    backgroundColor: "#FFFFFF",
+    ...Shadow.strong,
   },
 
-  imageWorkout: {
-    width: "100%",
-    height: 135,
-  },
-
-  body: {
-    paddingHorizontal: 18,
-    paddingTop: 14,
-    paddingBottom: 16,
+  flat: {
+    borderRadius: 18,
+    backgroundColor: "#FFFFFF",
   },
 });
