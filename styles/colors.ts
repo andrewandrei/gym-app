@@ -1,15 +1,29 @@
 // styles/colors.ts
 export const Colors = {
+  // Base
   surface: "#FFFFFF",
-  card: "#FFFFFF",
   background: "#F7F7F5",
+
+  // Text
+  text: "#0B0B0C",          // slightly softer than pure black
+  muted: "#8E8E93",         // iOS-style secondary
+  subtle: "#A3A3A8",        // tertiary text
+
+  // UI
   border: "rgba(0,0,0,0.08)",
-  borderStrong: "rgba(0,0,0,0.12)",
-  text: "#000000",
-  muted: "rgba(0,0,0,0.55)",
-  muted2: "rgba(0,0,0,0.38)",
+  hairline: "rgba(0,0,0,0.05)",
+  fill: "#F2F2F2",          // pill / input fill
+  fillAlt: "#FAFAFA",       // active row / subtle highlight
+
+  // Brand / Premium
   premium: "#F4C84A",
-  overlay: "rgba(0,0,0,0.35)",
-  danger: "#FF3B30",
-  success: "#16A34A",
+
+  // States
+  danger: "#D92D20",
+  success: "#12B76A",
+  warning: "#F79009",
+
+  // Ink variants (rare, but useful)
+  ink: "#000000",
+  inkSoft: "#1A1A1A",
 };

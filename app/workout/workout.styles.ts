@@ -121,7 +121,7 @@ export const S = StyleSheet.create({
   },
 
   setsLine: {
-    fontSize: 14,
+    fontSize: 13, // ↓ calmer
     fontWeight: "900",
     color: "rgba(0,0,0,0.70)",
     letterSpacing: -0.2,
@@ -137,7 +137,8 @@ export const S = StyleSheet.create({
   progressFill: {
     height: 8,
     borderRadius: 999,
-    backgroundColor: Colors.text,
+    // Prefer premium gold if you have it in Colors, fallback to brand gold
+    backgroundColor: (Colors as any).premium ?? "#F4C84A",
   },
 
   exerciseList: { paddingTop: 10, gap: 12 },
@@ -170,8 +171,8 @@ export const S = StyleSheet.create({
   },
 
   exerciseTitle: {
-    fontSize: 16,
-    lineHeight: 20,
+    fontSize: 15, // ↓ calmer
+    lineHeight: 19, // ↓ calmer
     fontWeight: "900",
     color: Colors.text,
     letterSpacing: -0.2,
@@ -236,15 +237,15 @@ export const S = StyleSheet.create({
     height: 46,
     marginHorizontal: 6,
     borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: "rgba(0,0,0,0.14)",
+    borderWidth: 1, // ↓ lighter
+    borderColor: "rgba(0,0,0,0.12)", // ↓ lighter
     justifyContent: "center",
     backgroundColor: Colors.surface,
   },
 
   input: {
     textAlign: "center",
-    fontSize: 16,
+    fontSize: 15, // ↓ calmer
     fontWeight: "900",
     color: Colors.text,
     paddingVertical: 0,
@@ -311,6 +312,12 @@ export const S = StyleSheet.create({
     paddingBottom: 12,
   },
 
+  // Optional: can help if any overlay steals touches near bottom
+  finishSectionWrap: {
+    position: "relative",
+    zIndex: 10,
+  },
+
   finishBtn: {
     height: 56,
     borderRadius: 999,
@@ -327,17 +334,21 @@ export const S = StyleSheet.create({
   },
 
   /* ───────────────────────── TIMER PILL ───────────────────────── */
-  timerPill: {
+  // Wrap used to ensure only the pill itself captures touches.
+  timerPillWrap: {
     position: "absolute",
     top: 12,
     left: 16,
     right: 16,
+    zIndex: 998,
+    elevation: 18,
+  },
+
+  timerPill: {
     backgroundColor: Colors.text,
     borderRadius: 16,
     paddingVertical: 10,
     paddingHorizontal: 12,
-    zIndex: 998,
-    elevation: 18,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.22,
@@ -416,7 +427,10 @@ export const S = StyleSheet.create({
   accessoryText: { color: Colors.surface, fontWeight: "900" },
 
   /* ───────────────────────── MODALS ───────────────────────── */
-  modalOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.40)" },
+  modalOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.40)",
+  },
 
   modalSheet: {
     marginTop: "auto",
@@ -436,11 +450,21 @@ export const S = StyleSheet.create({
     borderTopRightRadius: 18,
     borderTopWidth: HAIR,
     borderTopColor: Colors.border,
+    maxHeight: "82%",
   },
 
-  modalHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
 
-  modalTitle: { fontSize: 15, fontWeight: "900", color: Colors.text, letterSpacing: -0.2 },
+  modalTitle: {
+    fontSize: 15,
+    fontWeight: "900",
+    color: Colors.text,
+    letterSpacing: -0.2,
+  },
 
   modalX: {
     width: 36,
@@ -532,7 +556,12 @@ export const S = StyleSheet.create({
 
   swapName: { fontSize: 15, fontWeight: "900", color: Colors.text },
 
-  swapCategory: { fontSize: 12, fontWeight: "700", color: "rgba(0,0,0,0.55)", marginTop: 3 },
+  swapCategory: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "rgba(0,0,0,0.55)",
+    marginTop: 3,
+  },
 
   /* HISTORY */
   prBanner: {

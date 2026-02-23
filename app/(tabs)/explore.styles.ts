@@ -2,107 +2,64 @@ import { Colors } from "@/styles/colors";
 import { Spacing } from "@/styles/spacing";
 import { StyleSheet } from "react-native";
 
-export const styles = StyleSheet.create({
-  safe: { backgroundColor: Colors.surface },
-  scroll: { backgroundColor: Colors.surface },
+const HAIR = StyleSheet.hairlineWidth;
 
-  content: {
-    paddingBottom: Spacing.xl,
-  },
+export const styles = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: Colors.surface },
+  scroll: { flex: 1, backgroundColor: Colors.surface },
+  content: { flexGrow: 1 },
+
+  /* ---------------------------------------------------- */
+  /* PAGE HEADER                                          */
+  /* ---------------------------------------------------- */
 
   header: {
     paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.lg,
-    paddingBottom: Spacing.md,
+    paddingBottom: Spacing.lg,
   },
 
-  headerTopRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-  },
-
-  headerLeft: {
-    flex: 1,
-    paddingRight: Spacing.md,
-  },
-
-  kicker: {
-    color: Colors.muted,
-    fontSize: 12,
-    fontWeight: "700",
-    letterSpacing: 0.2,
-  },
-
-  title: {
-    marginTop: 6,
-    color: Colors.text,
-    fontSize: 28,
-    lineHeight: 32,
+  pageTitle: {
+    fontSize: 34,
+    lineHeight: 38,
     fontWeight: "900",
-    letterSpacing: -0.4,
-  },
-
-  subtitle: {
-    marginTop: 10,
-    color: Colors.muted,
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: "600",
-  },
-
-  cardPressed: { opacity: 0.92 },
-
-  activePill: {
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 999,
-    backgroundColor: "rgba(255,255,255,0.92)",
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "rgba(0,0,0,0.08)",
-  },
-
-  activePillText: {
     color: Colors.text,
-    fontSize: 11,
-    fontWeight: "900",
-    letterSpacing: -0.1,
+    letterSpacing: -0.6,
   },
 
-  rails: {
-    paddingTop: Spacing.sm,
-  },
+  cardPressed: { opacity: 0.93 },
 
-  rail: {
-    paddingTop: Spacing.lg,
-  },
+  /* ---------------------------------------------------- */
+  /* RAILS                                                */
+  /* ---------------------------------------------------- */
+
+  rails: { paddingTop: Spacing.sm },
+
+  rail: { paddingTop: Spacing.xl },
 
   railHeader: {
     paddingHorizontal: Spacing.lg,
     flexDirection: "row",
     alignItems: "flex-end",
     justifyContent: "space-between",
+    marginBottom: Spacing.md,
   },
 
-  railHeaderLeft: {
-    flex: 1,
-    paddingRight: Spacing.md,
-  },
+  railHeaderText: { flex: 1, paddingRight: 10 },
 
   railTitle: {
-    color: Colors.text,
-    fontSize: 18,
-    lineHeight: 22,
+    fontSize: 22,
+    lineHeight: 26,
     fontWeight: "900",
-    letterSpacing: -0.2,
+    color: Colors.text,
+    letterSpacing: -0.25,
   },
 
   railSubtitle: {
-    marginTop: 2,
-    color: Colors.muted,
-    fontSize: 12,
-    lineHeight: 16,
+    marginTop: 4,
+    fontSize: 13,
+    lineHeight: 17,
     fontWeight: "600",
+    color: Colors.muted,
   },
 
   railAll: {
@@ -113,30 +70,60 @@ export const styles = StyleSheet.create({
     borderRadius: 10,
   },
 
-  railAllPressed: { opacity: 0.8 },
-
   railAllText: {
-    color: Colors.muted,
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: "800",
+    color: Colors.muted,
     marginRight: 4,
   },
 
   railListContent: {
     paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.sm,
-    paddingBottom: Spacing.sm,
+    paddingBottom: Spacing.md,
   },
 
+  bottomSpacer: { height: Spacing.xl * 1.2 },
+
+  /* ---------------------------------------------------- */
+  /* BADGES                                               */
+  /* ---------------------------------------------------- */
+
+  badge: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 999,
+    backgroundColor: "rgba(255,255,255,0.92)",
+    borderWidth: HAIR,
+    borderColor: "rgba(0,0,0,0.10)",
+  },
+
+  badgeGold: {
+    backgroundColor: "rgba(244,200,74,0.95)",
+    borderColor: "rgba(244,200,74,0.40)",
+  },
+
+  badgeText: {
+    fontSize: 12,
+    fontWeight: "900",
+    color: Colors.text,
+    letterSpacing: -0.1,
+  },
+
+  badgeTextGold: { color: "#111" },
+
+  /* ---------------------------------------------------- */
+  /* PROGRAM CARDS                                        */
+  /* ---------------------------------------------------- */
+
+  // Slightly narrower + taller, less rounded than before (premium, less “bubble”)
   programCardWrap: {
-    width: 300,
-    marginRight: Spacing.md,
+    width: 284,
+    marginRight: 16, // more breathing between cards
   },
 
   programTile: {
-    width: "100%",
-    height: 340,
-    borderRadius: 28,
+    height: 390,
+    borderRadius: 18, // smaller radius (you said it was too big)
     overflow: "hidden",
     backgroundColor: Colors.card,
   },
@@ -147,112 +134,277 @@ export const styles = StyleSheet.create({
     height: "100%",
   },
 
-  programTileFade: {
+  // Bottom-only scrim (key fix: no “mid cut”)
+  programBottomScrim: {
     position: "absolute",
     left: 0,
     right: 0,
     bottom: 0,
-    height: 140,
-    backgroundColor: "rgba(0,0,0,0.20)",
+    height: 220, // only affects lower portion
   },
 
-  programTileTopRow: {
+  programTopLeft: {
     position: "absolute",
-    top: Spacing.sm,
-    left: Spacing.sm,
-    right: Spacing.sm,
+    top: 12,
+    left: 12,
+  },
+
+  // Subtle info chip (less obvious than a bright icon button)
+  infoChip: {
+    position: "absolute",
+    top: 10,
+    right: 10,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: "rgba(0,0,0,0.22)",
+    borderWidth: HAIR,
+    borderColor: "rgba(255,255,255,0.18)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  programBottomRight: {
+    position: "absolute",
+    right: 12,
+    bottom: 12,
+  },
+
+  programTextOverlay: {
+    position: "absolute",
+    left: 14,
+    right: 14,
+    bottom: 16,
+  },
+
+  programTitleOnImage: {
+    color: "#fff",
+    fontSize: 28,
+    lineHeight: 32,
+    fontWeight: "900",
+    letterSpacing: -0.45,
+  },
+
+  programDurationOnImage: {
+    marginTop: 8,
+    color: "rgba(255,255,255,0.88)",
+    fontSize: 15,
+    fontWeight: "700",
+  },
+
+  programBelowPrimary: {
+    marginTop: 14,
+    color: Colors.text,
+    fontSize: 18,
+    lineHeight: 22,
+    fontWeight: "900",
+    letterSpacing: -0.2,
+  },
+
+  programBelowSecondary: {
+    marginTop: 4,
+    color: Colors.muted,
+    fontSize: 15,
+    lineHeight: 19,
+    fontWeight: "600",
+  },
+
+  /* LEVEL PILL (smaller + higher contrast) */
+
+  levelPill: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    gap: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 999,
+    backgroundColor: "rgba(0,0,0,0.28)",
+    borderWidth: HAIR,
+    borderColor: "rgba(255,255,255,0.14)",
   },
 
-  programTileBottom: {
-    position: "absolute",
-    left: Spacing.md,
-    right: Spacing.md,
-    bottom: Spacing.md,
+  levelDots: { flexDirection: "row", gap: 3 },
+
+  levelDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: "rgba(255,255,255,0.28)",
   },
 
-  programTileTitle: {
-    color: Colors.white,
-    fontSize: 26,
-    lineHeight: 30,
+  levelDotOn: {
+    backgroundColor: "rgba(255,255,255,0.92)",
+  },
+
+  levelLabel: {
+    fontSize: 11,
     fontWeight: "900",
-    letterSpacing: -0.4,
+    color: "rgba(255,255,255,0.92)",
+    letterSpacing: -0.1,
   },
 
-  programTileMeta: {
-    marginTop: 6,
-    color: "rgba(255,255,255,0.90)",
-    fontSize: 14,
-    fontWeight: "700",
+  /* ---------------------------------------------------- */
+  /* WORKOUT / RECIPE CARDS                               */
+  /* ---------------------------------------------------- */
+
+  workoutCard: {
+    width: 284, // a bit less wide
+    marginRight: 16,
   },
 
-  programBelow: {
-    paddingTop: 10,
-    paddingHorizontal: 2,
+  recipeCard: {
+    width: 240,
+    marginRight: 16,
   },
 
-  programBelowMeta: {
-    color: Colors.muted,
-    fontSize: 13,
-    fontWeight: "700",
-  },
-
-  miniCard: {
-    backgroundColor: Colors.card,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Colors.border,
-  },
-
-  miniMedia: {
-    height: 135,
-    backgroundColor: Colors.card,
+  workoutMedia: {
+    height: 230, // taller feel
+    borderRadius: 18,
     overflow: "hidden",
+    backgroundColor: Colors.card,
   },
 
-  miniImage: {
+  recipeMedia: {
+    height: 185,
+    borderRadius: 18,
+    overflow: "hidden",
+    backgroundColor: Colors.card,
+  },
+
+  image: {
     ...StyleSheet.absoluteFillObject,
     width: "100%",
     height: "100%",
   },
 
-  miniFade: {
+  editorialBottomScrim: {
     position: "absolute",
     left: 0,
     right: 0,
     bottom: 0,
-    height: 70,
-    backgroundColor: "rgba(0,0,0,0.10)",
+    height: 150,
   },
 
-  miniActivePillWrap: {
+  editorialBadgeWrap: {
     position: "absolute",
-    top: Spacing.sm,
-    left: Spacing.sm,
+    top: 12,
+    left: 12,
   },
 
-  miniBody: {
-    paddingHorizontal: 18,
-    paddingTop: 12,
-    paddingBottom: 14,
+  titleOverlay: {
+    position: "absolute",
+    left: 14,
+    right: 14,
+    bottom: 14,
   },
 
-  miniTitle: {
-    color: Colors.text,
-    fontSize: 14,
+  titleOnImage: {
+    color: "#fff",
+    fontSize: 18,
+    lineHeight: 22,
     fontWeight: "900",
     letterSpacing: -0.2,
   },
 
-  miniMeta: {
+  below: { paddingTop: 12 },
+
+  belowBold: {
+    color: Colors.text,
+    fontSize: 15,
+    fontWeight: "900",
+    letterSpacing: -0.2,
+  },
+
+  belowMuted: {
     marginTop: 4,
     color: Colors.muted,
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: "600",
   },
 
-  bottomSpacer: {
-    height: Spacing.xl,
+  /* ---------------------------------------------------- */
+  /* MODAL                                                */
+  /* ---------------------------------------------------- */
+
+  modalOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.40)",
+  },
+
+  modalSheet: {
+    marginTop: "auto",
+    backgroundColor: Colors.surface,
+    padding: 16,
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
+    borderTopWidth: HAIR,
+    borderTopColor: Colors.border,
+  },
+
+  modalTopRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+
+  modalTitle: {
+    flex: 1,
+    fontSize: 18,
+    lineHeight: 22,
+    fontWeight: "900",
+    color: Colors.text,
+    letterSpacing: -0.2,
+  },
+
+  modalClose: {
+    paddingHorizontal: 12,
+    height: 34,
+    borderRadius: 999,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: HAIR,
+    borderColor: Colors.border,
+    backgroundColor: "rgba(0,0,0,0.04)",
+  },
+
+  modalCloseText: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: Colors.text,
+  },
+
+  modalMeta: {
+    marginTop: 10,
+    fontSize: 13,
+    fontWeight: "700",
+    color: Colors.muted,
+  },
+
+  modalBody: {
+    marginTop: 10,
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: "600",
+    color: "rgba(0,0,0,0.75)",
+  },
+
+  modalActionsRow: {
+    marginTop: 14,
+  },
+
+  modalPrimary: {
+    height: 46,
+    borderRadius: 999,
+    backgroundColor: Colors.text,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  modalPrimaryText: {
+    color: Colors.surface,
+    fontWeight: "900",
+    fontSize: 14,
+    letterSpacing: -0.15,
   },
 });

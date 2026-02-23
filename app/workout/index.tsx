@@ -1,9 +1,8 @@
+// app/workout/index.tsx
+
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import { Check, MoreVertical, Repeat, Trophy, X } from "lucide-react-native";
-
-
-import { AppHeader } from "@/components/AppHeader";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Image,
@@ -21,6 +20,7 @@ import {
 } from "react-native";
 import { Swipeable } from "react-native-gesture-handler";
 
+import { AppHeader } from "@/components/AppHeader";
 import { Colors } from "@/styles/colors";
 import { S } from "./workout.styles";
 
@@ -475,6 +475,10 @@ export default function WorkoutLogScreen() {
     return maxWeight > 0 ? { weight: maxWeight, reps: maxReps, date: prDate } : null;
   };
 
+  const pr = useMemo(() => {
+    return historyExerciseId ? getPersonalBest(historyExerciseId) : null;
+  }, [historyExerciseId, historyByExerciseId]);
+
   const applySpecificSession = async (sessionId: string) => {
     if (!historyExerciseId) return;
 
@@ -551,10 +555,10 @@ export default function WorkoutLogScreen() {
             keyboardDismissMode="on-drag"
           >
             <AppHeader
-  title={workoutTitle}
-  subtitle={`${exercises.length} exercises • ~${estimatedTime} min • ${totalSets} sets`}
-  onBack={handleBack}
-/>
+              title={workoutTitle}
+              subtitle={`${exercises.length} exercises • ~${estimatedTime} min • ${totalSets} sets`}
+              onBack={handleBack}
+            />
 
             <View style={S.previewList}>
               {exercises.map((ex, index) => (
@@ -595,54 +599,58 @@ export default function WorkoutLogScreen() {
           behavior={Platform.OS === "ios" ? "padding" : undefined}
         >
           <View style={S.page}>
+            {/* TIMER PILL (wrapped so it doesn’t steal touches) */}
             {activeTimer && !timerDismissed && (
-              <Pressable
-                onPress={() => setTimerDismissed(true)}
-                style={S.timerPill}
-              >
-                <View style={S.timerPillContent}>
-                  <View style={S.timerPillLeft}>
-                    <Text style={S.timerPillTime}>
-                      {Math.floor(activeTimer.secondsLeft / 60)}:
-                      {(activeTimer.secondsLeft % 60)
-                        .toString()
-                        .padStart(2, "0")}
-                    </Text>
-                    <View style={S.timerPillProgress}>
-                      <View
-                        style={[
-                          S.timerPillProgressFill,
-                          {
-                            width: `${(activeTimer.secondsLeft / activeTimer.totalSeconds) * 100}%`,
-                          },
-                        ]}
-                      />
+              <View pointerEvents="box-none" style={S.timerPillWrap}>
+                <Pressable
+                  onPress={() => setTimerDismissed(true)}
+                  style={S.timerPill}
+                >
+                  <View style={S.timerPillContent}>
+                    <View style={S.timerPillLeft}>
+                      <Text style={S.timerPillTime}>
+                        {Math.floor(activeTimer.secondsLeft / 60)}:
+                        {(activeTimer.secondsLeft % 60)
+                          .toString()
+                          .padStart(2, "0")}
+                      </Text>
+
+                      <View style={S.timerPillProgress}>
+                        <View
+                          style={[
+                            S.timerPillProgressFill,
+                            {
+                              width: `${(activeTimer.secondsLeft / activeTimer.totalSeconds) * 100}%`,
+                            },
+                          ]}
+                        />
+                      </View>
+                    </View>
+
+                    <View style={S.timerPillActions}>
+                      <Pressable
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          addTimeToRest(15);
+                        }}
+                        style={S.timerPillBtn}
+                      >
+                        <Text style={S.timerPillBtnText}>+15</Text>
+                      </Pressable>
+
+                      <Pressable
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          skipRestTimer();
+                        }}
+                        style={S.timerPillBtnSkip}
+                      >
+                        <Text style={S.timerPillBtnTextSkip}>Skip</Text>
+                      </Pressable>
                     </View>
                   </View>
-
-                  <View style={S.timerPillActions}>
-                    <Pressable
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        addTimeToRest(15);
-                      }}
-                      style={S.timerPillBtn}
-                    >
-                      <Text style={S.timerPillBtnText}>+15</Text>
-                    </Pressable>
-
-                    <Pressable
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        skipRestTimer();
-                      }}
-                      style={S.timerPillBtnSkip}
-                    >
-                      <Text style={S.timerPillBtnTextSkip}>Skip</Text>
-                    </Pressable>
-                  </View>
-                </View>
-              </Pressable>
+                </Pressable>
+              </View>
             )}
 
             <ScrollView
@@ -658,13 +666,12 @@ export default function WorkoutLogScreen() {
               showsHorizontalScrollIndicator={false}
             >
               <AppHeader
-  title={workoutTitle}
-  subtitle="In progress"
-  onBack={handleBack}
-  compact
-/>
+                title={workoutTitle}
+                subtitle="In progress"
+                onBack={handleBack}
+                compact
+              />
 
-              {/* Keep your existing progress UI (consistent, just now under header) */}
               <View style={S.header}>
                 <Text style={S.setsLine}>
                   {completedSets} of {totalSets} sets completed
@@ -768,6 +775,8 @@ export default function WorkoutLogScreen() {
                                       returnKeyType="done"
                                       blurOnSubmit
                                       onSubmitEditing={() => Keyboard.dismiss()}
+                                      autoCorrect={false}
+                                      autoComplete="off"
                                       {...(Platform.OS === "ios"
                                         ? {
                                             inputAccessoryViewID:
@@ -798,10 +807,7 @@ export default function WorkoutLogScreen() {
                           <Text style={S.ghostText}>Exercise History</Text>
                         </Pressable>
 
-                        <Pressable
-                          onPress={() => addSet(ex.id)}
-                          style={S.ghostBtn}
-                        >
+                        <Pressable onPress={() => addSet(ex.id)} style={S.ghostBtn}>
                           <Text style={S.ghostText}>Add Set</Text>
                         </Pressable>
                       </View>
@@ -810,14 +816,16 @@ export default function WorkoutLogScreen() {
                 ))}
               </View>
 
-              <View style={S.finishSection}>
-                <Pressable
-                  onPress={openFinish}
-                  style={S.finishBtn}
-                  accessibilityRole="button"
-                >
-                  <Text style={S.finishBtnText}>Complete Workout</Text>
-                </Pressable>
+              <View style={S.finishSectionWrap}>
+                <View style={S.finishSection}>
+                  <Pressable
+                    onPress={openFinish}
+                    style={S.finishBtn}
+                    accessibilityRole="button"
+                  >
+                    <Text style={S.finishBtnText}>Complete Workout</Text>
+                  </Pressable>
+                </View>
               </View>
 
               <View style={{ height: 40 }} />
@@ -898,10 +906,7 @@ export default function WorkoutLogScreen() {
                   <Text style={S.modalTitle}>
                     {isComplete ? "Finish workout?" : "Finish anyway?"}
                   </Text>
-                  <Pressable
-                    onPress={() => setFinishOpen(false)}
-                    style={S.modalX}
-                  >
+                  <Pressable onPress={() => setFinishOpen(false)} style={S.modalX}>
                     <X size={18} color="#111" />
                   </Pressable>
                 </View>
@@ -933,10 +938,7 @@ export default function WorkoutLogScreen() {
               animationType="fade"
               onRequestClose={() => setMenuOpen(false)}
             >
-              <Pressable
-                style={S.modalOverlay}
-                onPress={() => setMenuOpen(false)}
-              />
+              <Pressable style={S.modalOverlay} onPress={() => setMenuOpen(false)} />
               <View style={S.modalSheet}>
                 <View style={S.modalHeader}>
                   <Text style={S.modalTitle}>{currentExercise?.name}</Text>
@@ -967,10 +969,7 @@ export default function WorkoutLogScreen() {
               animationType="fade"
               onRequestClose={() => setSwapOpen(false)}
             >
-              <Pressable
-                style={S.modalOverlay}
-                onPress={() => setSwapOpen(false)}
-              />
+              <Pressable style={S.modalOverlay} onPress={() => setSwapOpen(false)} />
               <View style={S.modalSheetLarge}>
                 <View style={S.modalHeader}>
                   <Text style={S.modalTitle}>Swap Exercise</Text>
@@ -979,10 +978,7 @@ export default function WorkoutLogScreen() {
                   </Pressable>
                 </View>
 
-                <ScrollView
-                  style={{ maxHeight: 500 }}
-                  showsVerticalScrollIndicator={false}
-                >
+                <ScrollView style={{ maxHeight: 500 }} showsVerticalScrollIndicator={false}>
                   <View style={S.swapList}>
                     {menuExerciseId &&
                       exerciseAlternatives[menuExerciseId]?.map((alt) => (
@@ -991,10 +987,7 @@ export default function WorkoutLogScreen() {
                           onPress={() => swapExercise(alt)}
                           style={S.swapItem}
                         >
-                          <Image
-                            source={{ uri: alt.image }}
-                            style={S.swapThumb}
-                          />
+                          <Image source={{ uri: alt.image }} style={S.swapThumb} />
                           <View style={S.swapTextContainer}>
                             <Text style={S.swapName}>{alt.name}</Text>
                             <Text style={S.swapCategory}>
@@ -1017,31 +1010,22 @@ export default function WorkoutLogScreen() {
               animationType="fade"
               onRequestClose={() => setHistoryOpen(false)}
             >
-              <Pressable
-                style={S.modalOverlay}
-                onPress={() => setHistoryOpen(false)}
-              />
+              <Pressable style={S.modalOverlay} onPress={() => setHistoryOpen(false)} />
               <View style={S.modalSheetLarge}>
                 <View style={S.modalHeader}>
                   <Text style={S.modalTitle}>Exercise History</Text>
-                  <Pressable
-                    onPress={() => setHistoryOpen(false)}
-                    style={S.modalX}
-                  >
+                  <Pressable onPress={() => setHistoryOpen(false)} style={S.modalX}>
                     <X size={18} color="#111" />
                   </Pressable>
                 </View>
 
-                {historyExerciseId && getPersonalBest(historyExerciseId) && (
+                {historyExerciseId && pr && (
                   <View style={S.prBanner}>
-                    <Trophy size={16} color="#FFD700" />
+                    <Trophy size={16} color="#F4C84A" />
                     <Text style={S.prText}>
-                      PR: {getPersonalBest(historyExerciseId)!.weight} lbs ×{" "}
-                      {getPersonalBest(historyExerciseId)!.reps} reps
+                      PR: {pr.weight} lbs × {pr.reps} reps
                     </Text>
-                    <Text style={S.prDate}>
-                      ({getPersonalBest(historyExerciseId)!.date})
-                    </Text>
+                    <Text style={S.prDate}>({pr.date})</Text>
                   </View>
                 )}
 
@@ -1063,9 +1047,7 @@ export default function WorkoutLogScreen() {
                             ]}
                           >
                             <View style={S.historyCardHeader}>
-                              <Text style={S.historyDate}>
-                                {session.dateLabel}
-                              </Text>
+                              <Text style={S.historyDate}>{session.dateLabel}</Text>
                               <Pressable
                                 onPress={() => applySpecificSession(session.id)}
                                 style={S.useSessionBtn}
@@ -1075,9 +1057,7 @@ export default function WorkoutLogScreen() {
                             </View>
 
                             <View style={S.historyTableHead}>
-                              <Text style={[S.historyHead, { width: 40 }]}>
-                                SET
-                              </Text>
+                              <Text style={[S.historyHead, { width: 40 }]}>SET</Text>
                               <Text style={S.historyHead}>W</Text>
                               <Text style={S.historyHead}>R</Text>
                               <Text style={S.historyHead}>REST</Text>
@@ -1096,20 +1076,13 @@ export default function WorkoutLogScreen() {
                                 key={`${session.id}-${hs.set}`}
                                 style={S.historyRow}
                               >
-                                <Text
-                                  style={[S.historyCellText, { width: 40 }]}
-                                >
+                                <Text style={[S.historyCellText, { width: 40 }]}>
                                   {hs.set}
                                 </Text>
                                 <Text style={S.historyCellText}>{hs.weight}</Text>
                                 <Text style={S.historyCellText}>{hs.reps}</Text>
                                 <Text style={S.historyCellText}>{hs.rest}</Text>
-                                <View
-                                  style={[
-                                    S.historyDot,
-                                    hs.done && S.historyDotOn,
-                                  ]}
-                                >
+                                <View style={[S.historyDot, hs.done && S.historyDotOn]}>
                                   {hs.done && <Check size={14} color="#fff" />}
                                 </View>
                               </View>
@@ -1119,31 +1092,17 @@ export default function WorkoutLogScreen() {
                       ),
                     )
                   ) : (
-                    <Text
-                      style={{
-                        color: "#666",
-                        fontWeight: "700",
-                        marginTop: 12,
-                      }}
-                    >
+                    <Text style={{ color: "#666", fontWeight: "700", marginTop: 12 }}>
                       No history yet.
                     </Text>
                   )}
                 </ScrollView>
 
                 <View style={S.modalActions}>
-                  <Pressable
-                    onPress={addToCurrentExercise}
-                    style={S.modalPrimary}
-                  >
-                    <Text style={S.modalPrimaryText}>
-                      Add to current exercise
-                    </Text>
+                  <Pressable onPress={addToCurrentExercise} style={S.modalPrimary}>
+                    <Text style={S.modalPrimaryText}>Add to current exercise</Text>
                   </Pressable>
-                  <Pressable
-                    onPress={() => setHistoryOpen(false)}
-                    style={S.modalGhost}
-                  >
+                  <Pressable onPress={() => setHistoryOpen(false)} style={S.modalGhost}>
                     <Text style={S.modalGhostText}>Close</Text>
                   </Pressable>
                 </View>

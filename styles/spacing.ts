@@ -1,10 +1,9 @@
 // styles/spacing.ts
 export const Spacing = {
-  xxs: 4,
-  xs: 8,
-  sm: 12,
-  md: 16,
-  lg: 24,
-  xl: 32,
-  xxl: 40,
-};
+  xs: 4,
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 24,   // or 32 if you want bigger
+  "2xl": 32,
+} as const;
