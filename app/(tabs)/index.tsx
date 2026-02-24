@@ -1,5 +1,6 @@
-// app/(tabs)/index.tsx
+// gym-app/app/(tabs)/index.tsx
 import { useRouter } from "expo-router";
+import { Moon } from "lucide-react-native";
 import React from "react";
 import {
   ImageBackground,
@@ -13,6 +14,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { ScreenHeader } from "@/components/ui/ScreenHeader";
 import { Colors } from "@/styles/colors";
+import { GlobalStyles } from "@/styles/global";
+import { Spacing } from "@/styles/spacing";
 
 type CtaState = "start" | "resume" | "completed" | "rest";
 
@@ -65,22 +68,22 @@ export default function HomeScreen() {
   };
 
   return (
-    <SafeAreaView edges={["top"]} style={GlobalStyles.safe}>
-  <ScrollView
-    contentInsetAdjustmentBehavior="never"
-    showsVerticalScrollIndicator={false}
-    contentContainerStyle={{ paddingTop: 4 }}
-  >
-        {/* DEBUG TOP LINE */}
-        <View style={styles.debugLine} />
-
-        {/* ✅ CONSISTENT HEADER */}
+    <SafeAreaView style={GlobalStyles.screen} edges={["top"]}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.container}
+        showsVerticalScrollIndicator={false}
+      >
         <ScreenHeader
-          variant="hero"
-          title="Momentum"
-          subtitle="Your next session is ready"
-          right={undefined}
-        />
+  variant="hero"
+  title={greetingTitle}
+  subtitle={greetingSub}
+  right={
+    <TouchableOpacity style={styles.iconButton} activeOpacity={0.85}>
+      <Moon size={18} color={Colors.text} />
+    </TouchableOpacity>
+  }
+/>
 
         {/* Weekly progress */}
         <View style={styles.weekProgressBg}>
@@ -101,7 +104,7 @@ export default function HomeScreen() {
         </View>
         <Text style={styles.todaySub}>Your current plan</Text>
 
-        {/* Hero */}
+        {/* Elite Hero */}
         <View style={styles.heroCard}>
           <ImageBackground
             source={{
@@ -112,6 +115,7 @@ export default function HomeScreen() {
           >
             <View style={styles.heroOverlay} />
 
+            {/* Top chips */}
             <View style={styles.heroTop}>
               <View style={styles.leftChips}>
                 <View style={styles.chipLight}>
@@ -130,12 +134,14 @@ export default function HomeScreen() {
               </View>
             </View>
 
+            {/* Bottom content */}
             <View style={styles.heroBottom}>
               <Text style={styles.heroTitle}>{programTitle}</Text>
               <Text style={styles.heroMeta}>
                 {weekLabel} · {workoutLabel} · {programMeta}
               </Text>
 
+              {/* Progress bar */}
               <View style={styles.heroProgressBg}>
                 <View
                   style={[
@@ -145,6 +151,7 @@ export default function HomeScreen() {
                 />
               </View>
 
+              {/* Metrics row */}
               <View style={styles.metricsRow}>
                 <View style={styles.metricPill}>
                   <Text style={styles.metricPillText}>
@@ -159,6 +166,7 @@ export default function HomeScreen() {
                 </View>
               </View>
 
+              {/* CTA */}
               <TouchableOpacity
                 style={[
                   styles.heroCta,
@@ -172,6 +180,7 @@ export default function HomeScreen() {
                 <Text style={styles.heroCtaText}>{cta.text}</Text>
               </TouchableOpacity>
 
+              {/* Hint */}
               <Text style={styles.heroHint}>{heroHint}</Text>
 
               {ctaState !== "rest" ? (
@@ -185,10 +194,12 @@ export default function HomeScreen() {
           </ImageBackground>
         </View>
 
+        {/* Switch program */}
         <TouchableOpacity style={styles.switchProgram} activeOpacity={0.85}>
           <Text style={styles.switchText}>Switch Program</Text>
         </TouchableOpacity>
 
+        {/* Quick Access */}
         <Text style={styles.quickTitle}>Quick Access</Text>
 
         <TouchableOpacity style={styles.quickCard} activeOpacity={0.86}>
@@ -204,6 +215,10 @@ export default function HomeScreen() {
     </SafeAreaView>
   );
 }
+
+
+
+/* ───────────────────────── Helpers ───────────────────────── */
 
 function getLuxuryGreetingTitle({
   ctaState,
@@ -234,12 +249,11 @@ function getCtaCopy({
   return { icon: "▶", text: `Start workout: ${workoutLabel}` };
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.surface },
-  scroll: { backgroundColor: Colors.surface },
-  container: { paddingTop: 4, paddingBottom: 24 },
+/* ───────────────────────── Styles ───────────────────────── */
 
-  debugLine: { height: 1, backgroundColor: "red" },
+const styles = StyleSheet.create({
+  
+  container: { paddingTop: 4, paddingBottom: Spacing.lg },
 
   iconButton: {
     width: 40,
@@ -269,7 +283,12 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "flex-end",
   },
-  todayTitle: { fontSize: 26, fontWeight: "800", color: Colors.text, letterSpacing: -0.2 },
+  todayTitle: {
+    fontSize: 26,
+    fontWeight: "800",
+    color: Colors.text,
+    letterSpacing: -0.2,
+  },
   planLink: { paddingVertical: 6, paddingHorizontal: 8 },
   planLinkText: { fontSize: 15, color: Colors.muted, fontWeight: "700" },
   todaySub: {
@@ -330,7 +349,12 @@ const styles = StyleSheet.create({
 
   heroBottom: { paddingHorizontal: 18, paddingBottom: 18 },
   heroTitle: { color: "#FFF", fontSize: 34, fontWeight: "900", letterSpacing: -0.3 },
-  heroMeta: { marginTop: 8, color: "rgba(255,255,255,0.86)", fontSize: 15, fontWeight: "700" },
+  heroMeta: {
+    marginTop: 8,
+    color: "rgba(255,255,255,0.86)",
+    fontSize: 15,
+    fontWeight: "700",
+  },
 
   heroProgressBg: {
     marginTop: 14,
@@ -367,13 +391,31 @@ const styles = StyleSheet.create({
   heroCtaIcon: { fontSize: 16, color: "#000", fontWeight: "900" },
   heroCtaText: { fontSize: 17, fontWeight: "900", color: "#000", letterSpacing: -0.1 },
 
-  heroHint: { marginTop: 12, textAlign: "center", color: "rgba(255,255,255,0.86)", fontSize: 14, fontWeight: "700" },
-  heroNextUp: { marginTop: 10, textAlign: "center", color: "rgba(255,255,255,0.78)", fontSize: 15, fontWeight: "700" },
+  heroHint: {
+    marginTop: 12,
+    textAlign: "center",
+    color: "rgba(255,255,255,0.86)",
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  heroNextUp: {
+    marginTop: 10,
+    textAlign: "center",
+    color: "rgba(255,255,255,0.78)",
+    fontSize: 15,
+    fontWeight: "700",
+  },
 
   switchProgram: { alignItems: "center", marginTop: 20, marginBottom: 26 },
   switchText: { fontSize: 17, fontWeight: "800", color: Colors.text },
 
-  quickTitle: { marginHorizontal: 24, fontSize: 22, fontWeight: "800", marginBottom: 14, color: Colors.text },
+  quickTitle: {
+    marginHorizontal: 24,
+    fontSize: 22,
+    fontWeight: "800",
+    marginBottom: 14,
+    color: Colors.text,
+  },
   quickCard: {
     marginHorizontal: 24,
     flexDirection: "row",
@@ -398,4 +440,5 @@ const styles = StyleSheet.create({
   chevron: { fontSize: 22, color: Colors.muted, fontWeight: "800" },
 
   bottomSpacer: { height: 32 },
+  
 });
