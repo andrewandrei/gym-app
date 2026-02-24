@@ -1,8 +1,11 @@
-import { Colors } from "@/styles/colors";
+// gym-app/app/(tabs)/_layout.tsx
 import { Tabs } from "expo-router";
 import { BarChart3, LayoutGrid, User } from "lucide-react-native";
+import React from "react";
 import { Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+import { Colors } from "@/styles/colors";
 
 /* ---------------------------------- */
 /* LABEL MAP                           */
@@ -20,8 +23,10 @@ const LABELS: Record<string, string> = {
 function TabContent({ state, navigation }: { state: any; navigation: any }) {
   const insets = useSafeAreaInsets();
 
-  const TAB_HEIGHT = 50;
-  const BOTTOM_PADDING = Math.max(8, insets.bottom);
+  // ✅ Deterministic, Apple-like height
+  // Visual bar height = 56 + safe-area bottom inset (home indicator area)
+  const TAB_HEIGHT = 56;
+  const BOTTOM_PADDING = insets.bottom;
 
   return (
     <View
@@ -30,14 +35,13 @@ function TabContent({ state, navigation }: { state: any; navigation: any }) {
         paddingBottom: BOTTOM_PADDING,
         paddingTop: 6,
         flexDirection: "row",
-        backgroundColor: Colors.surface, // ✅ SOLID WHITE
+        backgroundColor: Colors.surface,
       }}
     >
       {state.routes.map((route: any, index: number) => {
         const focused = state.index === index;
 
         const iconColor = focused ? "#000000" : "rgba(0,0,0,0.45)";
-
         const onPress = () => navigation.navigate(route.name);
 
         let icon = null;
@@ -97,14 +101,17 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
+
+        // ✅ Keep RN tab bar styling neutral; we render a custom bar below
         tabBarStyle: {
-          backgroundColor: Colors.surface, // 👈 FORCE WHITE AT NATIVE LEVEL
+          backgroundColor: Colors.surface,
+          borderTopColor: Colors.border,
         },
       }}
       tabBar={({ state, navigation }) => (
         <View
           style={{
-            backgroundColor: Colors.surface, // 👈 FORCE WHITE AGAIN
+            backgroundColor: Colors.surface,
             borderTopWidth: 0.5,
             borderTopColor: Colors.border,
           }}

@@ -1,111 +1,128 @@
 // components/ui/ScreenHeader.tsx
 import { Colors } from "@/styles/colors";
-import { Tokens } from "@/styles/tokens";
-import * as Haptics from "expo-haptics";
-import { ChevronLeft } from "lucide-react-native";
+import { Spacing } from "@/styles/spacing";
 import React from "react";
-import { Pressable, StyleSheet, View } from "react-native";
-import { Text } from "./Text";
+import { StyleSheet, Text, View } from "react-native";
 
 type Props = {
   title: string;
   subtitle?: string;
-  onBack?: () => void;
   right?: React.ReactNode;
-  backLabel?: string; // optional: show label next to chevron
-  compact?: boolean;  // tighter header for dense screens
+  kicker?: string;
+  variant?: "page" | "hero";
+  spacing?: "default" | "tight"; // still supported
+  debugTopLine?: boolean;
+  horizontal?: number;
+
+  after?: "none" | "default";
 };
 
 export function ScreenHeader({
   title,
   subtitle,
-  onBack,
   right,
-  backLabel,
-  compact,
+  kicker,
+  variant = "page",
+  spacing = "default",
+  debugTopLine = false,
+  horizontal,
+  after = "default",
 }: Props) {
-  const titleVariant = compact ? "h2" : "h1";
+  const isHero = variant === "hero";
+  const px = horizontal ?? Spacing.lg;
+
+  const padTop = 8;
+  const padBottom = isHero ? 14 : 12;
+
+  // spacing preset between header and content
+  const afterGap =
+    after === "none" ? 0 : isHero ? 16 : 12;
+
+  // optional tighter mode if you want it for specific screens later
+  const tightMult = spacing === "tight" ? 0.75 : 1;
 
   return (
-    <View style={[styles.wrap, compact && styles.wrapCompact]}>
-      <View style={styles.row}>
-        {onBack ? (
-          <Pressable
-            onPress={async () => {
-              await Haptics.selectionAsync();
-              onBack();
-            }}
-            style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.7 }]}
-            hitSlop={10}
-          >
-            <ChevronLeft size={22} color={Colors.text} />
-            {backLabel ? (
-              <Text variant="sub" style={{ marginLeft: 2 }}>
-                {backLabel}
+    <View style={[S.wrap, debugTopLine && S.debugTop]}>
+      <View style={[S.inner, { paddingHorizontal: px, paddingTop: padTop, paddingBottom: padBottom }]}>
+        <View style={S.row}>
+          <View style={S.left}>
+            {kicker ? <Text allowFontScaling={false} style={S.kicker}>{kicker}</Text> : null}
+            <Text
+              allowFontScaling={false}
+              style={[S.title, isHero ? S.titleHero : S.titlePage]}
+              numberOfLines={2}
+            >
+              {title}
+            </Text>
+
+            {subtitle ? (
+              <Text
+                allowFontScaling={false}
+                style={[S.subtitle, { marginTop: 6 * tightMult }]}
+                numberOfLines={2}
+              >
+                {subtitle}
               </Text>
             ) : null}
-          </Pressable>
-        ) : (
-          <View style={{ width: 44 }} />
-        )}
+          </View>
 
-        <View style={styles.rightSlot}>{right}</View>
+          {right ? <View style={S.right}>{right}</View> : null}
+        </View>
       </View>
 
-      <View style={styles.titleBlock}>
-        <Text variant={titleVariant} style={styles.title} numberOfLines={2}>
-          {title}
-        </Text>
-
-        {subtitle ? (
-          <Text variant="meta" tone="muted" style={styles.sub}>
-            {subtitle}
-          </Text>
-        ) : null}
-      </View>
+      {/* locked header-to-content gap */}
+      {afterGap > 0 ? <View style={{ height: afterGap }} /> : null}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const S = StyleSheet.create({
   wrap: {
-    paddingHorizontal: Tokens.pageX,
-    paddingTop: Tokens.headerTopPad,
-    paddingBottom: Tokens.headerBottomPad,
     backgroundColor: Colors.surface,
   },
-  wrapCompact: {
-    paddingBottom: 10,
+  debugTop: {
+    borderTopWidth: 2,
+    borderTopColor: "red",
   },
+  inner: {},
   row: {
     flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  backBtn: {
-    height: 40,
-    minWidth: 40,
-    borderRadius: 999,
-    alignItems: "center",
-    justifyContent: "center",
-    flexDirection: "row",
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Colors.border,
-    paddingHorizontal: 10,
-    backgroundColor: "transparent",
-  },
-  rightSlot: {
-    minWidth: 44,
     alignItems: "flex-end",
-    justifyContent: "center",
+    justifyContent: "space-between",
+    gap: 12,
   },
-  titleBlock: {
-    marginTop: 10,
+  left: {
+    flex: 1,
+    minWidth: 0,
+  },
+  right: {
+    alignSelf: "flex-end",
+  },
+  kicker: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: Colors.muted,
+    marginBottom: 6,
+    letterSpacing: 0.2,
   },
   title: {
     color: Colors.text,
+    fontWeight: "800",
   },
-  sub: {
-    marginTop: 6,
+  titleHero: {
+    fontSize: 46,
+    lineHeight: 50,
+    letterSpacing: -0.6,
+  },
+  titlePage: {
+    fontSize: 34,
+    lineHeight: 38,
+    letterSpacing: -0.4,
+  },
+  subtitle: {
+    fontSize: 14,
+    lineHeight: 18,
+    color: Colors.muted,
+    fontWeight: "500",
   },
 });

@@ -140,7 +140,7 @@ export const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    height: 220, // only affects lower portion
+    height: 280, // only affects lower portion
   },
 
   programTopLeft: {
@@ -151,30 +151,35 @@ export const styles = StyleSheet.create({
 
   // Subtle info chip (less obvious than a bright icon button)
   infoChip: {
-    position: "absolute",
-    top: 10,
-    right: 10,
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: "rgba(0,0,0,0.22)",
-    borderWidth: HAIR,
-    borderColor: "rgba(255,255,255,0.18)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  position: "absolute",
+  top: 12,
+  right: 12,
+  width: 30,
+  height: 30,
+  borderRadius: 15,
+  backgroundColor: "rgba(255,255,255,0.22)",
+  borderWidth: HAIR,
+  borderColor: "rgba(255,255,255,0.28)",
+  alignItems: "center",
+  justifyContent: "center",
+  shadowColor: "#000",
+  shadowOpacity: 0.10,
+  shadowRadius: 10,
+  shadowOffset: { width: 0, height: 6 },
+  elevation: 2,
+},
 
   programBottomRight: {
     position: "absolute",
     right: 12,
-    bottom: 12,
+    bottom: 14,
   },
 
   programTextOverlay: {
     position: "absolute",
-    left: 14,
-    right: 14,
-    bottom: 16,
+    left: 12,
+    right: 12,
+    bottom: 12,
   },
 
   programTitleOnImage: {
@@ -211,37 +216,63 @@ export const styles = StyleSheet.create({
 
   /* LEVEL PILL (smaller + higher contrast) */
 
-  levelPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    borderRadius: 999,
-    backgroundColor: "rgba(0,0,0,0.28)",
-    borderWidth: HAIR,
-    borderColor: "rgba(255,255,255,0.14)",
-  },
+/* LEVEL CHIP — matches infoChip “liquid glass” */
 
-  levelDots: { flexDirection: "row", gap: 3 },
+levelChip: {
+  flexDirection: "row",
+  alignItems: "center",
+  paddingLeft: 10,
+  paddingRight: 12,
+  height: 30,
+  borderRadius: 15,
 
-  levelDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 3,
-    backgroundColor: "rgba(255,255,255,0.28)",
-  },
+  // SAME FAMILY as infoChip
+  backgroundColor: "rgba(255,255,255,0.22)",
+  borderWidth: HAIR,
+  borderColor: "rgba(255,255,255,0.28)",
 
-  levelDotOn: {
-    backgroundColor: "rgba(255,255,255,0.92)",
-  },
+  shadowColor: "#000",
+  shadowOpacity: 0.10,
+  shadowRadius: 10,
+  shadowOffset: { width: 0, height: 6 },
+  elevation: 2,
+},
 
-  levelLabel: {
-    fontSize: 11,
-    fontWeight: "900",
-    color: "rgba(255,255,255,0.92)",
-    letterSpacing: -0.1,
-  },
+levelIconWrap: {
+  width: 20,
+  height: 20,
+  borderRadius: 10,
+  alignItems: "center",
+  justifyContent: "center",
+  marginRight: 8,
+},
+
+levelIconAccent: {
+  // tiny premium cue (optional, looks great on the scrim)
+  backgroundColor: "rgba(244,200,74,0.18)", // gold tint, very subtle
+  borderWidth: HAIR,
+  borderColor: "rgba(244,200,74,0.28)",
+},
+
+levelChipText: {
+  fontSize: 12,
+  lineHeight: 14,
+  fontWeight: "800",
+  color: "rgba(255,255,255,0.92)",
+  letterSpacing: -0.1,
+},
+
+levelChipTextSoft: {
+  color: "rgba(255,255,255,0.82)",
+},
+
+levelLabel: {
+  fontSize: 13,                  // closer to 12 weeks visual weight
+  lineHeight: 16,
+  fontWeight: "800",             // less shouty than 900
+  color: "rgba(255,255,255,0.85)", // slightly softer so it doesn't compete with title
+  letterSpacing: -0.1,
+},
 
   /* ---------------------------------------------------- */
   /* WORKOUT / RECIPE CARDS                               */

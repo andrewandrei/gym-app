@@ -1,7 +1,7 @@
 //gidhub
 cd Desktop/gym-app
 git add .
-git commit -m "Add compact rest timer"
+git commit -m "explore screen update"
 git push
 
 

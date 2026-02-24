@@ -1,35 +1,25 @@
+// app/(tabs)/explore.tsx
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { ChevronRight, Info } from "lucide-react-native";
 import React, { useMemo, useState } from "react";
-import {
-  FlatList,
-  Image,
-  Modal,
-  Pressable,
-  ScrollView,
-  Text,
-  View,
-} from "react-native";
+import { FlatList, Image, Modal, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { ScreenHeader } from "@/components/ui/ScreenHeader";
 import { Colors } from "@/styles/colors";
 import { GlobalStyles } from "@/styles/global";
 import { Spacing } from "@/styles/spacing";
 import { styles } from "./explore.styles";
-
-/* ---------------------------------------------------- */
-/* TYPES                                                */
-/* ---------------------------------------------------- */
 
 type Level = "Beginner" | "Intermediate" | "Advanced";
 
 type Program = {
   id: string;
   title: string;
-  duration: string; // "12 weeks"
-  tag: string; // "Gym", "Hybrid", etc
-  workoutsPerWeek: number; // 3
+  duration: string;
+  tag: string;
+  workoutsPerWeek: number;
   level: Level;
   imageUrl: string;
   description: string;
@@ -43,15 +33,15 @@ type Workout = {
   type: string;
   durationMin: number;
   imageUrl: string;
-  meta: string; // "Arms · Shoulders"
+  meta: string;
   isActive?: boolean;
 };
 
 type Recipe = {
   id: string;
   title: string;
-  metaBold: string; // "Main course ~35 min"
-  metaMuted: string; // "High Protein · Vegetables"
+  metaBold: string;
+  metaMuted: string;
   imageUrl: string;
 };
 
@@ -62,10 +52,6 @@ type Rail<T> = {
   kind: "program" | "workout" | "recipe";
   items: T[];
 };
-
-/* ---------------------------------------------------- */
-/* SMALL UI                                              */
-/* ---------------------------------------------------- */
 
 function RailHeader({
   title,
@@ -93,50 +79,24 @@ function RailHeader({
   );
 }
 
-function Badge({
-  label,
-  variant = "light",
-}: {
-  label: string;
-  variant?: "light" | "gold";
-}) {
+function Badge({ label, variant = "light" }: { label: string; variant?: "light" | "gold" }) {
   return (
     <View style={[styles.badge, variant === "gold" && styles.badgeGold]}>
-      <Text
-        style={[
-          styles.badgeText,
-          variant === "gold" && styles.badgeTextGold,
-        ]}
-      >
-        {label}
+      <Text style={[styles.badgeText, variant === "gold" && styles.badgeTextGold]}>{label}</Text>
+    </View>
+  );
+}
+
+function LevelChip({ level }: { level: Level }) {
+  return (
+    <View style={styles.levelChip}>
+      <View style={[styles.levelIconWrap, styles.levelIconAccent]} />
+      <Text style={styles.levelChipText} allowFontScaling={false}>
+        {level}
       </Text>
     </View>
   );
 }
-
-/**
- * Small, high-contrast level mark:
- * - dark pill so it’s readable on bright photos
- * - white dots (1/2/3) + short level label
- */
-function LevelPill({ level }: { level: Level }) {
-  const dots = level === "Beginner" ? 1 : level === "Intermediate" ? 2 : 3;
-
-  return (
-    <View style={styles.levelPill}>
-      <View style={styles.levelDots}>
-        <View style={[styles.levelDot, dots >= 1 && styles.levelDotOn]} />
-        <View style={[styles.levelDot, dots >= 2 && styles.levelDotOn]} />
-        <View style={[styles.levelDot, dots >= 3 && styles.levelDotOn]} />
-      </View>
-      <Text style={styles.levelLabel}>{level}</Text>
-    </View>
-  );
-}
-
-/* ---------------------------------------------------- */
-/* PROGRAM CARD                                         */
-/* ---------------------------------------------------- */
 
 function ProgramCard({
   program,
@@ -150,49 +110,31 @@ function ProgramCard({
   return (
     <Pressable
       onPress={() => onPress(program.id)}
-      style={({ pressed }) => [
-        styles.programCardWrap,
-        pressed && styles.cardPressed,
-      ]}
+      style={({ pressed }) => [styles.programCardWrap, pressed && styles.cardPressed]}
       accessibilityRole="button"
       accessibilityLabel={`Open ${program.title}`}
     >
       <View style={styles.programTile}>
-        <Image
-          source={{ uri: program.imageUrl }}
-          style={styles.programTileImage}
-          resizeMode="cover"
-        />
+        <Image source={{ uri: program.imageUrl }} style={styles.programTileImage} resizeMode="cover" />
 
-        {/* ✅ Bottom-only scrim gradient (no “cut in half” look) */}
         <LinearGradient
-          colors={[
-            "rgba(0,0,0,0.00)",
-            "rgba(0,0,0,0.00)",
-            "rgba(0,0,0,0.38)",
-            "rgba(0,0,0,0.58)",
-          ]}
-          locations={[0, 0.52, 0.78, 1]}
+          colors={["rgba(0,0,0,0)", "rgba(0,0,0,0.18)", "rgba(0,0,0,0.45)", "rgba(0,0,0,0.75)"]}
+          locations={[0, 0.35, 0.65, 1]}
           style={styles.programBottomScrim}
           pointerEvents="none"
         />
 
-        {/* Top-left badge: Active OR Featured (not both) */}
         <View style={styles.programTopLeft}>
           {program.isActive ? (
-            <Badge label="Active" variant="light" />
+            <Badge label="Active" />
           ) : program.isFeatured ? (
             <Badge label="Featured" variant="gold" />
           ) : null}
         </View>
 
-        {/* Top-right: subtle info button */}
         <Pressable
           onPress={() => onPressInfo(program)}
-          style={({ pressed }) => [
-            styles.infoChip,
-            pressed && { opacity: 0.85 },
-          ]}
+          style={({ pressed }) => [styles.infoChip, pressed && { opacity: 0.85 }]}
           hitSlop={10}
           accessibilityRole="button"
           accessibilityLabel={`Program info: ${program.title}`}
@@ -200,12 +142,11 @@ function ProgramCard({
           <Info size={14} color="rgba(255,255,255,0.92)" />
         </Pressable>
 
-        {/* Bottom-right: level pill */}
+        {/* ✅ FIXED: use program.level (not item.level) */}
         <View style={styles.programBottomRight}>
-          <LevelPill level={program.level} />
+          <LevelChip level={program.level} />
         </View>
 
-        {/* Text on image */}
         <View style={styles.programTextOverlay}>
           <Text style={styles.programTitleOnImage} numberOfLines={2}>
             {program.title}
@@ -216,7 +157,6 @@ function ProgramCard({
         </View>
       </View>
 
-      {/* Below image (clear hierarchy) */}
       <Text style={styles.programBelowPrimary} numberOfLines={1}>
         {program.workoutsPerWeek} workouts per week
       </Text>
@@ -226,10 +166,6 @@ function ProgramCard({
     </Pressable>
   );
 }
-
-/* ---------------------------------------------------- */
-/* EDITORIAL CARD — WORKOUTS & RECIPES                  */
-/* ---------------------------------------------------- */
 
 function EditorialCard({
   title,
@@ -261,14 +197,8 @@ function EditorialCard({
       <View style={variant === "workout" ? styles.workoutMedia : styles.recipeMedia}>
         <Image source={{ uri: imageUrl }} style={styles.image} resizeMode="cover" />
 
-        {/* Bottom-only scrim */}
         <LinearGradient
-          colors={[
-            "rgba(0,0,0,0.00)",
-            "rgba(0,0,0,0.00)",
-            "rgba(0,0,0,0.32)",
-            "rgba(0,0,0,0.54)",
-          ]}
+          colors={["rgba(0,0,0,0.00)", "rgba(0,0,0,0.00)", "rgba(0,0,0,0.32)", "rgba(0,0,0,0.54)"]}
           locations={[0, 0.55, 0.8, 1]}
           style={styles.editorialBottomScrim}
           pointerEvents="none"
@@ -276,7 +206,7 @@ function EditorialCard({
 
         {active ? (
           <View style={styles.editorialBadgeWrap}>
-            <Badge label="Active" variant="light" />
+            <Badge label="Active" />
           </View>
         ) : null}
 
@@ -299,10 +229,6 @@ function EditorialCard({
   );
 }
 
-/* ---------------------------------------------------- */
-/* SCREEN                                               */
-/* ---------------------------------------------------- */
-
 export default function ExploreScreen() {
   const insets = useSafeAreaInsets();
 
@@ -319,18 +245,15 @@ export default function ExploreScreen() {
     setSelectedProgram(null);
   };
 
-  // Active program image stays the same
   const ACTIVE_PROGRAM_IMAGE =
     "https://cdn.prod.website-files.com/6442b6aa142c4cb61a9a549d/685bf886d23017768f4614b5_img%20(1).png";
 
-  // Updated program images (your latest)
   const PROGRAM_IMAGES = [
     "https://cdn.prod.website-files.com/6442b6aa142c4cb61a9a549d/690f57910b105d3dea2f1eb9_Strength%20%26%20Symmetry.jpg",
     "https://cdn.prod.website-files.com/6442b6aa142c4cb61a9a549d/690f510381f5fead2d6257b8_c7d8a728-2fde-4254-a1a7-a505e1a4cf3e.jpeg",
     "https://cdn.prod.website-files.com/6442b6aa142c4cb61a9a549d/6784fa945db9e2462bde508b_675b0276e2206c6b6a37ff0c_Hybrid%20Athlete%20(1)-p-800.jpg",
   ];
 
-  // Workouts images you provided
   const WORKOUT_IMAGES = [
     "https://i.ytimg.com/vi/w0zPgPkx8yI/hq720.jpg?sqp=-oaymwEhCK4FEIIDSFryq4qpAxMIARUAAAAAGAElAADIQj0AgKJD&rs=AOn4CLCB-fSirLZ7-OC0R2z5r58bt-aUvQ",
     "https://i.ytimg.com/vi/6O8SRDEK5F4/maxresdefault.jpg",
@@ -393,39 +316,10 @@ export default function ExploreScreen() {
 
   const workouts = useMemo<Workout[]>(
     () => [
-      {
-        id: "w-001",
-        title: "Arms & Shoulders Minimum Equipment",
-        type: "HIIT",
-        durationMin: 30,
-        meta: "Arms · Shoulders",
-        imageUrl: WORKOUT_IMAGES[0],
-        isActive: true,
-      },
-      {
-        id: "w-002",
-        title: "Legs Strength Session",
-        type: "Strength",
-        durationMin: 42,
-        meta: "Legs · Glutes",
-        imageUrl: WORKOUT_IMAGES[1],
-      },
-      {
-        id: "w-003",
-        title: "Upper Body Hypertrophy",
-        type: "Hypertrophy",
-        durationMin: 45,
-        meta: "Chest · Back",
-        imageUrl: WORKOUT_IMAGES[2],
-      },
-      {
-        id: "w-004",
-        title: "Conditioning Finisher",
-        type: "Conditioning",
-        durationMin: 25,
-        meta: "Full body",
-        imageUrl: WORKOUT_IMAGES[3],
-      },
+      { id: "w-001", title: "Arms & Shoulders Minimum Equipment", type: "HIIT", durationMin: 30, meta: "Arms · Shoulders", imageUrl: WORKOUT_IMAGES[0], isActive: true },
+      { id: "w-002", title: "Legs Strength Session", type: "Strength", durationMin: 42, meta: "Legs · Glutes", imageUrl: WORKOUT_IMAGES[1] },
+      { id: "w-003", title: "Upper Body Hypertrophy", type: "Hypertrophy", durationMin: 45, meta: "Chest · Back", imageUrl: WORKOUT_IMAGES[2] },
+      { id: "w-004", title: "Conditioning Finisher", type: "Conditioning", durationMin: 25, meta: "Full body", imageUrl: WORKOUT_IMAGES[3] },
     ],
     [WORKOUT_IMAGES],
   );
@@ -437,24 +331,21 @@ export default function ExploreScreen() {
         title: "Low Carb Lemon Pepper Chicken with Tzatziki",
         metaBold: "Main course ~35 min",
         metaMuted: "High Protein · Vegetables",
-        imageUrl:
-          "https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?auto=format&fit=crop&w=1600&q=80",
+        imageUrl: "https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?auto=format&fit=crop&w=1600&q=80",
       },
       {
         id: "r-002",
         title: "Greek Yogurt + Berries",
         metaBold: "Breakfast ~10 min",
         metaMuted: "Snack · Fruit",
-        imageUrl:
-          "https://images.unsplash.com/photo-1490474418585-ba9bad8fd0ea?auto=format&fit=crop&w=1600&q=80",
+        imageUrl: "https://images.unsplash.com/photo-1490474418585-ba9bad8fd0ea?auto=format&fit=crop&w=1600&q=80",
       },
       {
         id: "r-003",
         title: "Salmon + Greens",
         metaBold: "Main course ~18 min",
         metaMuted: "Omega-3 · Lean",
-        imageUrl:
-          "https://images.unsplash.com/photo-1467003909585-2f8a72700288?auto=format&fit=crop&w=1600&q=80",
+        imageUrl: "https://images.unsplash.com/photo-1467003909585-2f8a72700288?auto=format&fit=crop&w=1600&q=80",
       },
     ],
     [],
@@ -462,27 +353,9 @@ export default function ExploreScreen() {
 
   const rails = useMemo<Array<Rail<Program> | Rail<Workout> | Rail<Recipe>>>(() => {
     return [
-      {
-        id: "programs",
-        title: "Programs",
-        subtitle: "Structured plans",
-        kind: "program",
-        items: programs,
-      },
-      {
-        id: "workouts",
-        title: "Individual workouts",
-        subtitle: "Single sessions",
-        kind: "workout",
-        items: workouts,
-      },
-      {
-        id: "recipes",
-        title: "Recipes",
-        subtitle: "Macro-friendly meals",
-        kind: "recipe",
-        items: recipes,
-      },
+      { id: "programs", title: "Programs", subtitle: "Structured plans", kind: "program", items: programs },
+      { id: "workouts", title: "Individual workouts", subtitle: "Single sessions", kind: "workout", items: workouts },
+      { id: "recipes", title: "Recipes", subtitle: "Macro-friendly meals", kind: "recipe", items: recipes },
     ];
   }, [programs, workouts, recipes]);
 
@@ -496,14 +369,16 @@ export default function ExploreScreen() {
         style={styles.scroll}
         contentContainerStyle={[
           styles.content,
-          { paddingBottom: Spacing.xl + (insets.bottom || 0) },
+          { paddingTop: 4, paddingBottom: Spacing.xl + (insets.bottom || 0) },
         ]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={[styles.header, { paddingTop: (insets.top || 0) + Spacing.lg }]}>
-          <Text style={styles.pageTitle}>Discover</Text>
-        </View>
+        {/* DEBUG TOP LINE */}
+        <View style={{ height: 1, backgroundColor: "red" }} />
+
+        {/* ✅ CONSISTENT HEADER */}
+        <ScreenHeader title="Discover" subtitle="Programs, workouts, and recipes" />
 
         <View style={styles.rails}>
           {rails.map((rail) => (
@@ -526,13 +401,7 @@ export default function ExploreScreen() {
                 contentContainerStyle={styles.railListContent}
                 renderItem={({ item }: any) => {
                   if (rail.kind === "program") {
-                    return (
-                      <ProgramCard
-                        program={item as Program}
-                        onPress={onPressProgram}
-                        onPressInfo={openInfo}
-                      />
-                    );
+                    return <ProgramCard program={item as Program} onPress={onPressProgram} onPressInfo={openInfo} />;
                   }
 
                   if (rail.kind === "workout") {
@@ -570,13 +439,7 @@ export default function ExploreScreen() {
         <View style={styles.bottomSpacer} />
       </ScrollView>
 
-      {/* PROGRAM INFO MODAL */}
-      <Modal
-        visible={infoOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={closeInfo}
-      >
+      <Modal visible={infoOpen} transparent animationType="fade" onRequestClose={closeInfo}>
         <Pressable style={styles.modalOverlay} onPress={closeInfo} />
         <View style={styles.modalSheet}>
           <View style={styles.modalTopRow}>
@@ -594,9 +457,7 @@ export default function ExploreScreen() {
               : ""}
           </Text>
 
-          <Text style={styles.modalBody}>
-            {selectedProgram?.description ?? ""}
-          </Text>
+          <Text style={styles.modalBody}>{selectedProgram?.description ?? ""}</Text>
 
           <View style={styles.modalActionsRow}>
             <Pressable

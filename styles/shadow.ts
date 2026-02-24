@@ -17,12 +17,17 @@ const ios = (y: number, blur: number, opacity: number): ShadowPreset => ({
 
 const android = (elevation: number): ShadowPreset => ({ elevation });
 
-export const Shadow: Record<"soft" | "medium" | "strong", ShadowPreset> = {
-  soft: Platform.select({
-    ios: ios(8, 20, 0.08),
-    android: android(3),
-    default: {},
-  }) as ShadowPreset,
+export const Shadow = {
+  soft: {
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 6,
+  },
+} as const;
+
+  
 
   medium: Platform.select({
     ios: ios(12, 28, 0.10),

@@ -12,41 +12,16 @@ export const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
   },
   content: {
-    paddingHorizontal: Spacing.lg,
-    paddingTop: 10,
-    paddingBottom: 56,
-  },
+  paddingHorizontal: Spacing.lg,
+  paddingTop: 0,
+  paddingBottom: 56,
+},
 
-  /* Header */
-  header: {
-    paddingTop: 6,
-    paddingBottom: 14,
-  },
-  kicker: {
-    fontSize: 13,
-    color: Colors.muted,
-    fontWeight: "700",
-    letterSpacing: 0.2,
-    textTransform: "uppercase",
-  },
-  title: {
-    marginTop: 6,
-    fontSize: 36,
-    fontWeight: "900",
-    color: Colors.text,
-    letterSpacing: -0.5,
-  },
-  subtitle: {
-    marginTop: 10,
-    fontSize: 16,
-    color: Colors.muted,
-    fontWeight: "600",
-    lineHeight: 22,
-  },
+  
 
   /* Plan */
   planCard: {
-    marginTop: 10,
+    marginTop: 12,
     borderRadius: 20,
     backgroundColor: Colors.surface, // keep white
     borderWidth: StyleSheet.hairlineWidth,

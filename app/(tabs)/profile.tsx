@@ -16,6 +16,7 @@ import React, { useMemo } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { ScreenHeader } from "@/components/ui/ScreenHeader";
 import { Colors } from "@/styles/colors";
 import { GlobalStyles } from "@/styles/global";
 import { styles } from "./profile.styles";
@@ -125,9 +126,8 @@ function Section({ title, rows }: { title: string; rows: SettingsRow[] }) {
 export default function ProfileScreen() {
   const router = useRouter();
 
-  /* ─────────────── DEMO STATE (swap with real data later) ─────────────── */
   const name = "Andrei";
-  const isPro = false; // toggle for preview
+  const isPro = false;
 
   const planLabel = isPro ? "Elite" : "Free";
   const planHint = isPro ? "Active membership" : "Full access on the website";
@@ -153,80 +153,30 @@ export default function ProfileScreen() {
     ];
 
     const preferences: SettingsRow[] = [
-      {
-        key: "notifications",
-        title: "Notifications",
-        subtitle: "Reminders & streaks",
-        icon: "bell",
-        onPress: () => {},
-      },
-      {
-        key: "appearance",
-        title: "Appearance",
-        subtitle: "Light / Dark",
-        icon: "moon",
-        onPress: () => {},
-      },
-      {
-        key: "units",
-        title: "Units",
-        subtitle: "kg, cm",
-        icon: "ruler",
-        onPress: () => {},
-      },
-      {
-        key: "nutrition",
-        title: "Nutrition preferences",
-        subtitle: "Macros & foods",
-        icon: "utensils",
-        onPress: () => {},
-      },
+      { key: "notifications", title: "Notifications", subtitle: "Reminders & streaks", icon: "bell", onPress: () => {} },
+      { key: "appearance", title: "Appearance", subtitle: "Light / Dark", icon: "moon", onPress: () => {} },
+      { key: "units", title: "Units", subtitle: "kg, cm", icon: "ruler", onPress: () => {} },
+      { key: "nutrition", title: "Nutrition preferences", subtitle: "Macros & foods", icon: "utensils", onPress: () => {} },
     ];
 
     const support: SettingsRow[] = [
-      {
-        key: "help",
-        title: "Help",
-        subtitle: "FAQ & contact",
-        icon: "help",
-        onPress: () => {},
-      },
-      {
-        key: "terms",
-        title: "Terms & policies",
-        subtitle: "Read on the website",
-        icon: "external",
-        onPress: () => {},
-      },
-      {
-        key: "logout",
-        title: "Log out",
-        icon: "logout",
-        destructive: true,
-        onPress: () => {},
-      },
+      { key: "help", title: "Help", subtitle: "FAQ & contact", icon: "help", onPress: () => {} },
+      { key: "terms", title: "Terms & policies", subtitle: "Read on the website", icon: "external", onPress: () => {} },
+      { key: "logout", title: "Log out", icon: "logout", destructive: true, onPress: () => {} },
     ];
 
     return { account, preferences, support };
   }, [isPro, onUpgrade]);
 
   return (
-    <SafeAreaView style={[GlobalStyles.safe, styles.safe]}>
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.kicker}>Profile</Text>
-          <Text style={styles.title}>{name}</Text>
-          <Text style={styles.subtitle}>
-            Keep it simple. Execute consistently.
-          </Text>
-        </View>
+    <SafeAreaView style={[GlobalStyles.safe, styles.safe]} edges={["top"]}>
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        {/* DEBUG TOP LINE */}
+        <View style={{ height: 1, backgroundColor: "red" }} />
 
-        {/* Plan status */}
+        {/* ✅ CONSISTENT HEADER */}
+        <ScreenHeader title={name} subtitle="Keep it simple. Execute consistently." />
+
         <View style={styles.planCard}>
           <View style={styles.planLeft}>
             <Text style={styles.planLabel}>{planLabel}</Text>
@@ -234,15 +184,7 @@ export default function ProfileScreen() {
           </View>
 
           {!isPro ? (
-            <Pressable
-              onPress={onUpgrade}
-              style={({ pressed }) => [
-                styles.upgradePill,
-                pressed && styles.pressed,
-              ]}
-              accessibilityRole="button"
-              accessibilityLabel="Upgrade"
-            >
+            <Pressable onPress={onUpgrade} style={({ pressed }) => [styles.upgradePill, pressed && styles.pressed]}>
               <Text style={styles.upgradePillText}>Upgrade</Text>
             </Pressable>
           ) : (
@@ -252,12 +194,10 @@ export default function ProfileScreen() {
           )}
         </View>
 
-        {/* Sections */}
         <Section title="Account" rows={sections.account} />
         <Section title="Preferences" rows={sections.preferences} />
         <Section title="Support" rows={sections.support} />
 
-        {/* Footer */}
         <View style={styles.footer}>
           <Text style={styles.footerText}>AndreiAndreiFit • v0.1</Text>
         </View>
