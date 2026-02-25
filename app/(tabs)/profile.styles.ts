@@ -11,12 +11,12 @@ export const styles = StyleSheet.create({
   scroll: {
     backgroundColor: Colors.surface,
   },
-  content: {
-  paddingHorizontal: Spacing.lg,
-  paddingTop: 0,
-  paddingBottom: 56,
+ content: {
+  flexGrow: 1,
+  paddingTop: 4,
+  paddingBottom: Spacing.lg,
+  paddingHorizontal: Spacing.md,
 },
-
   
 
   /* Plan */

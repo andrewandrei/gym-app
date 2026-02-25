@@ -75,10 +75,10 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
       >
         <ScreenHeader
-  variant="hero"
-  title={greetingTitle}
-  subtitle={greetingSub}
-  right={
+          variant="hero"
+          title={greetingTitle}
+          subtitle={greetingSub}
+          right={
     <TouchableOpacity style={styles.iconButton} activeOpacity={0.85}>
       <Moon size={18} color={Colors.text} />
     </TouchableOpacity>
@@ -253,7 +253,11 @@ function getCtaCopy({
 
 const styles = StyleSheet.create({
   
-  container: { paddingTop: 4, paddingBottom: Spacing.lg },
+  container: {
+  paddingTop: 4,
+  paddingBottom: Spacing.lg,     // match Explore style of a bigger bottom pad
+  paddingHorizontal: Spacing.md, // ✅ the single source of truth for side margins
+   },
 
   iconButton: {
     width: 40,
@@ -268,7 +272,7 @@ const styles = StyleSheet.create({
 
   weekProgressBg: {
     marginTop: 6,
-    marginHorizontal: 24,
+    
     height: 6,
     backgroundColor: "rgba(0,0,0,0.08)",
     borderRadius: 999,
@@ -278,7 +282,7 @@ const styles = StyleSheet.create({
 
   todayRow: {
     marginTop: 18,
-    marginHorizontal: 24,
+    
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-end",
@@ -292,7 +296,7 @@ const styles = StyleSheet.create({
   planLink: { paddingVertical: 6, paddingHorizontal: 8 },
   planLinkText: { fontSize: 15, color: Colors.muted, fontWeight: "700" },
   todaySub: {
-    marginHorizontal: 24,
+    
     fontSize: 16,
     color: Colors.muted,
     marginTop: 8,
@@ -301,7 +305,7 @@ const styles = StyleSheet.create({
   },
 
   heroCard: {
-    marginHorizontal: 24,
+    
     borderRadius: 28,
     overflow: "hidden",
     backgroundColor: Colors.card,
@@ -410,14 +414,14 @@ const styles = StyleSheet.create({
   switchText: { fontSize: 17, fontWeight: "800", color: Colors.text },
 
   quickTitle: {
-    marginHorizontal: 24,
+    
     fontSize: 22,
     fontWeight: "800",
     marginBottom: 14,
     color: Colors.text,
   },
   quickCard: {
-    marginHorizontal: 24,
+   
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: Colors.card,

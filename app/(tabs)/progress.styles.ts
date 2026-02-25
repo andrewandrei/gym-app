@@ -12,10 +12,11 @@ export const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
   },
   content: {
-  paddingHorizontal: Spacing.lg,
-  paddingTop: 0,
-  paddingBottom: 48,
-},
+      flexGrow: 1,
+      paddingTop: 4,
+      paddingBottom: Spacing.lg,
+      paddingHorizontal: Spacing.md,
+    },
 
   
 

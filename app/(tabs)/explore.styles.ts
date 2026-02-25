@@ -7,16 +7,13 @@ const HAIR = StyleSheet.hairlineWidth;
 export const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.surface },
   scroll: { flex: 1, backgroundColor: Colors.surface },
-  content: { flexGrow: 1 },
+  
 
   /* ---------------------------------------------------- */
   /* PAGE HEADER                                          */
   /* ---------------------------------------------------- */
 
-  header: {
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.lg,
-  },
+ 
 
   pageTitle: {
     fontSize: 34,
@@ -28,58 +25,73 @@ export const styles = StyleSheet.create({
 
   cardPressed: { opacity: 0.93 },
 
+
+  content: {
+       flexGrow: 1,
+       paddingTop: 4,
+       paddingBottom: Spacing.lg, // (+ insets.bottom is fine in TSX)
+  // ✅ NO paddingHorizontal here
+    },
+
+    pad: {
+  paddingHorizontal: Spacing.md, // 18
+},
+
   /* ---------------------------------------------------- */
   /* RAILS                                                */
   /* ---------------------------------------------------- */
 
-  rails: { paddingTop: Spacing.sm },
-
-  rail: { paddingTop: Spacing.xl },
-
-  railHeader: {
-    paddingHorizontal: Spacing.lg,
-    flexDirection: "row",
-    alignItems: "flex-end",
-    justifyContent: "space-between",
-    marginBottom: Spacing.md,
-  },
+  rails: { paddingBottom: 0,  },          //// 18 
+  rail: { },  // ✅ 18 between sections
+  rrailHeader: {
+  paddingHorizontal: 0,
+  flexDirection: "row",
+  alignItems: "center",
+  justifyContent: "space-between",
+  marginBottom: Spacing.sm,
+},
 
   railHeaderText: { flex: 1, paddingRight: 10 },
 
-  railTitle: {
-    fontSize: 22,
-    lineHeight: 26,
-    fontWeight: "900",
-    color: Colors.text,
-    letterSpacing: -0.25,
-  },
+  railHeaderRow: {
+  flexDirection: "row",
+  alignItems: "center",        // ✅ not flex-end anymore
+  justifyContent: "space-between",
+  gap: 12,
+  marginBottom: Spacing.sm,    // ✅ 12 to the rail
+},
 
-  railSubtitle: {
-    marginTop: 4,
-    fontSize: 13,
-    lineHeight: 17,
-    fontWeight: "600",
-    color: Colors.muted,
-  },
+  railTitle: {
+  flex: 1,
+  fontSize: 22,
+  lineHeight: 26,
+  fontWeight: "800",
+  color: Colors.text,
+  letterSpacing: -0.2,
+},
+
+ 
 
   railAll: {
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 6,
-    paddingHorizontal: 8,
+    paddingHorizontal: 0,  // ✅ not 8
     borderRadius: 10,
   },
 
-  railAllText: {
-    fontSize: 13,
-    fontWeight: "800",
-    color: Colors.muted,
-    marginRight: 4,
-  },
+railAllText: {
+  fontSize: 13,
+  fontWeight: "700",          // ✅ slightly lighter
+  color: Colors.muted,
+  marginRight: 4,
+},
 
   railListContent: {
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.md,
+  paddingLeft: Spacing.md,  // ✅ bring content back to aligned start
+  paddingRight: Spacing.md, // ✅ allow last card to land near edge
+  paddingBottom: Spacing.md,
+                   // if you’re using RN >= 0.71 this works; otherwise use marginRight on cards
   },
 
   bottomSpacer: { height: Spacing.xl * 1.2 },
@@ -118,7 +130,7 @@ export const styles = StyleSheet.create({
   // Slightly narrower + taller, less rounded than before (premium, less “bubble”)
   programCardWrap: {
     width: 284,
-    marginRight: 16, // more breathing between cards
+   
   },
 
   programTile: {
@@ -197,68 +209,40 @@ export const styles = StyleSheet.create({
     fontWeight: "700",
   },
 
-  programBelowPrimary: {
-    marginTop: 14,
-    color: Colors.text,
-    fontSize: 18,
-    lineHeight: 22,
-    fontWeight: "900",
-    letterSpacing: -0.2,
-  },
-
-  programBelowSecondary: {
-    marginTop: 4,
-    color: Colors.muted,
-    fontSize: 15,
-    lineHeight: 19,
-    fontWeight: "600",
-  },
+ programBelowPrimary: {
+  marginTop: Spacing.sm,      // 12
+  color: Colors.text,
+  fontSize: 15,               // down from 18
+  lineHeight: 18,
+  fontWeight: "700",          // down from 900
+  letterSpacing: -0.1,
+},
+programBelowSecondary: {
+  marginTop: Spacing.xxs,     // 4
+  color: Colors.muted,
+  fontSize: 13,               // down from 15
+  lineHeight: 16,
+  fontWeight: "600",
+},
 
   /* LEVEL PILL (smaller + higher contrast) */
 
 /* LEVEL CHIP — matches infoChip “liquid glass” */
 
-levelChip: {
-  flexDirection: "row",
-  alignItems: "center",
-  paddingLeft: 10,
-  paddingRight: 12,
-  height: 30,
-  borderRadius: 15,
 
-  // SAME FAMILY as infoChip
-  backgroundColor: "rgba(255,255,255,0.22)",
-  borderWidth: HAIR,
-  borderColor: "rgba(255,255,255,0.28)",
-
-  shadowColor: "#000",
-  shadowOpacity: 0.10,
-  shadowRadius: 10,
-  shadowOffset: { width: 0, height: 6 },
-  elevation: 2,
-},
-
-levelIconWrap: {
-  width: 20,
-  height: 20,
-  borderRadius: 10,
-  alignItems: "center",
-  justifyContent: "center",
-  marginRight: 8,
-},
-
-levelIconAccent: {
-  // tiny premium cue (optional, looks great on the scrim)
-  backgroundColor: "rgba(244,200,74,0.18)", // gold tint, very subtle
-  borderWidth: HAIR,
-  borderColor: "rgba(244,200,74,0.28)",
+levelText: {
+  fontSize: 13,
+  lineHeight: 16,
+  fontWeight: "800",        // bold like before
+  color: "rgba(255,255,255,0.92)" ,       
+  letterSpacing: -0.1,
 },
 
 levelChipText: {
-  fontSize: 12,
-  lineHeight: 14,
-  fontWeight: "800",
-  color: "rgba(255,255,255,0.92)",
+  fontSize: 13,
+  lineHeight: 16,
+  fontWeight: "700",
+  color: "rgba(255,255,255,0.85)",
   letterSpacing: -0.1,
 },
 
@@ -280,27 +264,25 @@ levelLabel: {
 
   workoutCard: {
     width: 284, // a bit less wide
-    marginRight: 16,
+    
   },
-
-  recipeCard: {
-    width: 240,
-    marginRight: 16,
-  },
-
   workoutMedia: {
-    height: 230, // taller feel
+    height: 180, // taller feel
     borderRadius: 18,
     overflow: "hidden",
     backgroundColor: Colors.card,
   },
+  recipeCard: {
+    width: 210,
+   },
 
   recipeMedia: {
-    height: 185,
-    borderRadius: 18,
-    overflow: "hidden",
-    backgroundColor: Colors.card,
-  },
+  width: "100%",
+  aspectRatio: 1,   // 🔥 perfect square
+  borderRadius: 18,
+  overflow: "hidden",
+  backgroundColor: Colors.card,
+},
 
   image: {
     ...StyleSheet.absoluteFillObject,

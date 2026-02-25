@@ -169,8 +169,11 @@ export default function ProfileScreen() {
   }, [isPro, onUpgrade]);
 
   return (
-    <SafeAreaView style={[GlobalStyles.safe, styles.safe]} edges={["top"]}>
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+   <SafeAreaView style={GlobalStyles.screen} edges={["top"]}>
+         <ScrollView 
+         style={styles.scroll} 
+         contentContainerStyle={styles.content} 
+         showsVerticalScrollIndicator={false}>
         {/* DEBUG TOP LINE */}
         <View style={{ height: 1, backgroundColor: "red" }} />
 

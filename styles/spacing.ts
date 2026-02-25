@@ -1,11 +1,10 @@
 // styles/spacing.ts
-
-
 export const Spacing = {
-  xs: 6,
-  sm: 10,
-  md: 16,
+  xxs: 4,
+  xs: 8,
+  sm: 12,
+  md: 18,  // ✅ app gutter
   lg: 24,
   xl: 32,
-  "2xl": 34,
+  xxl: 40,
 } as const;

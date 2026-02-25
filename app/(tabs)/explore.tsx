@@ -3,7 +3,15 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { ChevronRight, Info } from "lucide-react-native";
 import React, { useMemo, useState } from "react";
-import { FlatList, Image, Modal, Pressable, ScrollView, Text, View } from "react-native";
+import {
+  FlatList,
+  Image,
+  Modal,
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+} from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ScreenHeader } from "@/components/ui/ScreenHeader";
@@ -11,6 +19,8 @@ import { Colors } from "@/styles/colors";
 import { GlobalStyles } from "@/styles/global";
 import { Spacing } from "@/styles/spacing";
 import { styles } from "./explore.styles";
+
+const RAIL_GAP = Spacing.md;
 
 type Level = "Beginner" | "Intermediate" | "Advanced";
 
@@ -55,19 +65,14 @@ type Rail<T> = {
 
 function RailHeader({
   title,
-  subtitle,
   onPressAll,
 }: {
   title: string;
-  subtitle?: string;
   onPressAll?: () => void;
 }) {
   return (
-    <View style={styles.railHeader}>
-      <View style={styles.railHeaderText}>
-        <Text style={styles.railTitle}>{title}</Text>
-        {!!subtitle && <Text style={styles.railSubtitle}>{subtitle}</Text>}
-      </View>
+    <View style={styles.railHeaderRow}>
+      <Text style={styles.railTitle}>{title}</Text>
 
       {!!onPressAll && (
         <Pressable onPress={onPressAll} style={styles.railAll} hitSlop={10}>
@@ -89,12 +94,9 @@ function Badge({ label, variant = "light" }: { label: string; variant?: "light" 
 
 function LevelChip({ level }: { level: Level }) {
   return (
-    <View style={styles.levelChip}>
-      <View style={[styles.levelIconWrap, styles.levelIconAccent]} />
-      <Text style={styles.levelChipText} allowFontScaling={false}>
-        {level}
-      </Text>
-    </View>
+    <Text style={styles.levelText} allowFontScaling={false}>
+      {level}
+    </Text>
   );
 }
 
@@ -142,7 +144,6 @@ function ProgramCard({
           <Info size={14} color="rgba(255,255,255,0.92)" />
         </Pressable>
 
-        {/* ✅ FIXED: use program.level (not item.level) */}
         <View style={styles.programBottomRight}>
           <LevelChip level={program.level} />
         </View>
@@ -151,7 +152,7 @@ function ProgramCard({
           <Text style={styles.programTitleOnImage} numberOfLines={2}>
             {program.title}
           </Text>
-          <Text style={styles.programDurationOnImage} numberOfLines={1}>
+          <Text style={styles.programDurationOnImage}>
             {program.duration}
           </Text>
         </View>
@@ -316,7 +317,15 @@ export default function ExploreScreen() {
 
   const workouts = useMemo<Workout[]>(
     () => [
-      { id: "w-001", title: "Arms & Shoulders Minimum Equipment", type: "HIIT", durationMin: 30, meta: "Arms · Shoulders", imageUrl: WORKOUT_IMAGES[0], isActive: true },
+      {
+        id: "w-001",
+        title: "Arms & Shoulders Minimum Equipment",
+        type: "HIIT",
+        durationMin: 30,
+        meta: "Arms · Shoulders",
+        imageUrl: WORKOUT_IMAGES[0],
+        isActive: true,
+      },
       { id: "w-002", title: "Legs Strength Session", type: "Strength", durationMin: 42, meta: "Legs · Glutes", imageUrl: WORKOUT_IMAGES[1] },
       { id: "w-003", title: "Upper Body Hypertrophy", type: "Hypertrophy", durationMin: 45, meta: "Chest · Back", imageUrl: WORKOUT_IMAGES[2] },
       { id: "w-004", title: "Conditioning Finisher", type: "Conditioning", durationMin: 25, meta: "Full body", imageUrl: WORKOUT_IMAGES[3] },
@@ -353,9 +362,9 @@ export default function ExploreScreen() {
 
   const rails = useMemo<Array<Rail<Program> | Rail<Workout> | Rail<Recipe>>>(() => {
     return [
-      { id: "programs", title: "Programs", subtitle: "Structured plans", kind: "program", items: programs },
-      { id: "workouts", title: "Individual workouts", subtitle: "Single sessions", kind: "workout", items: workouts },
-      { id: "recipes", title: "Recipes", subtitle: "Macro-friendly meals", kind: "recipe", items: recipes },
+     { id: "programs", title: "Programs", kind: "program", items: programs },
+     { id: "workouts", title: "Individual workouts", kind: "workout", items: workouts },
+     { id: "recipes", title: "Recipes", kind: "recipe", items: recipes },
     ];
   }, [programs, workouts, recipes]);
 
@@ -364,44 +373,69 @@ export default function ExploreScreen() {
   const onPressRecipe = (_id: string) => router.push("/recipes");
 
   return (
-    <SafeAreaView style={[GlobalStyles.safe, styles.safe]} edges={["top"]}>
+    <SafeAreaView style={GlobalStyles.screen} edges={["top"]}>
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={[
           styles.content,
-          { paddingTop: 4, paddingBottom: Spacing.xl + (insets.bottom || 0) },
+          { paddingBottom: Spacing.lg + (insets.bottom || 0) },
         ]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        contentInsetAdjustmentBehavior="never"
       >
-        {/* DEBUG TOP LINE */}
-        <View style={{ height: 1, backgroundColor: "red" }} />
-
-        {/* ✅ CONSISTENT HEADER */}
-        <ScreenHeader title="Discover" subtitle="Programs, workouts, and recipes" />
+        {/* Header stays inside the grid */}
+        <View style={styles.pad}>
+          <ScreenHeader title="Discover" subtitle="Programs, workouts, and recipes" />
+        </View>
 
         <View style={styles.rails}>
-          {rails.map((rail) => (
-            <View key={rail.id} style={styles.rail}>
-              <RailHeader
-                title={rail.title}
-                subtitle={rail.subtitle}
-                onPressAll={() => {
-                  if (rail.kind === "program") router.push("/programs");
-                  if (rail.kind === "workout") router.push("/workouts");
-                  if (rail.kind === "recipe") router.push("/recipes");
-                }}
-              />
+          {rails.map((rail, index) => (
+            <View
+                key={rail.id}
+                style={[
+                  styles.rail,
+                  index !== 0 && { marginTop: Spacing.xl }, // 32 only between sections
+                ]}
+              >
+              {/* Rail header stays inside the grid */}
+              <View style={styles.pad}>
+                <RailHeader
+                  title={rail.title}
+                  
+                  onPressAll={() => {
+                    if (rail.kind === "program") router.push("/programs");
+                    if (rail.kind === "workout") router.push("/workouts");
+                    if (rail.kind === "recipe") router.push("/recipes");
+                  }}
+                />
+              </View>
 
+               
+              {/* Rail list is edge-to-edge like iOS carousels */}
               <FlatList
-                data={rail.items as any[]}
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                keyExtractor={(item: any) => item.id}
-                contentContainerStyle={styles.railListContent}
+                 
+               
+                  data={rail.items as any[]}
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  keyExtractor={(item: any) => item.id}
+                  contentContainerStyle={styles.railListContent}
+                  ItemSeparatorComponent={() => <View style={{ width: RAIL_GAP }} />}
+                  decelerationRate={0.998}
+                  scrollEventThrottle={16}
+                  bounces
+                  alwaysBounceHorizontal={false}
+                snapToAlignment="start"
                 renderItem={({ item }: any) => {
                   if (rail.kind === "program") {
-                    return <ProgramCard program={item as Program} onPress={onPressProgram} onPressInfo={openInfo} />;
+                    return (
+                      <ProgramCard
+                        program={item as Program}
+                        onPress={onPressProgram}
+                        onPressInfo={openInfo}
+                      />
+                    );
                   }
 
                   if (rail.kind === "workout") {

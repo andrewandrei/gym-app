@@ -29,15 +29,12 @@ export function ScreenHeader({
   after = "default",
 }: Props) {
   const isHero = variant === "hero";
-  const px = horizontal ?? Spacing.lg;
+  const px = horizontal ?? 0;
 
-  const padTop = 8;
-  const padBottom = isHero ? 14 : 12;
+  const padTop = Spacing.xs;                 // 8
+  const padBottom = isHero ? Spacing.sm : Spacing.xs; // hero 12, page 8
 
-  // spacing preset between header and content
-  const afterGap =
-    after === "none" ? 0 : isHero ? 16 : 12;
-
+   const afterGap = after === "none" ? 0 : isHero ? Spacing.lg : Spacing.xs; // ✅ page = 8
   // optional tighter mode if you want it for specific screens later
   const tightMult = spacing === "tight" ? 0.75 : 1;
 
@@ -58,7 +55,7 @@ export function ScreenHeader({
             {subtitle ? (
               <Text
                 allowFontScaling={false}
-                style={[S.subtitle, { marginTop: 6 * tightMult }]}
+                style={[S.subtitle, { marginTop: Spacing.xxs * tightMult }]} // 4
                 numberOfLines={2}
               >
                 {subtitle}
