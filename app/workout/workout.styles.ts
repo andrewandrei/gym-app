@@ -1,8 +1,8 @@
+// app/workout/workout.styles.ts
+
 import { Colors } from "@/styles/colors";
 import { Spacing } from "@/styles/spacing";
 import { Platform, StyleSheet } from "react-native";
-
-const HAIR = StyleSheet.hairlineWidth;
 
 export const S = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.surface },
@@ -15,33 +15,85 @@ export const S = StyleSheet.create({
     // @ts-ignore
     msOverflowStyle: "none",
   },
+
   scrollContent: {
-    paddingBottom: 18,
+    paddingTop: 4,
+    paddingHorizontal: Spacing.md,
+    paddingBottom: Spacing.xl,
   },
 
   /* ───────────────────────── PREVIEW ───────────────────────── */
   previewPage: { flex: 1, backgroundColor: Colors.surface },
 
   previewContent: {
-    paddingTop: 10,
+    paddingTop: 4,
     paddingBottom: 18,
+    paddingHorizontal: Spacing.md,
   },
 
   previewList: {
-    paddingHorizontal: Spacing.lg,
-    paddingTop: 12,
-    gap: 10,
+    marginHorizontal: -Spacing.md,
+    marginTop: 8,
   },
+
+  previewGroupWrap: { position: "relative" },
+
+  previewGroupRail: {
+    position: "absolute",
+    left: Spacing.md,
+    top: 12,
+    bottom: 12,
+    width: 3,
+    borderRadius: 999,
+    backgroundColor: "rgba(0,0,0,0.08)",
+    zIndex: 2,
+  },
+
+  previewBlockHeader: {
+    paddingHorizontal: Spacing.md,
+    paddingTop: 10,
+    paddingBottom: 8,
+    paddingLeft: Spacing.md + 10,
+  },
+
+  previewBlockKicker: {
+    fontSize: 11,
+    fontWeight: "900",
+    color: "rgba(0,0,0,0.38)",
+    letterSpacing: 1.4,
+    textTransform: "uppercase",
+  },
+
+  previewBlockTitle: {
+    marginTop: 3,
+    fontSize: 13,
+    fontWeight: "900",
+    color: Colors.text,
+    letterSpacing: -0.2,
+  },
+
+  previewBlockMeta: {
+    marginTop: 2,
+    fontSize: 12,
+    fontWeight: "700",
+    color: Colors.muted,
+  },
+
+  previewBlockSpacer: { height: 10, backgroundColor: "transparent" },
 
   previewCard: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: Colors.surface,
-    borderRadius: 18,
     paddingVertical: 12,
-    paddingHorizontal: 12,
-    borderWidth: HAIR,
-    borderColor: Colors.border,
+    paddingHorizontal: Spacing.md,
+    paddingLeft: Spacing.md + 10,
+  },
+
+  previewSeparator: {
+    height: 1,
+    backgroundColor: Colors.border,
+    marginLeft: Spacing.md + 10,
   },
 
   previewCardLeft: {
@@ -62,6 +114,23 @@ export const S = StyleSheet.create({
     fontWeight: "900",
     color: "rgba(0,0,0,0.35)",
     letterSpacing: -0.2,
+  },
+
+  previewBlockTag: {
+    width: 26,
+    height: 26,
+    borderRadius: 999,
+    backgroundColor: "rgba(0,0,0,0.06)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+
+  previewBlockTagText: {
+    fontSize: 11,
+    fontWeight: "900",
+    color: Colors.text,
+    letterSpacing: 0.4,
   },
 
   previewImage: {
@@ -90,12 +159,10 @@ export const S = StyleSheet.create({
   },
 
   previewBottom: {
-    paddingHorizontal: Spacing.lg,
+    paddingHorizontal: Spacing.md,
     paddingTop: 12,
     paddingBottom: 14,
     backgroundColor: Colors.surface,
-    borderTopWidth: HAIR,
-    borderTopColor: Colors.border,
   },
 
   startBtn: {
@@ -114,65 +181,156 @@ export const S = StyleSheet.create({
   },
 
   /* ───────────────────────── WORKOUT ───────────────────────── */
+
   header: {
-    paddingHorizontal: Spacing.lg,
-    paddingTop: 12,
-    paddingBottom: 6,
+    marginTop: 10,
+    marginBottom: 14,
   },
 
   setsLine: {
-    fontSize: 13, // ↓ calmer
+    marginBottom: 10,
+    fontSize: 13,
     fontWeight: "900",
     color: "rgba(0,0,0,0.70)",
     letterSpacing: -0.2,
   },
 
   progressTrack: {
-    marginTop: 10,
-    height: 8,
+    height: 6,
     borderRadius: 999,
     backgroundColor: "rgba(0,0,0,0.08)",
     overflow: "hidden",
   },
+
   progressFill: {
-    height: 8,
+    height: "100%",
     borderRadius: 999,
-    // Prefer premium gold if you have it in Colors, fallback to brand gold
     backgroundColor: (Colors as any).premium ?? "#F4C84A",
   },
 
-  exerciseList: { paddingTop: 10, gap: 12 },
-
-  card: {
-    marginHorizontal: Spacing.lg,
-    borderRadius: 20,
-    borderWidth: HAIR,
-    borderColor: Colors.border,
-    backgroundColor: Colors.surface,
-    overflow: "hidden",
+  exerciseList: {
+    marginHorizontal: -Spacing.md,
+    marginTop: 8,
   },
 
-  cardInner: { padding: 12 },
+  groupWrap: { position: "relative" },
+
+  groupSurface: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.018)",
+  },
+
+  groupRail: {
+    position: "absolute",
+    left: Spacing.md,
+    top: 12,
+    bottom: 12,
+    width: 3,
+    borderRadius: 999,
+    backgroundColor: "rgba(0,0,0,0.10)",
+    zIndex: 2,
+  },
+
+  groupRailSuperset: { backgroundColor: "rgba(244,200,74,0.70)" },
+  groupRailGiant: { backgroundColor: "rgba(0,0,0,0.55)" },
+  groupRailCircuit: { backgroundColor: "rgba(244,200,74,0.45)" },
+
+  blockHeader: {
+    paddingHorizontal: Spacing.md,
+    paddingTop: 10,
+    paddingBottom: 8,
+    paddingLeft: Spacing.md + 10,
+  },
+  
+
+  blockKicker: {
+    fontSize: 11,
+    fontWeight: "900",
+    color: "rgba(0,0,0,0.38)",
+    letterSpacing: 1.4,
+    textTransform: "uppercase",
+  },
+
+  blockTitleRow: { marginTop: 3 },
+
+  blockTitle: {
+    fontSize: 13,
+    fontWeight: "900",
+    color: Colors.text,
+    letterSpacing: -0.2,
+  },
+
+  blockMeta: {
+    marginTop: 2,
+    fontSize: 12,
+    fontWeight: "700",
+    color: Colors.muted,
+  },
+  
+  card: {
+    backgroundColor: Colors.surface,
+    paddingHorizontal: Spacing.md,
+    paddingTop: 14,
+    paddingBottom: 14,
+    paddingLeft: Spacing.md + 10,
+  },
+
+  exerciseGap: {
+    height: 10,
+    backgroundColor: Colors.background, // "#F7F7F5"
+  },
+
+  exerciseSeparator: {
+  height: 1,
+  backgroundColor: "rgba(0,0,0,0.10)", // slightly stronger than border
+  marginLeft: Spacing.md + 10,         // keep alignment
+},
+
+  exerciseSeparator: {
+    height: 1,
+    backgroundColor: Colors.border,
+    marginLeft: Spacing.md + 10,
+  },
 
   exerciseHeader: {
     flexDirection: "row",
     alignItems: "center",
-    minHeight: 62,
-    paddingBottom: 10,
+    gap: 12,
+    paddingBottom: 12,
   },
 
   thumb: { width: 58, height: 58, borderRadius: 14 },
 
   exerciseText: {
     flex: 1,
+    minWidth: 0,
     paddingLeft: 12,
     paddingRight: 8,
     justifyContent: "center",
   },
 
+  titleRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+
+  blockTag: {
+    paddingHorizontal: 8,
+    height: 22,
+    borderRadius: 999,
+    backgroundColor: "rgba(0,0,0,0.06)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  blockTagText: {
+    fontSize: 11,
+    fontWeight: "900",
+    color: Colors.text,
+    letterSpacing: 0.3,
+  },
+
   exerciseTitle: {
-    fontSize: 15, // ↓ calmer
-    lineHeight: 19, // ↓ calmer
+    flex: 1,
+    fontSize: 15,
+    lineHeight: 19,
     fontWeight: "900",
     color: Colors.text,
     letterSpacing: -0.2,
@@ -186,23 +344,18 @@ export const S = StyleSheet.create({
   },
 
   menuBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 999,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: HAIR,
-    borderColor: Colors.border,
+    backgroundColor: "rgba(0,0,0,0.03)",
   },
 
   cols: {
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 10,
-    borderTopWidth: HAIR,
-    borderTopColor: "rgba(0,0,0,0.06)",
-    borderBottomWidth: HAIR,
-    borderBottomColor: "rgba(0,0,0,0.06)",
   },
 
   colLabel: {
@@ -219,9 +372,27 @@ export const S = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     height: 58,
-    borderBottomWidth: HAIR,
-    borderBottomColor: "rgba(0,0,0,0.06)",
     backgroundColor: Colors.surface,
+    position: "relative",
+  },
+
+  rowBottomBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+
+  rowCompleted: { backgroundColor: "rgba(0,0,0,0.03)" },
+
+  rowActive: { backgroundColor: "rgba(244,200,74,0.10)" },
+
+  rowActiveBar: {
+    position: "absolute",
+    left: 0,
+    top: 8,
+    bottom: 8,
+    width: 3,
+    borderRadius: 999,
+    backgroundColor: "rgba(244,200,74,0.70)",
   },
 
   setIndex: {
@@ -232,20 +403,32 @@ export const S = StyleSheet.create({
     textAlign: "center",
   },
 
+  setIndexActive: { color: "rgba(0,0,0,0.82)" },
+
   cell: {
     flex: 1,
     height: 46,
     marginHorizontal: 6,
     borderRadius: 14,
-    borderWidth: 1, // ↓ lighter
-    borderColor: "rgba(0,0,0,0.12)", // ↓ lighter
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.12)",
     justifyContent: "center",
     backgroundColor: Colors.surface,
   },
 
+  cellCompleted: {
+    borderColor: "rgba(0,0,0,0.10)",
+    backgroundColor: "rgba(0,0,0,0.02)",
+  },
+
+  cellActive: {
+    borderColor: "rgba(244,200,74,0.55)",
+    backgroundColor: "rgba(244,200,74,0.06)",
+  },
+
   input: {
     textAlign: "center",
-    fontSize: 15, // ↓ calmer
+    fontSize: 15,
     fontWeight: "900",
     color: Colors.text,
     paddingVertical: 0,
@@ -283,8 +466,6 @@ export const S = StyleSheet.create({
     height: 40,
     borderRadius: 999,
     backgroundColor: "rgba(0,0,0,0.06)",
-    borderWidth: HAIR,
-    borderColor: Colors.border,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -308,11 +489,9 @@ export const S = StyleSheet.create({
 
   finishSection: {
     marginTop: 18,
-    marginHorizontal: Spacing.lg,
     paddingBottom: 12,
   },
 
-  // Optional: can help if any overlay steals touches near bottom
   finishSectionWrap: {
     position: "relative",
     zIndex: 10,
@@ -334,7 +513,6 @@ export const S = StyleSheet.create({
   },
 
   /* ───────────────────────── TIMER PILL ───────────────────────── */
-  // Wrap used to ensure only the pill itself captures touches.
   timerPillWrap: {
     position: "absolute",
     top: 12,
@@ -410,8 +588,6 @@ export const S = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     backgroundColor: Colors.surface,
-    borderTopWidth: HAIR,
-    borderTopColor: Colors.border,
     alignItems: "flex-end",
   },
 
@@ -438,8 +614,6 @@ export const S = StyleSheet.create({
     padding: 16,
     borderTopLeftRadius: 18,
     borderTopRightRadius: 18,
-    borderTopWidth: HAIR,
-    borderTopColor: Colors.border,
   },
 
   modalSheetLarge: {
@@ -448,8 +622,6 @@ export const S = StyleSheet.create({
     padding: 16,
     borderTopLeftRadius: 18,
     borderTopRightRadius: 18,
-    borderTopWidth: HAIR,
-    borderTopColor: Colors.border,
     maxHeight: "82%",
   },
 
@@ -464,6 +636,8 @@ export const S = StyleSheet.create({
     fontWeight: "900",
     color: Colors.text,
     letterSpacing: -0.2,
+    flex: 1,
+    paddingRight: 10,
   },
 
   modalX: {
@@ -471,8 +645,6 @@ export const S = StyleSheet.create({
     height: 36,
     borderRadius: 18,
     backgroundColor: "rgba(0,0,0,0.06)",
-    borderWidth: HAIR,
-    borderColor: Colors.border,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -521,7 +693,6 @@ export const S = StyleSheet.create({
 
   modalDangerText: { fontWeight: "900", color: Colors.surface },
 
-  /* MENU / SWAP */
   menuList: { marginTop: 12, gap: 8 },
 
   menuItem: {
@@ -531,8 +702,6 @@ export const S = StyleSheet.create({
     padding: 14,
     borderRadius: 14,
     backgroundColor: "rgba(0,0,0,0.04)",
-    borderWidth: HAIR,
-    borderColor: Colors.border,
   },
 
   menuItemText: { fontSize: 15, fontWeight: "800", color: Colors.text },
@@ -546,8 +715,6 @@ export const S = StyleSheet.create({
     padding: 12,
     borderRadius: 14,
     backgroundColor: "rgba(0,0,0,0.04)",
-    borderWidth: HAIR,
-    borderColor: Colors.border,
   },
 
   swapThumb: { width: 58, height: 58, borderRadius: 12 },
@@ -569,8 +736,6 @@ export const S = StyleSheet.create({
     alignItems: "center",
     gap: 6,
     backgroundColor: "rgba(244,200,74,0.18)",
-    borderWidth: HAIR,
-    borderColor: "rgba(244,200,74,0.55)",
     borderRadius: 12,
     padding: 10,
     marginTop: 10,
@@ -582,8 +747,6 @@ export const S = StyleSheet.create({
   prDate: { fontSize: 11, fontWeight: "700", color: "rgba(0,0,0,0.55)" },
 
   historyCard: {
-    borderWidth: HAIR,
-    borderColor: "rgba(0,0,0,0.10)",
     borderRadius: 14,
     padding: 12,
     marginTop: 10,
@@ -622,10 +785,6 @@ export const S = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 8,
-    borderTopWidth: HAIR,
-    borderTopColor: "rgba(0,0,0,0.06)",
-    borderBottomWidth: HAIR,
-    borderBottomColor: "rgba(0,0,0,0.06)",
   },
 
   historyHead: {
@@ -642,8 +801,6 @@ export const S = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 10,
-    borderBottomWidth: HAIR,
-    borderBottomColor: "rgba(0,0,0,0.06)",
   },
 
   historyCellText: {

@@ -2,7 +2,7 @@ import { Colors } from "@/styles/colors";
 import { Spacing } from "@/styles/spacing";
 import { StyleSheet } from "react-native";
 
-const HAIR = StyleSheet.hairlineWidth;
+const HAIR = 1;
 
 export const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.surface },
