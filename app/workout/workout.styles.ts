@@ -286,11 +286,6 @@ export const S = StyleSheet.create({
   marginLeft: Spacing.md + 10,         // keep alignment
 },
 
-  exerciseSeparator: {
-    height: 1,
-    backgroundColor: Colors.border,
-    marginLeft: Spacing.md + 10,
-  },
 
   exerciseHeader: {
     flexDirection: "row",
@@ -462,15 +457,18 @@ export const S = StyleSheet.create({
   },
 
   deletePill: {
-    paddingHorizontal: 14,
-    height: 40,
-    borderRadius: 999,
-    backgroundColor: "rgba(0,0,0,0.06)",
-    alignItems: "center",
-    justifyContent: "center",
+     paddingHorizontal: 16,
+  height: 42,
+  borderRadius: 999,
+  backgroundColor: "#FF3B30",
+  alignItems: "center",
+  justifyContent: "center",
   },
 
-  deleteText: { fontWeight: "900", color: Colors.text, letterSpacing: -0.2 },
+  deleteText: { 
+    fontWeight: "900", 
+    color: "#fff", 
+    letterSpacing: -0.2 },
 
   cardActions: { flexDirection: "row", gap: 10, marginTop: 12 },
 
@@ -821,5 +819,99 @@ export const S = StyleSheet.create({
     backgroundColor: Colors.surface,
   },
 
+
+
   historyDotOn: { backgroundColor: Colors.text, borderColor: Colors.text },
+
+
+  /* ───────────────────────── FINISH WORKOUT MODAL (premium) ───────────────────────── */
+  finishOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.18)", // softer than your 0.40
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 20,
+  },
+
+  finishCard: {
+    width: "100%",
+    maxWidth: 520,
+    backgroundColor: Colors.surface,
+    borderRadius: 24,
+    padding: 22,
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.06)",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.10,
+    shadowRadius: 22,
+    elevation: 12,
+  },
+
+  finishTop: {
+    alignItems: "center",
+    marginBottom: 12,
+  },
+
+  finishIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(0,0,0,0.04)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 10,
+  },
+
+  finishTitle: {
+    fontSize: 18,
+    fontWeight: "900",
+    color: Colors.text,
+    letterSpacing: -0.2,
+    textAlign: "center",
+  },
+
+  finishBody: {
+    marginTop: 8,
+    fontSize: 14,
+    lineHeight: 19,
+    fontWeight: "700",
+    color: "rgba(0,0,0,0.55)",
+    textAlign: "center",
+  },
+
+  finishButtons: {
+    marginTop: 16,
+    gap: 10,
+  },
+
+  finishPrimary: {
+    height: 52,
+    borderRadius: 18,
+    backgroundColor: (Colors as any).premium ?? "#F4C84A",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  finishPrimaryText: {
+    fontSize: 15,
+    fontWeight: "900",
+    color: Colors.text,
+    letterSpacing: -0.2,
+  },
+
+  finishCancel: {
+    height: 44,
+    borderRadius: 16,
+    backgroundColor: "rgba(0,0,0,0.04)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  finishCancelText: {
+    fontSize: 14,
+    fontWeight: "900",
+    color: "rgba(0,0,0,0.62)",
+    letterSpacing: -0.2,
+  },
 });
