@@ -1,7 +1,7 @@
 // app/workout/SetRowItem.tsx
 
 import { Check, MessageSquare } from "lucide-react-native";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Animated, Pressable, Text, TextInput, View } from "react-native";
 import { Swipeable } from "react-native-gesture-handler";
 
@@ -22,13 +22,16 @@ export type UnitLabel = "LBS" | "KG" | "REPS";
 const cellStyle = (done: boolean, isActive: boolean) => ({
   height: 56,
   borderWidth: 2,
-  borderColor: done ? "rgba(34, 197, 94, 0.30)" : isActive ? "rgba(244, 200, 74, 0.60)" : "rgba(0,0,0,0.12)",
-  backgroundColor: done ? "rgba(34, 197, 94, 0.04)" : isActive ? "rgba(244, 200, 74, 0.08)" : Colors.surface,
-  shadowColor: isActive ? ((Colors as any).premium ?? "#F4C84A") : "transparent",
-  shadowOffset: { width: 0, height: 2 },
-  shadowOpacity: isActive ? 0.15 : 0,
-  shadowRadius: isActive ? 4 : 0,
-  elevation: isActive ? 2 : 0,
+  borderColor: done
+    ? "rgba(34, 197, 94, 0.30)"
+    : isActive
+      ? "rgba(244, 200, 74, 0.60)"
+      : "rgba(0,0,0,0.12)",
+  backgroundColor: done
+    ? "rgba(34, 197, 94, 0.04)"
+    : isActive
+      ? "rgba(244, 200, 74, 0.08)"
+      : Colors.surface,
 });
 
 const inputTextStyle = (done: boolean) => ({
@@ -76,22 +79,11 @@ export function SetRowItem({
   const [r, setR] = useState(set.reps ?? "");
   const [rest, setRest] = useState(set.rest ?? "");
 
-  // Subtle "active row lift" (transform only -> native driver safe)
-  const lift = useRef(new Animated.Value(isActive ? 1 : 0)).current;
-
   useEffect(() => {
     setW(set.weight ?? "");
     setR(set.reps ?? "");
     setRest(set.rest ?? "");
   }, [set.weight, set.reps, set.rest]);
-
-  useEffect(() => {
-    Animated.timing(lift, {
-      toValue: isActive ? 1 : 0,
-      duration: 140,
-      useNativeDriver: true,
-    }).start();
-  }, [isActive, lift]);
 
   const handleFocus = useCallback(() => {
     closeOthers(rowKey);
@@ -115,34 +107,15 @@ export function SetRowItem({
 
   const isDone = !!set.done;
 
-  const rowTransformStyle = {
-    transform: [
-      {
-        translateY: lift.interpolate({
-          inputRange: [0, 1],
-          outputRange: [0, -2],
-        }),
-      },
-      {
-        scale: lift.interpolate({
-          inputRange: [0, 1],
-          outputRange: [1, 1.012],
-        }),
-      },
-    ],
-  } as const;
-
   return (
     <Swipeable
       ref={swipeRef}
       overshootRight={false}
       rightThreshold={36}
       friction={2.2}
-      // ✅ Fix "gutter / clipping" when row moves/scales: allow overflow
       containerStyle={{ backgroundColor: "transparent", overflow: "visible" }}
       childrenContainerStyle={{ overflow: "visible" }}
       renderRightActions={(_progress, dragX) => {
-        // iOS-like: action follows the finger smoothly
         const translate = dragX.interpolate({
           inputRange: [-140, 0],
           outputRange: [0, 92],
@@ -157,7 +130,12 @@ export function SetRowItem({
 
         return (
           <View style={[S.swipeBg, { width: 110, paddingRight: 12 }]}>
-            <Animated.View style={{ transform: [{ translateX: translate }], opacity }}>
+            <Animated.View
+              style={{
+                transform: [{ translateX: translate }],
+                opacity,
+              }}
+            >
               <Pressable onPress={() => onDelete(exId, set.id)} style={S.deletePill}>
                 <Text style={S.deleteText}>Delete</Text>
               </Pressable>
@@ -166,57 +144,47 @@ export function SetRowItem({
         );
       }}
     >
-      <Animated.View
+      <View
         style={[
           S.row,
           S.rowBottomBorder,
-          rowTransformStyle,
           {
-            // keep your existing layout exactly
             height: 76,
             paddingVertical: 10,
-            backgroundColor: isDone ? "rgba(34, 197, 94, 0.08)" : isActive ? "rgba(244, 200, 74, 0.12)" : Colors.surface,
-
-            // ✅ tiny premium shadow only when active (no animated shadow props)
-            shadowColor: "#000",
-            shadowOffset: { width: 0, height: 6 },
-            shadowOpacity: isActive ? 0.08 : 0,
-            shadowRadius: isActive ? 10 : 0,
-            elevation: isActive ? 3 : 0,
-
-            overflow: "visible",
+            backgroundColor: isDone
+              ? "rgba(34, 197, 94, 0.08)"
+              : isActive
+                ? "rgba(244, 200, 74, 0.12)"
+                : Colors.surface,
           },
         ]}
       >
-        {isActive && (
-          <View
-            style={[
-              S.rowActiveBar,
-              {
-                width: 4,
-                backgroundColor: (Colors as any).premium ?? "#F4C84A",
-                shadowColor: (Colors as any).premium ?? "#F4C84A",
-                shadowOffset: { width: 0, height: 0 },
-                shadowOpacity: 0.6,
-                shadowRadius: 4,
-              },
-            ]}
-          />
-        )}
+        {isActive ? <View style={S.rowActiveBar} /> : null}
 
-        <Pressable onLongPress={() => onNote(exId, set.id)} delayLongPress={400} style={{ width: 44, alignItems: "center" }}>
+        <Pressable
+          onLongPress={() => onNote(exId, set.id)}
+          delayLongPress={400}
+          style={{ width: 44, alignItems: "center" }}
+        >
           <Text
             style={[
               S.setIndex,
               {
-                color: isDone ? "rgba(34, 197, 94, 0.80)" : isActive ? Colors.text : "rgba(0,0,0,0.45)",
+                color: isDone
+                  ? "rgba(34, 197, 94, 0.80)"
+                  : isActive
+                    ? Colors.text
+                    : "rgba(0,0,0,0.45)",
                 fontWeight: "900",
               },
             ]}
           >
             {index + 1}
           </Text>
-          {set.note ? <MessageSquare size={12} color="rgba(0,0,0,0.4)" style={{ marginTop: 2 }} /> : null}
+
+          {set.note ? (
+            <MessageSquare size={12} color="rgba(0,0,0,0.4)" style={{ marginTop: 2 }} />
+          ) : null}
         </Pressable>
 
         <View style={{ flex: 1, marginHorizontal: 6 }}>
@@ -301,17 +269,12 @@ export function SetRowItem({
               borderWidth: 2.5,
               borderColor: isDone ? "rgb(34, 197, 94)" : "rgba(0,0,0,0.15)",
               backgroundColor: isDone ? "rgb(34, 197, 94)" : Colors.surface,
-              shadowColor: isDone ? "rgb(34, 197, 94)" : "transparent",
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: isDone ? 0.4 : 0,
-              shadowRadius: isDone ? 6 : 0,
-              elevation: isDone ? 4 : 0,
             },
           ]}
         >
           {isDone ? <Check size={24} color="#FFF" strokeWidth={3} /> : null}
         </Pressable>
-      </Animated.View>
+      </View>
     </Swipeable>
   );
 }

@@ -1,6 +1,5 @@
-// app/workout/workout.styles.ts
-
 import { Colors } from "@/styles/colors";
+import { BorderWidth } from "@/styles/hairline"; // ← ADD THIS
 import { Spacing } from "@/styles/spacing";
 import { Platform, StyleSheet } from "react-native";
 
@@ -23,6 +22,7 @@ export const S = StyleSheet.create({
   },
 
   /* ───────────────────────── PREVIEW ───────────────────────── */
+
   previewPage: { flex: 1, backgroundColor: Colors.surface },
 
   previewContent: {
@@ -183,8 +183,8 @@ export const S = StyleSheet.create({
   /* ───────────────────────── WORKOUT ───────────────────────── */
 
   header: {
-    marginTop: 10,
-    marginBottom: 14,
+    marginTop: 8,
+    marginBottom: 12,
   },
 
   setsLine: {
@@ -210,7 +210,7 @@ export const S = StyleSheet.create({
 
   exerciseList: {
     marginHorizontal: -Spacing.md,
-    marginTop: 8,
+    marginTop: 6,
   },
 
   groupWrap: { position: "relative" },
@@ -241,17 +241,16 @@ export const S = StyleSheet.create({
     paddingBottom: 8,
     paddingLeft: Spacing.md + 10,
   },
-  
 
   blockKicker: {
     fontSize: 11,
     fontWeight: "900",
-    color: "rgba(0,0,0,0.38)",
-    letterSpacing: 1.4,
+    color: "rgba(0,0,0,0.34)",
+    letterSpacing: 2.2,
     textTransform: "uppercase",
   },
 
-  blockTitleRow: { marginTop: 3 },
+  blockTitleRow: { marginTop: 4 },
 
   blockTitle: {
     fontSize: 13,
@@ -266,7 +265,7 @@ export const S = StyleSheet.create({
     fontWeight: "700",
     color: Colors.muted,
   },
-  
+
   card: {
     backgroundColor: Colors.surface,
     paddingHorizontal: Spacing.md,
@@ -277,24 +276,27 @@ export const S = StyleSheet.create({
 
   exerciseGap: {
     height: 10,
-    backgroundColor: Colors.background, // "#F7F7F5"
+    backgroundColor: Colors.background,
   },
 
   exerciseSeparator: {
-  height: 1,
-  backgroundColor: "rgba(0,0,0,0.10)", // slightly stronger than border
-  marginLeft: Spacing.md + 10,         // keep alignment
-},
-
+    height: 1,
+    backgroundColor: "rgba(0,0,0,0.08)",
+    marginLeft: Spacing.md + 10,
+  },
 
   exerciseHeader: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    paddingBottom: 12,
+    paddingBottom: 10,
   },
 
-  thumb: { width: 58, height: 58, borderRadius: 14 },
+  thumb: {
+    width: 58,
+    height: 58,
+    borderRadius: 14,
+  },
 
   exerciseText: {
     flex: 1,
@@ -304,7 +306,11 @@ export const S = StyleSheet.create({
     justifyContent: "center",
   },
 
-  titleRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
 
   blockTag: {
     paddingHorizontal: 8,
@@ -325,7 +331,7 @@ export const S = StyleSheet.create({
   exerciseTitle: {
     flex: 1,
     fontSize: 15,
-    lineHeight: 19,
+    lineHeight: 20,
     fontWeight: "900",
     color: Colors.text,
     letterSpacing: -0.2,
@@ -334,8 +340,9 @@ export const S = StyleSheet.create({
   exerciseSub: {
     marginTop: 4,
     fontSize: 12,
+    lineHeight: 16,
     fontWeight: "700",
-    color: "rgba(0,0,0,0.45)",
+    color: "rgba(0,0,0,0.38)",
   },
 
   menuBtn: {
@@ -350,15 +357,34 @@ export const S = StyleSheet.create({
   cols: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 10,
+    paddingTop: 8,
+    paddingBottom: 10,
+  },
+
+  colSetWrap: {
+    width: 44,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  colValueWrap: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  colDoneWrap: {
+    width: 54,
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   colLabel: {
     flex: 1,
     fontSize: 11,
     fontWeight: "900",
-    color: "rgba(0,0,0,0.32)",
-    letterSpacing: 1.2,
+    color: "rgba(0,0,0,0.28)",
+    letterSpacing: 1.5,
     textTransform: "uppercase",
     textAlign: "center",
   },
@@ -376,9 +402,13 @@ export const S = StyleSheet.create({
     borderBottomColor: Colors.border,
   },
 
-  rowCompleted: { backgroundColor: "rgba(0,0,0,0.03)" },
+  rowCompleted: {
+    backgroundColor: "rgba(0,0,0,0.03)",
+  },
 
-  rowActive: { backgroundColor: "rgba(244,200,74,0.10)" },
+  rowActive: {
+    backgroundColor: "rgba(244,200,74,0.10)",
+  },
 
   rowActiveBar: {
     position: "absolute",
@@ -398,14 +428,16 @@ export const S = StyleSheet.create({
     textAlign: "center",
   },
 
-  setIndexActive: { color: "rgba(0,0,0,0.82)" },
+  setIndexActive: {
+    color: "rgba(0,0,0,0.82)",
+  },
 
   cell: {
     flex: 1,
     height: 46,
     marginHorizontal: 6,
     borderRadius: 14,
-    borderWidth: 1,
+    borderWidth: BorderWidth.default,
     borderColor: "rgba(0,0,0,0.12)",
     justifyContent: "center",
     backgroundColor: Colors.surface,
@@ -457,33 +489,43 @@ export const S = StyleSheet.create({
   },
 
   deletePill: {
-     paddingHorizontal: 16,
-  height: 42,
-  borderRadius: 999,
-  backgroundColor: "#FF3B30",
-  alignItems: "center",
-  justifyContent: "center",
+    paddingHorizontal: 16,
+    height: 42,
+    borderRadius: 999,
+    backgroundColor: "#FF3B30",
+    alignItems: "center",
+    justifyContent: "center",
   },
 
-  deleteText: { 
-    fontWeight: "900", 
-    color: "#fff", 
-    letterSpacing: -0.2 },
+  deleteText: {
+    fontWeight: "900",
+    color: "#fff",
+    letterSpacing: -0.2,
+  },
 
-  cardActions: { flexDirection: "row", gap: 10, marginTop: 12 },
+  cardActions: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 14,
+  },
 
   ghostBtn: {
     flex: 1,
     height: 46,
     borderRadius: 999,
-    borderWidth: 1.5,
-    borderColor: "rgba(0,0,0,0.16)",
+    borderWidth: 1.25,
+    borderColor: "rgba(0,0,0,0.12)",
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: Colors.surface,
   },
 
-  ghostText: { fontWeight: "900", color: Colors.text, fontSize: 13 },
+  ghostText: {
+    fontWeight: "900",
+    color: Colors.text,
+    fontSize: 13,
+    letterSpacing: -0.1,
+  },
 
   finishSection: {
     marginTop: 18,
@@ -511,6 +553,7 @@ export const S = StyleSheet.create({
   },
 
   /* ───────────────────────── TIMER PILL ───────────────────────── */
+
   timerPillWrap: {
     position: "absolute",
     top: 12,
@@ -555,9 +598,16 @@ export const S = StyleSheet.create({
     width: "100%",
   },
 
-  timerPillProgressFill: { height: 3, backgroundColor: Colors.surface },
+  timerPillProgressFill: {
+    height: 3,
+    backgroundColor: Colors.surface,
+  },
 
-  timerPillActions: { flexDirection: "row", gap: 8, marginLeft: 12 },
+  timerPillActions: {
+    flexDirection: "row",
+    gap: 8,
+    marginLeft: 12,
+  },
 
   timerPillBtn: {
     paddingHorizontal: 10,
@@ -568,7 +618,11 @@ export const S = StyleSheet.create({
     justifyContent: "center",
   },
 
-  timerPillBtnText: { fontSize: 12, fontWeight: "900", color: Colors.surface },
+  timerPillBtnText: {
+    fontSize: 12,
+    fontWeight: "900",
+    color: Colors.surface,
+  },
 
   timerPillBtnSkip: {
     paddingHorizontal: 10,
@@ -579,9 +633,14 @@ export const S = StyleSheet.create({
     justifyContent: "center",
   },
 
-  timerPillBtnTextSkip: { fontSize: 12, fontWeight: "900", color: Colors.text },
+  timerPillBtnTextSkip: {
+    fontSize: 12,
+    fontWeight: "900",
+    color: Colors.text,
+  },
 
   /* ───────────────────────── INPUT ACCESSORY ───────────────────────── */
+
   accessory: {
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -598,9 +657,13 @@ export const S = StyleSheet.create({
     justifyContent: "center",
   },
 
-  accessoryText: { color: Colors.surface, fontWeight: "900" },
+  accessoryText: {
+    color: Colors.surface,
+    fontWeight: "900",
+  },
 
   /* ───────────────────────── MODALS ───────────────────────── */
+
   modalOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(0,0,0,0.40)",
@@ -618,31 +681,33 @@ export const S = StyleSheet.create({
     marginTop: "auto",
     backgroundColor: Colors.surface,
     padding: 16,
-    borderTopLeftRadius: 18,
-    borderTopRightRadius: 18,
-    maxHeight: "82%",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: "84%",
   },
 
   modalHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    gap: 10,
   },
 
   modalTitle: {
-    fontSize: 15,
+    fontSize: 20,
+    lineHeight: 25,
     fontWeight: "900",
     color: Colors.text,
-    letterSpacing: -0.2,
+    letterSpacing: -0.3,
     flex: 1,
     paddingRight: 10,
   },
 
   modalX: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "rgba(0,0,0,0.06)",
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "rgba(0,0,0,0.05)",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -654,20 +719,28 @@ export const S = StyleSheet.create({
     lineHeight: 18,
   },
 
-  modalActions: { flexDirection: "row", gap: 10, marginTop: 14 },
+  modalActions: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 16,
+  },
 
   modalGhost: {
     flex: 1,
     height: 46,
     borderRadius: 999,
-    borderWidth: 1.5,
-    borderColor: "rgba(0,0,0,0.16)",
+    borderWidth: 1.25,
+    borderColor: "rgba(0,0,0,0.12)",
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: Colors.surface,
   },
 
-  modalGhostText: { fontWeight: "900", color: Colors.text },
+  modalGhostText: {
+    fontWeight: "900",
+    color: Colors.text,
+    letterSpacing: -0.1,
+  },
 
   modalPrimary: {
     flex: 1,
@@ -678,7 +751,11 @@ export const S = StyleSheet.create({
     justifyContent: "center",
   },
 
-  modalPrimaryText: { fontWeight: "900", color: Colors.surface },
+  modalPrimaryText: {
+    fontWeight: "900",
+    color: Colors.surface,
+    letterSpacing: -0.1,
+  },
 
   modalDanger: {
     flex: 1,
@@ -689,9 +766,16 @@ export const S = StyleSheet.create({
     justifyContent: "center",
   },
 
-  modalDangerText: { fontWeight: "900", color: Colors.surface },
+  modalDangerText: {
+    fontWeight: "900",
+    color: Colors.surface,
+    letterSpacing: -0.1,
+  },
 
-  menuList: { marginTop: 12, gap: 8 },
+  menuList: {
+    marginTop: 12,
+    gap: 8,
+  },
 
   menuItem: {
     flexDirection: "row",
@@ -702,9 +786,16 @@ export const S = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.04)",
   },
 
-  menuItemText: { fontSize: 15, fontWeight: "800", color: Colors.text },
+  menuItemText: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: Colors.text,
+  },
 
-  swapList: { marginTop: 12, gap: 10 },
+  swapList: {
+    marginTop: 12,
+    gap: 10,
+  },
 
   swapItem: {
     flexDirection: "row",
@@ -715,11 +806,19 @@ export const S = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.04)",
   },
 
-  swapThumb: { width: 58, height: 58, borderRadius: 12 },
+  swapThumb: {
+    width: 58,
+    height: 58,
+    borderRadius: 12,
+  },
 
   swapTextContainer: { flex: 1 },
 
-  swapName: { fontSize: 15, fontWeight: "900", color: Colors.text },
+  swapName: {
+    fontSize: 15,
+    fontWeight: "900",
+    color: Colors.text,
+  },
 
   swapCategory: {
     fontSize: 12,
@@ -729,38 +828,58 @@ export const S = StyleSheet.create({
   },
 
   /* HISTORY */
+
   prBanner: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    backgroundColor: "rgba(244,200,74,0.18)",
-    borderRadius: 12,
-    padding: 10,
-    marginTop: 10,
-    marginBottom: 4,
+    gap: 8,
+    backgroundColor: "rgba(244,200,74,0.16)",
+    borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginTop: 14,
+    marginBottom: 8,
   },
 
-  prText: { fontSize: 12, fontWeight: "900", color: Colors.text },
+  prText: {
+    fontSize: 12,
+    fontWeight: "900",
+    color: Colors.text,
+  },
 
-  prDate: { fontSize: 11, fontWeight: "700", color: "rgba(0,0,0,0.55)" },
+  prDate: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "rgba(0,0,0,0.50)",
+  },
 
   historyCard: {
-    borderRadius: 14,
-    padding: 12,
+    borderRadius: 18,
+    padding: 14,
     marginTop: 10,
     backgroundColor: Colors.surface,
+    borderWidth: BorderWidth.default,
+    borderColor: "rgba(0,0,0,0.08)",
   },
 
-  historyCardSpaced: { marginTop: 18 },
+  historyCardSpaced: {
+    marginTop: 12,
+  },
 
   historyCardHeader: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     justifyContent: "space-between",
-    marginBottom: 10,
+    marginBottom: 12,
+    gap: 10,
   },
 
-  historyDate: { fontWeight: "900", color: Colors.text },
+  historyDate: {
+    fontSize: 15,
+    fontWeight: "900",
+    color: Colors.text,
+    letterSpacing: -0.15,
+  },
 
   useSessionBtn: {
     paddingHorizontal: 10,
@@ -782,15 +901,16 @@ export const S = StyleSheet.create({
   historyTableHead: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 8,
+    paddingTop: 2,
+    paddingBottom: 8,
   },
 
   historyHead: {
     flex: 1,
     fontSize: 11,
     fontWeight: "900",
-    color: "rgba(0,0,0,0.32)",
-    letterSpacing: 1,
+    color: "rgba(0,0,0,0.28)",
+    letterSpacing: 1.2,
     textTransform: "uppercase",
     textAlign: "center",
   },
@@ -798,36 +918,40 @@ export const S = StyleSheet.create({
   historyRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 10,
+    minHeight: 48,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(0,0,0,0.06)",
   },
 
   historyCellText: {
     flex: 1,
     textAlign: "center",
     fontWeight: "900",
+    fontSize: 15,
     color: "rgba(0,0,0,0.78)",
   },
 
   historyDot: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     borderWidth: 1.5,
-    borderColor: "rgba(0,0,0,0.18)",
+    borderColor: "rgba(0,0,0,0.16)",
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: Colors.surface,
   },
 
+  historyDotOn: {
+    backgroundColor: Colors.text,
+    borderColor: Colors.text,
+  },
 
+  /* ───────────────────────── FINISH WORKOUT MODAL ───────────────────────── */
 
-  historyDotOn: { backgroundColor: Colors.text, borderColor: Colors.text },
-
-
-  /* ───────────────────────── FINISH WORKOUT MODAL (premium) ───────────────────────── */
   finishOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.18)", // softer than your 0.40
+    backgroundColor: "rgba(0,0,0,0.18)",
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 20,
@@ -839,11 +963,11 @@ export const S = StyleSheet.create({
     backgroundColor: Colors.surface,
     borderRadius: 24,
     padding: 22,
-    borderWidth: 1,
+    borderWidth: BorderWidth.default,
     borderColor: "rgba(0,0,0,0.06)",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.10,
+    shadowOpacity: 0.1,
     shadowRadius: 22,
     elevation: 12,
   },

@@ -1,5 +1,6 @@
 // app/(tabs)/profile.styles.ts
 import { Colors } from "@/styles/colors";
+import { BorderWidth } from "@/styles/hairline";
 import { Spacing } from "@/styles/spacing";
 import { StyleSheet } from "react-native";
 
@@ -24,7 +25,7 @@ export const styles = StyleSheet.create({
     marginTop: 12,
     borderRadius: 20,
     backgroundColor: Colors.surface, // keep white
-    borderWidth: StyleSheet.hairlineWidth,
+    borderWidth: BorderWidth.default,
     borderColor: Colors.border,
     padding: 16,
     flexDirection: "row",
@@ -54,7 +55,7 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 14,
     borderRadius: 999,
     backgroundColor: Colors.premium,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderWidth: BorderWidth.default,
     borderColor: "rgba(0,0,0,0.10)",
   },
   upgradePillText: {
@@ -69,7 +70,7 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 999,
     backgroundColor: "rgba(0,0,0,0.06)",
-    borderWidth: StyleSheet.hairlineWidth,
+    borderWidth: BorderWidth.default,
     borderColor: Colors.border,
   },
   planChipText: {
@@ -93,7 +94,7 @@ export const styles = StyleSheet.create({
   group: {
     backgroundColor: Colors.surface,
     borderRadius: 20,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderWidth: BorderWidth.default,
     borderColor: Colors.border,
     overflow: "hidden",
   },

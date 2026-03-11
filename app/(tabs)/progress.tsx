@@ -1,10 +1,12 @@
 // app/(tabs)/progress.tsx
-import { ArrowDown, ArrowUp, ChevronRight, Minus } from "lucide-react-native";
-import React, { useEffect, useMemo, useState } from "react";
+import { useRouter } from "expo-router";
+import { ArrowDown, ArrowUp, Check, ChevronRight, Minus, Sparkles } from "lucide-react-native";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import Animated, {
   Easing,
   Extrapolate,
+  FadeInDown,
   interpolate,
   runOnJS,
   useAnimatedStyle,
@@ -22,11 +24,51 @@ import { Colors } from "@/styles/colors";
 import { GlobalStyles } from "@/styles/global";
 import { styles } from "./progress.styles";
 
-type RecentSession = { id: string; title: string; meta: string; dateLabel: string };
+type RecentSession = {
+  id: string;
+  title: string;
+  meta: string;
+  dateLabel: string;
+};
+
 type DayKey = "Mon" | "Tue" | "Wed" | "Thu" | "Fri" | "Sat" | "Sun";
-type DayItem = { key: DayKey; label: string; isToday?: boolean; isCompleted?: boolean };
-type DayWorkout = { day: DayKey; title: string; meta: string; note?: string; state?: "planned" | "completed" | "rest" };
+
+type DayItem = {
+  key: DayKey;
+  label: string;
+  isToday?: boolean;
+  isCompleted?: boolean;
+};
+
+type DayWorkout = {
+  day: DayKey;
+  title: string;
+  meta: string;
+  note?: string;
+  state?: "planned" | "completed" | "rest";
+};
+
 type Trend = "down" | "up" | "flat";
+
+type FinishSummary = {
+  workoutTitle: string;
+  durationSec: number;
+  totals: {
+    completedSets: number;
+  };
+  exercises: Array<{
+    id: string;
+    name: string;
+    completedSets: number;
+    sets: Array<{
+      set: number;
+      weight: string;
+      reps: string;
+      rest: string;
+      done: boolean;
+    }>;
+  }>;
+};
 
 /* ───────────────────────── Animated helpers ───────────────────────── */
 function AnimatedProgressBar({ value }: { value: number }) {
@@ -77,9 +119,15 @@ function usePulseOnChange(deps: any[]) {
 }
 
 /* ───────────────────────── UI bits ───────────────────────── */
-function RecentRow({ item }: { item: RecentSession }) {
+function RecentRow({
+  item,
+  onPress,
+}: {
+  item: RecentSession;
+  onPress: () => void;
+}) {
   return (
-    <View style={styles.recentRow}>
+    <Pressable onPress={onPress} style={({ pressed }) => [styles.recentRow, pressed && styles.pressed]}>
       <View style={styles.recentLeft}>
         <Text style={styles.recentTitle} numberOfLines={1}>
           {item.title}
@@ -88,8 +136,12 @@ function RecentRow({ item }: { item: RecentSession }) {
           {item.meta}
         </Text>
       </View>
-      <Text style={styles.recentDate}>{item.dateLabel}</Text>
-    </View>
+
+      <View style={styles.recentRight}>
+        <Text style={styles.recentDate}>{item.dateLabel}</Text>
+        <ChevronRight size={16} color={Colors.muted} />
+      </View>
+    </Pressable>
   );
 }
 
@@ -101,10 +153,18 @@ function TrendIcon({ trend }: { trend: Trend }) {
 
 function TrendPill({ trend, label }: { trend: Trend; label: string }) {
   const pillStyle =
-    trend === "down" ? styles.trendPillGood : trend === "up" ? styles.trendPillUp : styles.trendPillNeutral;
+    trend === "down"
+      ? styles.trendPillGood
+      : trend === "up"
+        ? styles.trendPillUp
+        : styles.trendPillNeutral;
 
   const textStyle =
-    trend === "down" ? styles.trendTextGood : trend === "up" ? styles.trendTextUp : styles.trendTextNeutral;
+    trend === "down"
+      ? styles.trendTextGood
+      : trend === "up"
+        ? styles.trendTextUp
+        : styles.trendTextNeutral;
 
   return (
     <View style={[styles.trendPillBase, pillStyle]}>
@@ -148,7 +208,11 @@ function WeekStrip({
           <Pressable
             key={d.key}
             onPress={() => onSelect(d.key)}
-            style={({ pressed }) => [styles.weekItem, isSelected ? styles.weekItemSelected : null, pressed && styles.pressed]}
+            style={({ pressed }) => [
+              styles.weekItem,
+              isSelected ? styles.weekItemSelected : null,
+              pressed && styles.pressed,
+            ]}
           >
             <View style={dotStyle} />
             <Text style={labelStyle}>{d.label}</Text>
@@ -160,6 +224,8 @@ function WeekStrip({
 }
 
 export default function ProgressScreen() {
+  const router = useRouter();
+
   const weeklyDone = 2;
   const weeklyTotal = 3;
   const streakDays = 3;
@@ -167,7 +233,11 @@ export default function ProgressScreen() {
   const programCompleted = 3;
   const programTotal = 21;
 
-  const bestLift = { title: "Bench Press", value: "100 kg × 5", hint: "Personal best this month" };
+  const bestLift = {
+    title: "Bench Press",
+    value: "100 kg × 5",
+    hint: "Personal best this month",
+  };
 
   const metrics = {
     weight: { value: "83.4 kg", trend: "down" as Trend, trendLabel: "↓ 0.6 kg (7d)" },
@@ -201,7 +271,7 @@ export default function ProgressScreen() {
   const dayWorkouts = useMemo<DayWorkout[]>(
     () => [
       { day: "Mon", title: "Intervals + Finisher", meta: "Conditioning • 28 min", state: "completed" },
-      { day: "Tue", title: "Hypertrophy Focus", meta: "Upper • 42 min", note: "Focus: hypertrophy", state: "planned" },
+      { day: "Tue", title: "Hypertrophy Focus", meta: "Upper • 42 min", note: "Focus: hypertrophy", state: "completed" },
       { day: "Wed", title: "Lower Body Power", meta: "Strength • 38 min", note: "Focus: strength", state: "planned" },
       { day: "Thu", title: "Mobility Reset", meta: "Recovery • 12 min", state: "rest" },
       { day: "Fri", title: "Pull + Arms", meta: "Upper • 36 min", state: "planned" },
@@ -212,7 +282,11 @@ export default function ProgressScreen() {
   );
 
   const [selectedDay, setSelectedDay] = useState<DayKey>("Tue");
-  const selected = useMemo(() => dayWorkouts.find((d) => d.day === selectedDay) ?? dayWorkouts[0], [dayWorkouts, selectedDay]);
+
+  const selected = useMemo(
+    () => dayWorkouts.find((d) => d.day === selectedDay) ?? dayWorkouts[0],
+    [dayWorkouts, selectedDay],
+  );
 
   const weekProgress = weeklyTotal > 0 ? weeklyDone / weeklyTotal : 0;
   const programProgress = programTotal > 0 ? programCompleted / programTotal : 0;
@@ -222,6 +296,7 @@ export default function ProgressScreen() {
   const prPulseStyle = usePulseOnChange([bestLift.value]);
 
   const dayT = useSharedValue(1);
+
   useEffect(() => {
     dayT.value = 0;
     dayT.value = withDelay(10, withSpring(1, { damping: 18, stiffness: 220, mass: 0.7 }));
@@ -233,20 +308,160 @@ export default function ProgressScreen() {
     return { opacity, transform: [{ translateY }] };
   });
 
-  const selectedStateLabel = selected.state === "completed" ? "Completed" : selected.state === "rest" ? "Recovery" : "Planned";
+  const selectedStateLabel =
+    selected.state === "completed"
+      ? "Completed"
+      : selected.state === "rest"
+        ? "Recovery"
+        : "Planned";
+
+  const buildDemoSummary = useCallback((title: string, meta: string): FinishSummary => {
+    const durationSec = meta.includes("42 min")
+      ? 42 * 60
+      : meta.includes("38 min")
+        ? 38 * 60
+        : meta.includes("28 min")
+          ? 28 * 60
+          : meta.includes("12 min")
+            ? 12 * 60
+            : 30 * 60;
+
+    return {
+      workoutTitle: title,
+      durationSec,
+      totals: {
+        completedSets: meta.includes("12 min") ? 4 : 12,
+      },
+      exercises: meta.includes("12 min")
+        ? [
+            {
+              id: "demo-ex-mobility",
+              name: "Mobility Flow",
+              completedSets: 2,
+              sets: [
+                { set: 1, weight: "0", reps: "10", rest: "0:30", done: true },
+                { set: 2, weight: "0", reps: "10", rest: "0:30", done: true },
+              ],
+            },
+            {
+              id: "demo-ex-breath",
+              name: "Breathing Reset",
+              completedSets: 2,
+              sets: [
+                { set: 1, weight: "0", reps: "5", rest: "0:30", done: true },
+                { set: 2, weight: "0", reps: "5", rest: "0:30", done: true },
+              ],
+            },
+          ]
+        : [
+            {
+              id: "demo-ex-1",
+              name: "Barbell Back Squat",
+              completedSets: 3,
+              sets: [
+                { set: 1, weight: "185", reps: "8", rest: "1:30", done: true },
+                { set: 2, weight: "185", reps: "8", rest: "1:30", done: true },
+                { set: 3, weight: "205", reps: "6", rest: "2:00", done: true },
+              ],
+            },
+            {
+              id: "demo-ex-2",
+              name: "Romanian Deadlift",
+              completedSets: 3,
+              sets: [
+                { set: 1, weight: "165", reps: "10", rest: "1:30", done: true },
+                { set: 2, weight: "165", reps: "10", rest: "1:30", done: true },
+                { set: 3, weight: "185", reps: "8", rest: "1:30", done: true },
+              ],
+            },
+            {
+              id: "demo-ex-3",
+              name: "Incline Dumbbell Press",
+              completedSets: 3,
+              sets: [
+                { set: 1, weight: "60", reps: "10", rest: "1:15", done: true },
+                { set: 2, weight: "60", reps: "10", rest: "1:15", done: true },
+                { set: 3, weight: "65", reps: "8", rest: "1:15", done: true },
+              ],
+            },
+            {
+              id: "demo-ex-4",
+              name: "Chest-Supported Row",
+              completedSets: 3,
+              sets: [
+                { set: 1, weight: "70", reps: "12", rest: "1:15", done: true },
+                { set: 2, weight: "70", reps: "12", rest: "1:15", done: true },
+                { set: 3, weight: "75", reps: "10", rest: "1:15", done: true },
+              ],
+            },
+          ],
+    };
+  }, []);
+
+  const handleSelectedDayPress = useCallback(() => {
+    if (selected.state === "planned") {
+      router.push("/workout");
+      return;
+    }
+
+    if (selected.state === "completed") {
+      const summary = buildDemoSummary(selected.title, selected.meta);
+      router.push({
+        pathname: "/workout/finish",
+        params: { summary: encodeURIComponent(JSON.stringify(summary)) },
+      });
+      return;
+    }
+
+    router.push({
+      pathname: "/program/[id]",
+      params: { id: "strength-foundations" },
+    });
+  }, [buildDemoSummary, router, selected]);
+
+  const handleRecentSessionPress = useCallback(
+    (item: RecentSession) => {
+      const summary = buildDemoSummary(item.title, item.meta);
+
+      router.push({
+        pathname: "/workout/finish",
+        params: { summary: encodeURIComponent(JSON.stringify(summary)) },
+      });
+    },
+    [buildDemoSummary, router],
+  );
+
+  const selectedCtaLabel =
+    selected.state === "planned"
+      ? "Open workout"
+      : selected.state === "completed"
+        ? "View session"
+        : "View plan";
 
   return (
-     <SafeAreaView style={GlobalStyles.screen} edges={["top"]}>
-      <ScrollView 
-      style={styles.scroll} 
-      contentContainerStyle={styles.content} 
-      showsVerticalScrollIndicator={false}>
+    <SafeAreaView style={GlobalStyles.screen} edges={["top"]}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        <ScreenHeader
+          title="Progress"
+          subtitle="Consistency, PRs, and body metrics — at a glance."
+        />
 
-        {/* DEBUG TOP LINE */}
-        <View style={{ height: 1, backgroundColor: "red" }} />
+        <Animated.View entering={FadeInDown.duration(360)} style={styles.successStrip}>
+          <View style={styles.successIconWrap}>
+            <Check size={16} color={Colors.text} strokeWidth={3} />
+          </View>
 
-        {/* ✅ CONSISTENT HEADER */}
-        <ScreenHeader title="Progress" subtitle="Consistency, PRs, and body metrics — at a glance." />
+          <View style={styles.successTextWrap}>
+            <Text style={styles.successTitle}>Today’s workout counted</Text>
+            <Text style={styles.successSubtitle}>Progress updated successfully.</Text>
+          </View>
+
+          <Sparkles size={16} color={(Colors as any).premium ?? "#F4C84A"} />
+        </Animated.View>
 
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -260,7 +475,9 @@ export default function ProgressScreen() {
 
           <View style={styles.weekHintRow}>
             <Text style={styles.weekHint}>Keep it simple.</Text>
-            <Text style={styles.weekHintStrong}>{Math.max(0, weeklyTotal - weeklyDone)} left</Text>
+            <Text style={styles.weekHintStrong}>
+              {Math.max(0, weeklyTotal - weeklyDone)} left
+            </Text>
           </View>
 
           <WeekStrip days={days} selected={selectedDay} onSelect={setSelectedDay} />
@@ -268,7 +485,16 @@ export default function ProgressScreen() {
           <Animated.View style={[styles.dayCard, dayCardStyle]}>
             <View style={styles.dayCardTop}>
               <Text style={styles.dayCardKicker}>{selectedDay}</Text>
-              <View style={styles.dayChip}>
+              <View
+                style={[
+                  styles.dayChip,
+                  selected.state === "completed"
+                    ? styles.dayChipCompleted
+                    : selected.state === "rest"
+                      ? styles.dayChipRecovery
+                      : styles.dayChipPlanned,
+                ]}
+              >
                 <Text style={styles.dayChipText}>{selectedStateLabel}</Text>
               </View>
             </View>
@@ -286,8 +512,11 @@ export default function ProgressScreen() {
               </Text>
             )}
 
-            <Pressable style={({ pressed }) => [styles.dayCardCta, pressed && styles.pressed]}>
-              <Text style={styles.dayCardCtaText}>View workout</Text>
+            <Pressable
+              onPress={handleSelectedDayPress}
+              style={({ pressed }) => [styles.dayCardCta, pressed && styles.pressed]}
+            >
+              <Text style={styles.dayCardCtaText}>{selectedCtaLabel}</Text>
               <ChevronRight size={18} color={Colors.muted} />
             </Pressable>
           </Animated.View>
@@ -380,7 +609,7 @@ export default function ProgressScreen() {
           <View style={styles.card}>
             {recent.map((item, idx) => (
               <View key={item.id}>
-                <RecentRow item={item} />
+                <RecentRow item={item} onPress={() => handleRecentSessionPress(item)} />
                 {idx !== recent.length - 1 ? <View style={styles.divider} /> : null}
               </View>
             ))}

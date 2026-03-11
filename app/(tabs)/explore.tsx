@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { EditorialCard } from "@/components/ui/EditorialCard";
 import { ScreenHeader } from "@/components/ui/ScreenHeader";
 import { Colors } from "@/styles/colors";
 import { GlobalStyles } from "@/styles/global";
@@ -152,9 +153,7 @@ function ProgramCard({
           <Text style={styles.programTitleOnImage} numberOfLines={2}>
             {program.title}
           </Text>
-          <Text style={styles.programDurationOnImage}>
-            {program.duration}
-          </Text>
+          <Text style={styles.programDurationOnImage}>{program.duration}</Text>
         </View>
       </View>
 
@@ -164,68 +163,6 @@ function ProgramCard({
       <Text style={styles.programBelowSecondary} numberOfLines={1}>
         {program.tag}
       </Text>
-    </Pressable>
-  );
-}
-
-function EditorialCard({
-  title,
-  metaBold,
-  metaMuted,
-  imageUrl,
-  active,
-  variant = "workout",
-  onPress,
-}: {
-  title: string;
-  metaBold: string;
-  metaMuted: string;
-  imageUrl: string;
-  active?: boolean;
-  variant?: "workout" | "recipe";
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [
-        variant === "workout" ? styles.workoutCard : styles.recipeCard,
-        pressed && styles.cardPressed,
-      ]}
-      accessibilityRole="button"
-      accessibilityLabel={title}
-    >
-      <View style={variant === "workout" ? styles.workoutMedia : styles.recipeMedia}>
-        <Image source={{ uri: imageUrl }} style={styles.image} resizeMode="cover" />
-
-        <LinearGradient
-          colors={["rgba(0,0,0,0.00)", "rgba(0,0,0,0.00)", "rgba(0,0,0,0.32)", "rgba(0,0,0,0.54)"]}
-          locations={[0, 0.55, 0.8, 1]}
-          style={styles.editorialBottomScrim}
-          pointerEvents="none"
-        />
-
-        {active ? (
-          <View style={styles.editorialBadgeWrap}>
-            <Badge label="Active" />
-          </View>
-        ) : null}
-
-        <View style={styles.titleOverlay}>
-          <Text style={styles.titleOnImage} numberOfLines={2}>
-            {title}
-          </Text>
-        </View>
-      </View>
-
-      <View style={styles.below}>
-        <Text style={styles.belowBold} numberOfLines={1}>
-          {metaBold}
-        </Text>
-        <Text style={styles.belowMuted} numberOfLines={1}>
-          {metaMuted}
-        </Text>
-      </View>
     </Pressable>
   );
 }
@@ -326,9 +263,30 @@ export default function ExploreScreen() {
         imageUrl: WORKOUT_IMAGES[0],
         isActive: true,
       },
-      { id: "w-002", title: "Legs Strength Session", type: "Strength", durationMin: 42, meta: "Legs · Glutes", imageUrl: WORKOUT_IMAGES[1] },
-      { id: "w-003", title: "Upper Body Hypertrophy", type: "Hypertrophy", durationMin: 45, meta: "Chest · Back", imageUrl: WORKOUT_IMAGES[2] },
-      { id: "w-004", title: "Conditioning Finisher", type: "Conditioning", durationMin: 25, meta: "Full body", imageUrl: WORKOUT_IMAGES[3] },
+      {
+        id: "w-002",
+        title: "Legs Strength Session",
+        type: "Strength",
+        durationMin: 42,
+        meta: "Legs · Glutes",
+        imageUrl: WORKOUT_IMAGES[1],
+      },
+      {
+        id: "w-003",
+        title: "Upper Body Hypertrophy",
+        type: "Hypertrophy",
+        durationMin: 45,
+        meta: "Chest · Back",
+        imageUrl: WORKOUT_IMAGES[2],
+      },
+      {
+        id: "w-004",
+        title: "Conditioning Finisher",
+        type: "Conditioning",
+        durationMin: 25,
+        meta: "Full body",
+        imageUrl: WORKOUT_IMAGES[3],
+      },
     ],
     [WORKOUT_IMAGES],
   );
@@ -340,21 +298,24 @@ export default function ExploreScreen() {
         title: "Low Carb Lemon Pepper Chicken with Tzatziki",
         metaBold: "Main course ~35 min",
         metaMuted: "High Protein · Vegetables",
-        imageUrl: "https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?auto=format&fit=crop&w=1600&q=80",
+        imageUrl:
+          "https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?auto=format&fit=crop&w=1600&q=80",
       },
       {
         id: "r-002",
         title: "Greek Yogurt + Berries",
         metaBold: "Breakfast ~10 min",
         metaMuted: "Snack · Fruit",
-        imageUrl: "https://images.unsplash.com/photo-1490474418585-ba9bad8fd0ea?auto=format&fit=crop&w=1600&q=80",
+        imageUrl:
+          "https://images.unsplash.com/photo-1490474418585-ba9bad8fd0ea?auto=format&fit=crop&w=1600&q=80",
       },
       {
         id: "r-003",
         title: "Salmon + Greens",
         metaBold: "Main course ~18 min",
         metaMuted: "Omega-3 · Lean",
-        imageUrl: "https://images.unsplash.com/photo-1467003909585-2f8a72700288?auto=format&fit=crop&w=1600&q=80",
+        imageUrl:
+          "https://images.unsplash.com/photo-1467003909585-2f8a72700288?auto=format&fit=crop&w=1600&q=80",
       },
     ],
     [],
@@ -362,14 +323,18 @@ export default function ExploreScreen() {
 
   const rails = useMemo<Array<Rail<Program> | Rail<Workout> | Rail<Recipe>>>(() => {
     return [
-     { id: "programs", title: "Programs", kind: "program", items: programs },
-     { id: "workouts", title: "Individual workouts", kind: "workout", items: workouts },
-     { id: "recipes", title: "Recipes", kind: "recipe", items: recipes },
+      { id: "programs", title: "Programs", kind: "program", items: programs },
+      { id: "workouts", title: "Individual workouts", kind: "workout", items: workouts },
+      { id: "recipes", title: "Recipes", kind: "recipe", items: recipes },
     ];
   }, [programs, workouts, recipes]);
 
   const onPressProgram = (id: string) => router.push(`/program/${id}`);
-  const onPressWorkout = (_id: string) => router.push("/workouts");
+  const onPressWorkout = (id: string) =>
+  router.push({
+    pathname: "/workout",
+    params: { workoutId: id },
+  });
   const onPressRecipe = (_id: string) => router.push("/recipes");
 
   return (
@@ -384,7 +349,6 @@ export default function ExploreScreen() {
         keyboardShouldPersistTaps="handled"
         contentInsetAdjustmentBehavior="never"
       >
-        {/* Header stays inside the grid */}
         <View style={styles.pad}>
           <ScreenHeader title="Discover" subtitle="Programs, workouts, and recipes" />
         </View>
@@ -392,17 +356,15 @@ export default function ExploreScreen() {
         <View style={styles.rails}>
           {rails.map((rail, index) => (
             <View
-                key={rail.id}
-                style={[
-                  styles.rail,
-                  index !== 0 && { marginTop: Spacing.xl }, // 32 only between sections
-                ]}
-              >
-              {/* Rail header stays inside the grid */}
+              key={rail.id}
+              style={[
+                styles.rail,
+                index !== 0 && { marginTop: Spacing.xl },
+              ]}
+            >
               <View style={styles.pad}>
                 <RailHeader
                   title={rail.title}
-                  
                   onPressAll={() => {
                     if (rail.kind === "program") router.push("/programs");
                     if (rail.kind === "workout") router.push("/workouts");
@@ -411,21 +373,17 @@ export default function ExploreScreen() {
                 />
               </View>
 
-               
-              {/* Rail list is edge-to-edge like iOS carousels */}
               <FlatList
-                 
-               
-                  data={rail.items as any[]}
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  keyExtractor={(item: any) => item.id}
-                  contentContainerStyle={styles.railListContent}
-                  ItemSeparatorComponent={() => <View style={{ width: RAIL_GAP }} />}
-                  decelerationRate={0.998}
-                  scrollEventThrottle={16}
-                  bounces
-                  alwaysBounceHorizontal={false}
+                data={rail.items as any[]}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                keyExtractor={(item: any) => item.id}
+                contentContainerStyle={styles.railListContent}
+                ItemSeparatorComponent={() => <View style={{ width: RAIL_GAP }} />}
+                decelerationRate={0.998}
+                scrollEventThrottle={16}
+                bounces
+                alwaysBounceHorizontal={false}
                 snapToAlignment="start"
                 renderItem={({ item }: any) => {
                   if (rail.kind === "program") {
@@ -442,7 +400,6 @@ export default function ExploreScreen() {
                     const w = item as Workout;
                     return (
                       <EditorialCard
-                        variant="workout"
                         title={w.title}
                         metaBold={`${w.type} ~${w.durationMin} min`}
                         metaMuted={w.meta}
@@ -456,11 +413,12 @@ export default function ExploreScreen() {
                   const r = item as Recipe;
                   return (
                     <EditorialCard
-                      variant="recipe"
                       title={r.title}
                       metaBold={r.metaBold}
                       metaMuted={r.metaMuted}
                       imageUrl={r.imageUrl}
+                      width={210}
+                      mediaHeight={210}
                       onPress={() => onPressRecipe(r.id)}
                     />
                   );

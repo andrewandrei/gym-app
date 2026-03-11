@@ -10,8 +10,8 @@ export const Colors = {
   subtle: "#A3A3A8",
 
   // UI — refined border hierarchy
-  borderSubtle: "rgba(0,0,0,0.08)",  // cards, dividers
-  border: "rgba(0,0,0,0.10)",        // inputs, controls
+  border: "rgba(0,0,0,0.12)",
+  borderSubtle: "rgba(0,0,0,0.10)",
   borderStrong: "rgba(0,0,0,0.14)",  // emphasis, pressed states
 
   // Backwards compatibility

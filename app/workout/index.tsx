@@ -3,11 +3,12 @@
 import { ResizeMode, Video } from "expo-av";
 import * as Haptics from "expo-haptics";
 import * as Notifications from "expo-notifications";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import * as Sharing from "expo-sharing";
 import { Check, Repeat, Trophy, X } from "lucide-react-native";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  AppState,
   Image,
   InputAccessoryView,
   Keyboard,
@@ -22,13 +23,24 @@ import {
 } from "react-native";
 
 import { Colors } from "@/styles/colors";
-import { S } from "./workout.styles";
-
 import type { SetRow as SetRowLocal } from "./SetRowItem";
+import { S } from "./workout.styles";
+import {
+  hasMeaningfulProgress,
+  loadWorkoutDraft,
+  saveWorkoutDraft,
+  type WorkoutDraft,
+} from "./workoutDraft";
 import { WorkoutPlayer } from "./WorkoutPlayer";
-import { WorkoutPreview, type Exercise, type ExerciseAlternative, type ExerciseHistorySession, type StrengthBlock } from "./WorkoutPreview";
+import {
+  WorkoutPreview,
+  type Exercise,
+  type ExerciseAlternative,
+  type ExerciseHistorySession,
+  type StrengthBlock,
+} from "./WorkoutPreview";
 
-/* ───────────────────────── iOS Done accessory (single source of truth) ───────────────────────── */
+/* ───────────────────────── iOS Done accessory ───────────────────────── */
 
 const IOS_ACCESSORY_ID = "workoutAccessoryDone";
 const iosAccessoryProps: { inputAccessoryViewID: string } | {} =
@@ -44,11 +56,90 @@ type UndoAction = {
   index: number;
 };
 
+type FinishSummary = {
+  workoutTitle: string;
+  durationSec: number;
+  totals: {
+    completedSets: number;
+    totalSets: number;
+    completedExercises: number;
+    totalExercises: number;
+    totalVolume: number;
+    trackedStrengthVolume: number;
+  };
+  insights: {
+    completionRate: number;
+    prCount: number;
+    missingLoadCount: number;
+    strengthSetCount: number;
+    avgTrackedLoad: number;
+    improvedExerciseCount: number;
+    matchedExerciseCount: number;
+  };
+  prs: Array<{
+    exerciseId: string;
+    exerciseName: string;
+    weight: string;
+    reps: string;
+  }>;
+  wins: Array<{
+    exerciseId: string;
+    exerciseName: string;
+    type: "heavier" | "more_reps" | "matched" | "volume_up";
+    label: string;
+  }>;
+  exercises: Array<{
+    id: string;
+    name: string;
+    completedSets: number;
+    unitLabel: string;
+    sessionVolume: number;
+    comparedToLast?: {
+      previousWeight?: number;
+      previousReps?: number;
+      previousVolume?: number;
+      result: "better" | "same" | "mixed" | "no_data";
+    };
+    sets: Array<{
+      set: number;
+      weight: string;
+      reps: string;
+      rest: string;
+      done: boolean;
+    }>;
+  }>;
+};
+
 export default function WorkoutLogScreen() {
-  const workoutTitle = "Full Body — Foundation";
+  const params = useLocalSearchParams<{
+    resumeDraft?: string | string[];
+    workoutId?: string | string[];
+  }>();
+
+  const selectedWorkoutId = Array.isArray(params.workoutId)
+    ? params.workoutId[0]
+    : params.workoutId;
+
+  const resumeDraftFlag = Array.isArray(params.resumeDraft)
+    ? params.resumeDraft[0]
+    : params.resumeDraft;
+
+  const workoutTitleMap: Record<string, string> = {
+    "warmup-sequence": "Upper Body Warm-up Sequence",
+    "cooldown-sequence": "Cooldown & Recovery Flow",
+    "w-001": "Arms & Shoulders Minimum Equipment",
+    "w-002": "Legs Strength Session",
+    "w-003": "Upper Body Hypertrophy",
+    "w-004": "Conditioning Finisher",
+  };
+
+  const workoutTitle =
+    (selectedWorkoutId && workoutTitleMap[selectedWorkoutId]) || "Full Body — Foundation";
+
   const workoutStartTime = useRef(Date.now());
 
   const [isPreview, setIsPreview] = useState(true);
+  const [isHydratingDraft, setIsHydratingDraft] = useState(resumeDraftFlag === "1");
   const [exitConfirmOpen, setExitConfirmOpen] = useState(false);
 
   const [currentStreak, setCurrentStreak] = useState(7);
@@ -62,7 +153,8 @@ export default function WorkoutLogScreen() {
         id: "ex-1",
         name: "Rower (Easy Prime)",
         tempo: "—",
-        image: "https://images.unsplash.com/photo-1517964603305-11c0f6f66012?auto=format&fit=crop&w=1200&q=70",
+        image:
+          "https://images.unsplash.com/photo-1517964603305-11c0f6f66012?auto=format&fit=crop&w=1200&q=70",
         unitLabel: "REPS",
         sets: [{ id: "s1", weight: "", reps: "60", rest: "0:30", done: false }],
       },
@@ -70,7 +162,8 @@ export default function WorkoutLogScreen() {
         id: "ex-2",
         name: "Barbell Back Squat (Controlled)",
         tempo: "3-0-1-0",
-        image: "https://images.unsplash.com/photo-1599058918144-1ffabb6ab9a0?auto=format&fit=crop&w=1200&q=70",
+        image:
+          "https://images.unsplash.com/photo-1599058918144-1ffabb6ab9a0?auto=format&fit=crop&w=1200&q=70",
         unitLabel: "LBS",
         videoUrl: "https://www.youtube.com/watch?v=ultWZbUMPL8",
         description:
@@ -96,7 +189,8 @@ export default function WorkoutLogScreen() {
         id: "ex-3",
         name: "Romanian Deadlift",
         tempo: "3-1-1-0",
-        image: "https://images.unsplash.com/photo-1434682881908-b43d0467b798?auto=format&fit=crop&w=1200&q=70",
+        image:
+          "https://images.unsplash.com/photo-1434682881908-b43d0467b798?auto=format&fit=crop&w=1200&q=70",
         unitLabel: "LBS",
         videoUrl: "https://www.youtube.com/watch?v=2SHsk9AzdjA",
         description:
@@ -122,7 +216,8 @@ export default function WorkoutLogScreen() {
         id: "ex-4",
         name: "Incline Dumbbell Press",
         tempo: "2-0-2-0",
-        image: "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?auto=format&fit=crop&w=1200&q=70",
+        image:
+          "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?auto=format&fit=crop&w=1200&q=70",
         unitLabel: "LBS",
         videoUrl: "https://www.youtube.com/watch?v=8iPEnn-ltC8",
         description: "Build upper chest strength and size with controlled incline pressing.",
@@ -147,7 +242,8 @@ export default function WorkoutLogScreen() {
         id: "ex-5",
         name: "Chest-Supported Row",
         tempo: "2-1-2-0",
-        image: "https://images.unsplash.com/photo-1599058917765-142b2a07f930?auto=format&fit=crop&w=1200&q=70",
+        image:
+          "https://images.unsplash.com/photo-1599058917765-142b2a07f930?auto=format&fit=crop&w=1200&q=70",
         unitLabel: "LBS",
         sets: [
           { id: "s1", weight: "", reps: "12", rest: "1:15", done: false },
@@ -159,7 +255,8 @@ export default function WorkoutLogScreen() {
         id: "ex-6",
         name: "Lateral Raise",
         tempo: "2-0-2-0",
-        image: "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=1200&q=70",
+        image:
+          "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=1200&q=70",
         unitLabel: "LBS",
         sets: [
           { id: "s1", weight: "", reps: "15", rest: "1:15", done: false },
@@ -171,7 +268,8 @@ export default function WorkoutLogScreen() {
         id: "ex-7",
         name: "Leg Press",
         tempo: "2-0-2-0",
-        image: "https://images.unsplash.com/photo-1526401485004-2aa7f3d0bd19?auto=format&fit=crop&w=1200&q=70",
+        image:
+          "https://images.unsplash.com/photo-1526401485004-2aa7f3d0bd19?auto=format&fit=crop&w=1200&q=70",
         unitLabel: "LBS",
         sets: [
           { id: "s1", weight: "", reps: "12", rest: "1:00", done: false },
@@ -183,7 +281,8 @@ export default function WorkoutLogScreen() {
         id: "ex-8",
         name: "Push-Up (Tempo)",
         tempo: "2-0-2-0",
-        image: "https://images.unsplash.com/photo-1599058918144-1ffabb6ab9a0?auto=format&fit=crop&w=1200&q=70",
+        image:
+          "https://images.unsplash.com/photo-1599058918144-1ffabb6ab9a0?auto=format&fit=crop&w=1200&q=70",
         unitLabel: "REPS",
         sets: [
           { id: "s1", weight: "", reps: "12", rest: "1:00", done: false },
@@ -195,7 +294,8 @@ export default function WorkoutLogScreen() {
         id: "ex-9",
         name: "Dead Bug",
         tempo: "—",
-        image: "https://images.unsplash.com/photo-1517832207067-4db24a2ae47c?auto=format&fit=crop&w=1200&q=70",
+        image:
+          "https://images.unsplash.com/photo-1517832207067-4db24a2ae47c?auto=format&fit=crop&w=1200&q=70",
         unitLabel: "REPS",
         sets: [
           { id: "s1", weight: "", reps: "10", rest: "1:00", done: false },
@@ -207,11 +307,21 @@ export default function WorkoutLogScreen() {
     [],
   );
 
+  const initialExerciseMap = useMemo(() => {
+    const map: Record<string, Exercise> = {};
+    initialExercises.forEach((ex) => {
+      map[ex.id] = ex;
+    });
+    return map;
+  }, [initialExercises]);
+
   const [exercises, setExercises] = useState<Exercise[]>(initialExercises);
 
   const exerciseById = useMemo(() => {
     const map: Record<string, Exercise> = {};
-    exercises.forEach((e) => (map[e.id] = e));
+    exercises.forEach((e) => {
+      map[e.id] = e;
+    });
     return map;
   }, [exercises]);
 
@@ -220,7 +330,13 @@ export default function WorkoutLogScreen() {
       { id: "b0", type: "single", title: "Primer", exerciseIds: ["ex-1"] },
       { id: "b1", type: "superset", title: "Superset A", exerciseIds: ["ex-2", "ex-3"] },
       { id: "b2", type: "giant", title: "Giant Set B", exerciseIds: ["ex-4", "ex-5", "ex-6"] },
-      { id: "b3", type: "circuit", title: "Circuit 1", rounds: 3, exerciseIds: ["ex-7", "ex-8", "ex-9"] },
+      {
+        id: "b3",
+        type: "circuit",
+        title: "Circuit 1",
+        rounds: 3,
+        exerciseIds: ["ex-7", "ex-8", "ex-9"],
+      },
     ],
     [],
   );
@@ -232,13 +348,15 @@ export default function WorkoutLogScreen() {
           id: "alt-1",
           name: "Hack Squat",
           category: "gym",
-          image: "https://images.unsplash.com/photo-1526401485004-2aa7f3d0bd19?auto=format&fit=crop&w=600&q=70",
+          image:
+            "https://images.unsplash.com/photo-1526401485004-2aa7f3d0bd19?auto=format&fit=crop&w=600&q=70",
         },
         {
           id: "alt-2",
           name: "Goblet Squat",
           category: "home",
-          image: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?auto=format&fit=crop&w=600&q=70",
+          image:
+            "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?auto=format&fit=crop&w=600&q=70",
         },
       ],
     }),
@@ -247,14 +365,84 @@ export default function WorkoutLogScreen() {
 
   const historyByExerciseId: Record<string, ExerciseHistorySession[]> = useMemo(
     () => ({
+      "ex-1": [
+        {
+          id: "rower-h1",
+          dateLabel: "Mar 7, 2026",
+          sets: [{ set: 1, weight: "—", reps: "60", rest: "0:30", done: true }],
+        },
+        {
+          id: "rower-h2",
+          dateLabel: "Mar 3, 2026",
+          sets: [{ set: 1, weight: "—", reps: "50", rest: "0:30", done: true }],
+        },
+      ],
       "ex-2": [
         {
-          id: "h1",
-          dateLabel: "Feb 18, 2026",
+          id: "squat-h1",
+          dateLabel: "Mar 8, 2026",
           sets: [
             { set: 1, weight: "185", reps: "8", rest: "1:30", done: true },
             { set: 2, weight: "185", reps: "8", rest: "1:30", done: true },
+            { set: 3, weight: "205", reps: "6", rest: "2:00", done: true },
+          ],
+        },
+        {
+          id: "squat-h2",
+          dateLabel: "Mar 1, 2026",
+          sets: [
+            { set: 1, weight: "175", reps: "8", rest: "1:30", done: true },
+            { set: 2, weight: "175", reps: "8", rest: "1:30", done: true },
+            { set: 3, weight: "185", reps: "6", rest: "2:00", done: true },
+          ],
+        },
+        {
+          id: "squat-h3",
+          dateLabel: "Feb 18, 2026",
+          sets: [
+            { set: 1, weight: "165", reps: "10", rest: "1:30", done: true },
+            { set: 2, weight: "165", reps: "10", rest: "1:30", done: true },
             { set: 3, weight: "175", reps: "8", rest: "1:30", done: true },
+          ],
+        },
+      ],
+      "ex-3": [
+        {
+          id: "rdl-h1",
+          dateLabel: "Mar 8, 2026",
+          sets: [
+            { set: 1, weight: "165", reps: "10", rest: "1:30", done: true },
+            { set: 2, weight: "165", reps: "10", rest: "1:30", done: true },
+            { set: 3, weight: "185", reps: "8", rest: "1:30", done: true },
+          ],
+        },
+        {
+          id: "rdl-h2",
+          dateLabel: "Mar 2, 2026",
+          sets: [
+            { set: 1, weight: "155", reps: "10", rest: "1:30", done: true },
+            { set: 2, weight: "155", reps: "10", rest: "1:30", done: true },
+            { set: 3, weight: "165", reps: "8", rest: "1:30", done: true },
+          ],
+        },
+      ],
+      "ex-4": [
+        {
+          id: "incline-h1",
+          dateLabel: "Mar 6, 2026",
+          sets: [
+            { set: 1, weight: "60", reps: "10", rest: "1:15", done: true },
+            { set: 2, weight: "60", reps: "10", rest: "1:15", done: true },
+            { set: 3, weight: "65", reps: "8", rest: "1:15", done: true },
+          ],
+        },
+        {
+          id: "incline-h2",
+          dateLabel: "Feb 27, 2026",
+          sets: [
+            { set: 1, weight: "55", reps: "10", rest: "1:15", done: true },
+            { set: 2, weight: "55", reps: "10", rest: "1:15", done: true },
+            { set: 3, weight: "60", reps: "8", rest: "1:15", done: true },
           ],
         },
       ],
@@ -267,8 +455,8 @@ export default function WorkoutLogScreen() {
   const scrollRef = useRef<ScrollView | null>(null);
   const exerciseRefs = useRef<Record<string, View | null>>({});
   const restIntervalRef = useRef<NodeJS.Timeout | null>(null);
-
   const swipeRefs = useRef<Record<string, any>>({});
+  const appliedToastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   /* ───────────────────────── States ───────────────────────── */
 
@@ -287,27 +475,23 @@ export default function WorkoutLogScreen() {
 
   const [lastCelebratedPct, setLastCelebratedPct] = useState(0);
 
-  // Notes
   const [noteModalOpen, setNoteModalOpen] = useState(false);
   const [noteExId, setNoteExId] = useState<string | null>(null);
   const [noteSetId, setNoteSetId] = useState<string | null>(null);
   const [noteText, setNoteText] = useState("");
 
-  // Video
   const [videoModalOpen, setVideoModalOpen] = useState(false);
   const [videoExId, setVideoExId] = useState<string | null>(null);
 
-  // Workout Duration
   const [workoutDuration, setWorkoutDuration] = useState(0);
 
-  // Rest Timer (manual only)
   const [restTimer, setRestTimer] = useState<{ seconds: number; total: number } | null>(null);
   const [customTimeOpen, setCustomTimeOpen] = useState(false);
   const [customMinutes, setCustomMinutes] = useState("");
   const [customSeconds, setCustomSeconds] = useState("");
 
-  // Keyboard visibility
   const [kbVisible, setKbVisible] = useState(false);
+  const [appliedHistoryToast, setAppliedHistoryToast] = useState<string | null>(null);
 
   useEffect(() => {
     const showEvt = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
@@ -366,9 +550,7 @@ export default function WorkoutLogScreen() {
       if (Platform.OS === "web") return;
       try {
         await Notifications.requestPermissionsAsync();
-      } catch {
-        // silent
-      }
+      } catch {}
     };
 
     requestPermissions();
@@ -381,10 +563,120 @@ export default function WorkoutLogScreen() {
           shouldSetBadge: false,
         }),
       });
-    } catch {
-      // silent
-    }
+    } catch {}
   }, []);
+
+  /* ───────────────────────── Workout Draft ───────────────────────── */
+
+  const buildWorkoutDraft = useCallback((): WorkoutDraft => {
+    return {
+      id: "full-body-foundation-draft",
+      workoutId: "full-body-foundation",
+      workoutTitle,
+      startedAt: workoutStartTime.current,
+      updatedAt: Date.now(),
+      elapsedSeconds: workoutDuration,
+      activeSetKey,
+      exercises: exercises.map((ex) => ({
+        id: ex.id,
+        name: ex.name,
+        unitLabel: ex.unitLabel,
+        sets: ex.sets.map((s) => ({
+          id: s.id,
+          weight: s.weight ?? "",
+          reps: s.reps ?? "",
+          rest: s.rest ?? "",
+          done: !!s.done,
+          note: s.note ?? "",
+        })),
+      })),
+    };
+  }, [activeSetKey, exercises, workoutDuration, workoutTitle]);
+
+  useEffect(() => {
+    if (isPreview) return;
+
+    const draft = buildWorkoutDraft();
+    if (!hasMeaningfulProgress(draft.exercises)) return;
+
+    saveWorkoutDraft(draft).catch(() => {});
+  }, [isPreview, buildWorkoutDraft]);
+
+  useEffect(() => {
+    if (isPreview) return;
+
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state !== "background" && state !== "inactive") return;
+
+      const draft = buildWorkoutDraft();
+      if (!hasMeaningfulProgress(draft.exercises)) return;
+
+      saveWorkoutDraft(draft).catch(() => {});
+    });
+
+    return () => sub.remove();
+  }, [isPreview, buildWorkoutDraft]);
+
+  /* ───────────────────────── Restore Draft ───────────────────────── */
+
+  useEffect(() => {
+    let mounted = true;
+
+    const restoreDraft = async () => {
+      if (resumeDraftFlag !== "1") {
+        if (mounted) setIsHydratingDraft(false);
+        return;
+      }
+
+      try {
+        const draft = await loadWorkoutDraft();
+
+        if (!draft || !mounted) {
+          if (mounted) setIsHydratingDraft(false);
+          return;
+        }
+
+        const restoredExercises: Exercise[] = draft.exercises.map((draftEx) => {
+          const base = initialExerciseMap[draftEx.id];
+
+          return {
+            id: draftEx.id,
+            name: base?.name ?? draftEx.name,
+            tempo: base?.tempo ?? "—",
+            image: base?.image ?? "",
+            unitLabel: draftEx.unitLabel,
+            videoUrl: base?.videoUrl,
+            description: base?.description,
+            tutorial: base?.tutorial,
+            musclesWorked: base?.musclesWorked,
+            sets: draftEx.sets.map((s) => ({
+              id: s.id,
+              weight: s.weight ?? "",
+              reps: s.reps ?? "",
+              rest: s.rest ?? "",
+              done: !!s.done,
+              note: s.note ?? "",
+            })),
+          };
+        });
+
+        setExercises(restoredExercises);
+        setActiveSetKey(draft.activeSetKey ?? null);
+        setWorkoutDuration(draft.elapsedSeconds ?? 0);
+        workoutStartTime.current = Date.now() - (draft.elapsedSeconds ?? 0) * 1000;
+        setIsPreview(false);
+      } catch {
+      } finally {
+        if (mounted) setIsHydratingDraft(false);
+      }
+    };
+
+    restoreDraft();
+
+    return () => {
+      mounted = false;
+    };
+  }, [resumeDraftFlag, initialExerciseMap]);
 
   /* ───────────────────────── Auto-scroll Helpers ───────────────────────── */
 
@@ -478,7 +770,7 @@ export default function WorkoutLogScreen() {
     );
   };
 
-  /* ───────────────────────── Rest Timer (manual only) ───────────────────────── */
+  /* ───────────────────────── Rest Timer ───────────────────────── */
 
   const startRestTimer = async (restTime: string) => {
     const seconds = timeToSeconds(restTime);
@@ -490,19 +782,23 @@ export default function WorkoutLogScreen() {
     if (Platform.OS !== "web") {
       try {
         await Notifications.scheduleNotificationAsync({
-          content: { title: "Rest Complete! 💪", body: "Time for your next set", sound: true },
+          content: {
+            title: "Rest Complete! 💪",
+            body: "Time for your next set",
+            sound: true,
+          },
           trigger: { seconds },
         });
-      } catch {
-        // silent
-      }
+      } catch {}
     }
 
     restIntervalRef.current = setInterval(() => {
       setRestTimer((prev) => {
         if (!prev || prev.seconds <= 1) {
           if (restIntervalRef.current) clearInterval(restIntervalRef.current);
-          if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          if (Platform.OS !== "web") {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          }
           return null;
         }
         return { ...prev, seconds: prev.seconds - 1 };
@@ -517,9 +813,7 @@ export default function WorkoutLogScreen() {
     if (Platform.OS !== "web") {
       try {
         await Notifications.cancelAllScheduledNotificationsAsync();
-      } catch {
-        // silent
-      }
+      } catch {}
     }
   };
 
@@ -543,19 +837,23 @@ export default function WorkoutLogScreen() {
     if (Platform.OS !== "web") {
       try {
         await Notifications.scheduleNotificationAsync({
-          content: { title: "Rest Complete! 💪", body: "Time for your next set", sound: true },
+          content: {
+            title: "Rest Complete! 💪",
+            body: "Time for your next set",
+            sound: true,
+          },
           trigger: { seconds: totalSeconds },
         });
-      } catch {
-        // silent
-      }
+      } catch {}
     }
 
     restIntervalRef.current = setInterval(() => {
       setRestTimer((prev) => {
         if (!prev || prev.seconds <= 1) {
           if (restIntervalRef.current) clearInterval(restIntervalRef.current);
-          if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          if (Platform.OS !== "web") {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          }
           return null;
         }
         return { ...prev, seconds: prev.seconds - 1 };
@@ -570,6 +868,7 @@ export default function WorkoutLogScreen() {
   useEffect(() => {
     return () => {
       if (restIntervalRef.current) clearInterval(restIntervalRef.current);
+      if (appliedToastTimeoutRef.current) clearTimeout(appliedToastTimeoutRef.current);
       if (Platform.OS !== "web") {
         Notifications.cancelAllScheduledNotificationsAsync().catch(() => {});
       }
@@ -583,7 +882,9 @@ export default function WorkoutLogScreen() {
     for (const milestone of milestones) {
       if (pctLocal >= milestone && lastCelebratedPct < milestone) {
         setLastCelebratedPct(milestone);
-        if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        if (Platform.OS !== "web") {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }
         break;
       }
     }
@@ -593,7 +894,10 @@ export default function WorkoutLogScreen() {
 
   const shareWorkout = async () => {
     const totalSetsLocal = exercises.reduce((sum, ex) => sum + ex.sets.length, 0);
-    const completedSetsLocal = exercises.reduce((sum, ex) => sum + ex.sets.filter((s) => s.done).length, 0);
+    const completedSetsLocal = exercises.reduce(
+      (sum, ex) => sum + ex.sets.filter((s) => s.done).length,
+      0,
+    );
 
     const message =
       `💪 Just crushed ${workoutTitle}!\n\n` +
@@ -606,9 +910,7 @@ export default function WorkoutLogScreen() {
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(`data:text/plain,${encodeURIComponent(message)}`);
       }
-    } catch {
-      // silent
-    }
+    } catch {}
   };
 
   /* ───────────────────────── Swipe close helper ───────────────────────── */
@@ -623,28 +925,37 @@ export default function WorkoutLogScreen() {
   /* ───────────────────────── Actions ───────────────────────── */
 
   const startWorkout = async () => {
-    if (Platform.OS !== "web") await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (Platform.OS !== "web") {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
 
     workoutStartTime.current = Date.now();
     setIsPreview(false);
 
     const firstIncomplete = getNextIncompleteSet("ex-1", -1);
-    if (firstIncomplete) setActiveSetKey(`${firstIncomplete.exId}:${firstIncomplete.setIndex}`);
+    if (firstIncomplete) {
+      setActiveSetKey(`${firstIncomplete.exId}:${firstIncomplete.setIndex}`);
+    }
   };
 
   const handleBack = async () => {
-    if (Platform.OS !== "web") await Haptics.selectionAsync();
+    if (Platform.OS !== "web") {
+      await Haptics.selectionAsync();
+    }
 
     if (isPreview) {
       if (router.canGoBack()) router.back();
       else router.replace("/");
       return;
     }
+
     setExitConfirmOpen(true);
   };
 
   const confirmExit = async () => {
-    if (Platform.OS !== "web") await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (Platform.OS !== "web") {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
 
     setExitConfirmOpen(false);
     if (router.canGoBack()) router.back();
@@ -659,13 +970,20 @@ export default function WorkoutLogScreen() {
   const updateSet = useCallback((exId: string, setId: string, patch: Partial<SetRowLocal>) => {
     setExercises((prev) =>
       prev.map((ex) =>
-        ex.id !== exId ? ex : { ...ex, sets: ex.sets.map((s) => (s.id === setId ? { ...s, ...patch } : s)) },
+        ex.id !== exId
+          ? ex
+          : {
+              ...ex,
+              sets: ex.sets.map((s) => (s.id === setId ? { ...s, ...patch } : s)),
+            },
       ),
     );
   }, []);
 
   const openNoteModal = useCallback(async (exId: string, setId: string) => {
-    if (Platform.OS !== "web") await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (Platform.OS !== "web") {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
 
     setExercises((prev) => {
       const ex = prev.find((e) => e.id === exId);
@@ -681,14 +999,18 @@ export default function WorkoutLogScreen() {
   }, []);
 
   const saveNote = () => {
-    if (noteExId && noteSetId) updateSet(noteExId, noteSetId, { note: noteText.trim() });
+    if (noteExId && noteSetId) {
+      updateSet(noteExId, noteSetId, { note: noteText.trim() });
+    }
     setNoteModalOpen(false);
     setNoteText("");
   };
 
   const toggleSetDone = useCallback(
     async (exId: string, setId: string) => {
-      if (Platform.OS !== "web") await Haptics.selectionAsync();
+      if (Platform.OS !== "web") {
+        await Haptics.selectionAsync();
+      }
       Keyboard.dismiss();
 
       const ex = exercises.find((e) => e.id === exId);
@@ -702,28 +1024,38 @@ export default function WorkoutLogScreen() {
         prev.map((exercise) =>
           exercise.id !== exId
             ? exercise
-            : { ...exercise, sets: exercise.sets.map((s) => (s.id === setId ? { ...s, done: willBecomeDone } : s)) },
+            : {
+                ...exercise,
+                sets: exercise.sets.map((s) =>
+                  s.id === setId ? { ...s, done: willBecomeDone } : s,
+                ),
+              },
         ),
       );
 
       if (willBecomeDone) {
-        // ✅ REMOVED: no auto-start rest timer
-
         const block = getBlockForExercise(exId);
         const nextSet = getNextIncompleteSet(exId, setIndex);
 
         if (nextSet) {
           setActiveSetKey(`${nextSet.exId}:${nextSet.setIndex}`);
-          setTimeout(() => scrollToSet(nextSet.exId, nextSet.setIndex), 250);
+          setTimeout(() => {
+            scrollToSet(nextSet.exId, nextSet.setIndex);
+          }, 250);
         } else if (block && isBlockComplete(block.id)) {
-          if (Platform.OS !== "web") await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          if (Platform.OS !== "web") {
+            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          }
           setCelebratingBlock(block.id);
           setTimeout(() => setCelebratingBlock(null), 1200);
         }
 
         const totalSetsLocal = exercises.reduce((sum, e) => sum + e.sets.length, 0);
-        const completedSetsLocal = exercises.reduce((sum, e) => sum + e.sets.filter((s) => s.done).length, 0) + 1;
-        const pctLocal = totalSetsLocal ? Math.round((completedSetsLocal / totalSetsLocal) * 100) : 0;
+        const completedSetsLocal =
+          exercises.reduce((sum, e) => sum + e.sets.filter((s) => s.done).length, 0) + 1;
+        const pctLocal = totalSetsLocal
+          ? Math.round((completedSetsLocal / totalSetsLocal) * 100)
+          : 0;
         checkMilestone(pctLocal);
       }
     },
@@ -732,7 +1064,9 @@ export default function WorkoutLogScreen() {
 
   const deleteSet = useCallback(
     async (exId: string, setId: string) => {
-      if (Platform.OS !== "web") await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      if (Platform.OS !== "web") {
+        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      }
 
       const ex = exercises.find((e) => e.id === exId);
       const set = ex?.sets.find((s) => s.id === setId);
@@ -743,11 +1077,15 @@ export default function WorkoutLogScreen() {
       setUndoAction({ type: "delete", exId, setId, set, index });
 
       if (undoTimeoutRef.current) clearTimeout(undoTimeoutRef.current);
-      undoTimeoutRef.current = setTimeout(() => setUndoAction(null), 4000);
+      undoTimeoutRef.current = setTimeout(() => {
+        setUndoAction(null);
+      }, 4000);
 
       setExercises((prev) =>
         prev.map((exercise) =>
-          exercise.id !== exId ? exercise : { ...exercise, sets: exercise.sets.filter((s) => s.id !== setId) },
+          exercise.id !== exId
+            ? exercise
+            : { ...exercise, sets: exercise.sets.filter((s) => s.id !== setId) },
         ),
       );
     },
@@ -757,7 +1095,9 @@ export default function WorkoutLogScreen() {
   const undoDelete = async () => {
     if (!undoAction || undoAction.type !== "delete") return;
 
-    if (Platform.OS !== "web") await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (Platform.OS !== "web") {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
 
     const { exId, set, index } = undoAction;
 
@@ -775,7 +1115,9 @@ export default function WorkoutLogScreen() {
   };
 
   const addSet = async (exId: string) => {
-    if (Platform.OS !== "web") await Haptics.selectionAsync();
+    if (Platform.OS !== "web") {
+      await Haptics.selectionAsync();
+    }
 
     const ex = exercises.find((e) => e.id === exId);
     if (!ex) return;
@@ -804,24 +1146,33 @@ export default function WorkoutLogScreen() {
   };
 
   const totalSets = exercises.reduce((sum, ex) => sum + ex.sets.length, 0);
-  const completedSets = exercises.reduce((sum, ex) => sum + ex.sets.filter((s) => s.done).length, 0);
+  const completedSets = exercises.reduce(
+    (sum, ex) => sum + ex.sets.filter((s) => s.done).length,
+    0,
+  );
   const pct = totalSets ? Math.round((completedSets / totalSets) * 100) : 0;
 
   const openHistory = async (exId: string) => {
-    if (Platform.OS !== "web") await Haptics.selectionAsync();
+    if (Platform.OS !== "web") {
+      await Haptics.selectionAsync();
+    }
     setHistoryExerciseId(exId);
     setHistoryOpen(true);
   };
 
   const openMenu = async (exId: string) => {
-    if (Platform.OS !== "web") await Haptics.selectionAsync();
+    if (Platform.OS !== "web") {
+      await Haptics.selectionAsync();
+    }
     setMenuExerciseId(exId);
     setMenuOpen(true);
   };
 
   const swapExercise = async (alternative: ExerciseAlternative) => {
     if (!menuExerciseId) return;
-    if (Platform.OS !== "web") await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (Platform.OS !== "web") {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
 
     setExercises((prev) =>
       prev.map((ex) =>
@@ -864,9 +1215,86 @@ export default function WorkoutLogScreen() {
     return maxWeight > 0 ? { weight: maxWeight, reps: maxReps, date: prDate } : null;
   };
 
-  const pr = useMemo(() => (historyExerciseId ? getPersonalBest(historyExerciseId) : null), [historyExerciseId]);
+  const pr = useMemo(
+    () => (historyExerciseId ? getPersonalBest(historyExerciseId) : null),
+    [historyExerciseId, historyByExerciseId],
+  );
 
   const currentExercise = exercises.find((ex) => ex.id === menuExerciseId);
+  const historyExercise = historyExerciseId ? exerciseById[historyExerciseId] : null;
+  const historySessions = historyExerciseId ? historyByExerciseId[historyExerciseId] ?? [] : [];
+
+  const sessionHasPR = useCallback(
+    (session: ExerciseHistorySession) => {
+      if (!pr) return false;
+      return session.sets.some((set) => {
+        const w = parseFloat(set.weight);
+        const r = parseFloat(set.reps);
+        return w === pr.weight && r === pr.reps;
+      });
+    },
+    [pr],
+  );
+
+  const applyHistorySessionToCurrentWorkout = useCallback(
+    async (session: ExerciseHistorySession) => {
+      if (!historyExerciseId) return;
+
+      const exName = exerciseById[historyExerciseId]?.name ?? "Exercise";
+
+      if (Platform.OS !== "web") {
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+
+      setExercises((prev) =>
+        prev.map((ex) => {
+          if (ex.id !== historyExerciseId) return ex;
+
+          const updatedSets = [...ex.sets];
+
+          session.sets.forEach((pastSet, idx) => {
+            if (updatedSets[idx]) {
+              updatedSets[idx] = {
+                ...updatedSets[idx],
+                weight: pastSet.weight ?? "",
+                reps: pastSet.reps ?? "",
+                rest: pastSet.rest ?? "",
+                done: false,
+              };
+            } else {
+              updatedSets.push({
+                id: `s${idx + 1}-${Date.now()}-${idx}`,
+                weight: pastSet.weight ?? "",
+                reps: pastSet.reps ?? "",
+                rest: pastSet.rest ?? "",
+                done: false,
+              });
+            }
+          });
+
+          return { ...ex, sets: updatedSets };
+        }),
+      );
+
+      setHistoryOpen(false);
+      setActiveSetKey(`${historyExerciseId}:0`);
+
+      setTimeout(() => {
+        scrollToSet(historyExerciseId, 0);
+      }, 260);
+
+      if (appliedToastTimeoutRef.current) {
+        clearTimeout(appliedToastTimeoutRef.current);
+      }
+
+      setAppliedHistoryToast(`${exName} applied`);
+
+      appliedToastTimeoutRef.current = setTimeout(() => {
+        setAppliedHistoryToast(null);
+      }, 2200);
+    },
+    [exerciseById, historyExerciseId],
+  );
 
   /* ───────────────────────── Render helpers ───────────────────────── */
 
@@ -879,8 +1307,12 @@ export default function WorkoutLogScreen() {
 
   const blockMetaFor = (block: StrengthBlock) => {
     const count = block.exerciseIds.length;
-    if (block.type === "circuit") return `${count} exercises • ${block.rounds ?? 3} rounds • Move across`;
-    if (block.type === "superset" || block.type === "giant") return `${count} exercises • Move across`;
+    if (block.type === "circuit") {
+      return `${count} exercises • ${block.rounds ?? 3} rounds • Move across`;
+    }
+    if (block.type === "superset" || block.type === "giant") {
+      return `${count} exercises • Move across`;
+    }
     return `${count} exercise`;
   };
 
@@ -899,9 +1331,9 @@ export default function WorkoutLogScreen() {
     return null;
   };
 
-  /* ───────────────────────── Finish summary (✅ ONLY completed exercises + sets) ───────────────────────── */
+  /* ───────────────────────── Finish summary ───────────────────────── */
 
-  const buildFinishSummary = useCallback(() => {
+  const buildFinishSummary = useCallback((): FinishSummary => {
     const completedExercises = exercises
       .map((ex) => {
         const completedSetsOnly = ex.sets
@@ -912,47 +1344,285 @@ export default function WorkoutLogScreen() {
             rest: s.rest ?? "",
             done: !!s.done,
           }))
-          .filter((x) => x.done); // ✅ only completed sets
+          .filter((x) => x.done);
 
-        if (completedSetsOnly.length === 0) return null; // ✅ ignore exercises with 0 completed sets
+        if (completedSetsOnly.length === 0) return null;
+
+        const sessionVolume = completedSetsOnly.reduce((sum, set) => {
+          const weight = parseFloat(set.weight ?? "");
+          const reps = parseFloat(set.reps ?? "");
+          if (Number.isNaN(weight) || Number.isNaN(reps)) return sum;
+          if (weight <= 0 || reps <= 0) return sum;
+          return sum + weight * reps;
+        }, 0);
+
+        const previousSession = (historyByExerciseId[ex.id] ?? [])[0];
+
+        let comparedToLast: FinishSummary["exercises"][number]["comparedToLast"] = {
+          result: "no_data",
+        };
+
+        if (previousSession) {
+          const previousBestWeight = previousSession.sets.reduce((max, set) => {
+            const w = parseFloat(set.weight ?? "");
+            return Number.isNaN(w) ? max : Math.max(max, w);
+          }, 0);
+
+          const previousBestReps = previousSession.sets.reduce((max, set) => {
+            const r = parseFloat(set.reps ?? "");
+            return Number.isNaN(r) ? max : Math.max(max, r);
+          }, 0);
+
+          const previousVolume = previousSession.sets.reduce((sum, set) => {
+            const w = parseFloat(set.weight ?? "");
+            const r = parseFloat(set.reps ?? "");
+            if (Number.isNaN(w) || Number.isNaN(r) || w <= 0 || r <= 0) return sum;
+            return sum + w * r;
+          }, 0);
+
+          const currentBestWeight = completedSetsOnly.reduce((max, set) => {
+            const w = parseFloat(set.weight ?? "");
+            return Number.isNaN(w) ? max : Math.max(max, w);
+          }, 0);
+
+          const currentBestReps = completedSetsOnly.reduce((max, set) => {
+            const r = parseFloat(set.reps ?? "");
+            return Number.isNaN(r) ? max : Math.max(max, r);
+          }, 0);
+
+          const improvedWeight = currentBestWeight > previousBestWeight;
+          const improvedReps = currentBestReps > previousBestReps;
+          const improvedVolume = sessionVolume > previousVolume;
+
+          let result: "better" | "same" | "mixed" | "no_data" = "same";
+
+          if (improvedWeight || improvedReps || improvedVolume) result = "better";
+          else if (
+            currentBestWeight === previousBestWeight &&
+            currentBestReps === previousBestReps &&
+            Math.round(sessionVolume) === Math.round(previousVolume)
+          ) {
+            result = "same";
+          } else {
+            result = "mixed";
+          }
+
+          comparedToLast = {
+            previousWeight: previousBestWeight || undefined,
+            previousReps: previousBestReps || undefined,
+            previousVolume: previousVolume || undefined,
+            result,
+          };
+        }
 
         return {
           id: ex.id,
           name: ex.name,
           completedSets: completedSetsOnly.length,
+          unitLabel: ex.unitLabel,
+          sessionVolume,
+          comparedToLast,
           sets: completedSetsOnly,
         };
       })
-      .filter(Boolean) as Array<{
-      id: string;
-      name: string;
-      completedSets: number;
-      sets: { set: number; weight: string; reps: string; rest: string; done: boolean }[];
-    }>;
+      .filter(Boolean) as FinishSummary["exercises"];
 
     const totalCompletedSets = completedExercises.reduce((sum, ex) => sum + ex.completedSets, 0);
+    const totalExercisesCount = exercises.length;
+    const completedExercisesCount = completedExercises.length;
+    const completionRate = totalSets > 0 ? totalCompletedSets / totalSets : 0;
+
+    let strengthSetCount = 0;
+    let missingLoadCount = 0;
+    let trackedStrengthVolume = 0;
+    let totalTrackedLoad = 0;
+    let trackedLoadCount = 0;
+
+    const prs: FinishSummary["prs"] = [];
+    const wins: FinishSummary["wins"] = [];
+
+    exercises.forEach((ex) => {
+      const personalBest = getPersonalBest(ex.id);
+      const previousSession = (historyByExerciseId[ex.id] ?? [])[0];
+      const isStrengthExercise = ex.unitLabel === "LBS" || ex.unitLabel === "KG";
+
+      const completedSetsOnly = ex.sets.filter((s) => s.done);
+
+      const currentBestWeight = completedSetsOnly.reduce((max, set) => {
+        const w = parseFloat(set.weight ?? "");
+        return Number.isNaN(w) ? max : Math.max(max, w);
+      }, 0);
+
+      const currentBestReps = completedSetsOnly.reduce((max, set) => {
+        const r = parseFloat(set.reps ?? "");
+        return Number.isNaN(r) ? max : Math.max(max, r);
+      }, 0);
+
+      const currentVolume = completedSetsOnly.reduce((sum, set) => {
+        const w = parseFloat(set.weight ?? "");
+        const r = parseFloat(set.reps ?? "");
+        if (Number.isNaN(w) || Number.isNaN(r) || w <= 0 || r <= 0) return sum;
+        return sum + w * r;
+      }, 0);
+
+      const prevBestWeight = previousSession
+        ? previousSession.sets.reduce((max, set) => {
+            const w = parseFloat(set.weight ?? "");
+            return Number.isNaN(w) ? max : Math.max(max, w);
+          }, 0)
+        : 0;
+
+      const prevBestReps = previousSession
+        ? previousSession.sets.reduce((max, set) => {
+            const r = parseFloat(set.reps ?? "");
+            return Number.isNaN(r) ? max : Math.max(max, r);
+          }, 0)
+        : 0;
+
+      const prevVolume = previousSession
+        ? previousSession.sets.reduce((sum, set) => {
+            const w = parseFloat(set.weight ?? "");
+            const r = parseFloat(set.reps ?? "");
+            if (Number.isNaN(w) || Number.isNaN(r) || w <= 0 || r <= 0) return sum;
+            return sum + w * r;
+          }, 0)
+        : 0;
+
+      if (previousSession && completedSetsOnly.length > 0) {
+        if (currentBestWeight > prevBestWeight) {
+          wins.push({
+            exerciseId: ex.id,
+            exerciseName: ex.name,
+            type: "heavier",
+            label: `Heavier than last session`,
+          });
+        } else if (currentBestReps > prevBestReps) {
+          wins.push({
+            exerciseId: ex.id,
+            exerciseName: ex.name,
+            type: "more_reps",
+            label: `More reps than last session`,
+          });
+        } else if (
+          currentBestWeight === prevBestWeight &&
+          currentBestReps === prevBestReps &&
+          currentBestWeight > 0
+        ) {
+          wins.push({
+            exerciseId: ex.id,
+            exerciseName: ex.name,
+            type: "matched",
+            label: `Matched last session`,
+          });
+        } else if (currentVolume > prevVolume && currentVolume > 0) {
+          wins.push({
+            exerciseId: ex.id,
+            exerciseName: ex.name,
+            type: "volume_up",
+            label: `Higher session volume`,
+          });
+        }
+      }
+
+      ex.sets.forEach((s) => {
+        if (!s.done) return;
+
+        if (isStrengthExercise) {
+          strengthSetCount += 1;
+
+          const rawWeight = (s.weight ?? "").trim();
+          const rawReps = (s.reps ?? "").trim();
+          const weightVal = parseFloat(rawWeight);
+          const repsVal = parseFloat(rawReps);
+
+          if (!rawWeight || Number.isNaN(weightVal) || weightVal <= 0) {
+            missingLoadCount += 1;
+          } else {
+            totalTrackedLoad += weightVal;
+            trackedLoadCount += 1;
+          }
+
+          if (!Number.isNaN(weightVal) && !Number.isNaN(repsVal) && weightVal > 0 && repsVal > 0) {
+            trackedStrengthVolume += weightVal * repsVal;
+          }
+        }
+
+        const setWeight = parseFloat(s.weight ?? "");
+        const setReps = parseFloat(s.reps ?? "");
+
+        if (
+          personalBest &&
+          !Number.isNaN(setWeight) &&
+          !Number.isNaN(setReps) &&
+          (setWeight > personalBest.weight ||
+            (setWeight === personalBest.weight && setReps > personalBest.reps))
+        ) {
+          const alreadyAdded = prs.some((item) => item.exerciseId === ex.id);
+          if (!alreadyAdded) {
+            prs.push({
+              exerciseId: ex.id,
+              exerciseName: ex.name,
+              weight: s.weight ?? "",
+              reps: s.reps ?? "",
+            });
+          }
+        }
+      });
+    });
+
+    const totalVolume = completedExercises.reduce((sum, ex) => sum + ex.sessionVolume, 0);
+    const avgTrackedLoad = trackedLoadCount > 0 ? totalTrackedLoad / trackedLoadCount : 0;
+    const improvedExerciseCount = completedExercises.filter(
+      (ex) => ex.comparedToLast?.result === "better",
+    ).length;
+    const matchedExerciseCount = completedExercises.filter(
+      (ex) => ex.comparedToLast?.result === "same",
+    ).length;
 
     return {
       workoutTitle,
       durationSec: workoutDuration,
-      totals: { completedSets: totalCompletedSets },
+      totals: {
+        completedSets: totalCompletedSets,
+        totalSets,
+        completedExercises: completedExercisesCount,
+        totalExercises: totalExercisesCount,
+        totalVolume,
+        trackedStrengthVolume,
+      },
+      insights: {
+        completionRate,
+        prCount: prs.length,
+        missingLoadCount,
+        strengthSetCount,
+        avgTrackedLoad,
+        improvedExerciseCount,
+        matchedExerciseCount,
+      },
+      prs,
+      wins,
       exercises: completedExercises,
     };
-  }, [exercises, workoutDuration, workoutTitle]);
+  }, [exercises, historyByExerciseId, totalSets, workoutDuration, workoutTitle]);
 
   const openFinish = useCallback(async () => {
     Keyboard.dismiss();
-    if (Platform.OS !== "web") await Haptics.selectionAsync();
+
+    if (Platform.OS !== "web") {
+      await Haptics.selectionAsync();
+    }
 
     const summary = buildFinishSummary();
 
     router.push({
       pathname: "/workout/finish",
-      params: { summary: encodeURIComponent(JSON.stringify(summary)) },
+      params: {
+        summary: JSON.stringify(summary),
+      },
     });
   }, [buildFinishSummary]);
 
-  /* ───────────────────────── Video trigger (thumbnail press) ───────────────────────── */
+  /* ───────────────────────── Video trigger ───────────────────────── */
 
   const onPressThumbnail = useCallback(
     (exId: string) => {
@@ -963,6 +1633,18 @@ export default function WorkoutLogScreen() {
     },
     [exerciseById],
   );
+
+  if (isHydratingDraft) {
+    return (
+      <SafeAreaView style={S.safe}>
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+          <Text style={{ fontSize: 15, fontWeight: "800", color: Colors.muted }}>
+            Restoring workout…
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   /* ───────────────────────── UI ───────────────────────── */
 
@@ -976,14 +1658,8 @@ export default function WorkoutLogScreen() {
           exerciseById={exerciseById}
           estimatedTime={estimatedTime}
           totalSets={totalSets}
-          currentStreak={currentStreak}
-          totalWorkouts={totalWorkouts}
           onStartWorkout={startWorkout}
           onBack={handleBack}
-          groupAccentStyle={groupAccentStyle}
-          blockKickerFor={blockKickerFor}
-          blockMetaFor={blockMetaFor}
-          tagFor={tagFor}
         />
       ) : (
         <WorkoutPlayer
@@ -1025,7 +1701,6 @@ export default function WorkoutLogScreen() {
         />
       )}
 
-      {/* iOS InputAccessoryView: single source of truth */}
       {Platform.OS === "ios" && (
         <InputAccessoryView nativeID={IOS_ACCESSORY_ID}>
           <View style={S.accessory}>
@@ -1044,7 +1719,6 @@ export default function WorkoutLogScreen() {
         </InputAccessoryView>
       )}
 
-      {/* Rest timer overlay (manual only) */}
       {restTimer && (
         <View
           style={{
@@ -1126,7 +1800,9 @@ export default function WorkoutLogScreen() {
                 pressed && { opacity: 0.7 },
               ]}
             >
-              <Text style={{ fontSize: 16, fontWeight: "900", color: Colors.surface }}>+ 15 seconds</Text>
+              <Text style={{ fontSize: 16, fontWeight: "900", color: Colors.surface }}>
+                + 15 seconds
+              </Text>
             </Pressable>
 
             <Pressable
@@ -1143,14 +1819,15 @@ export default function WorkoutLogScreen() {
                 pressed && { opacity: 0.9 },
               ]}
             >
-              <Text style={{ fontSize: 16, fontWeight: "900", color: Colors.text }}>Skip Rest</Text>
+              <Text style={{ fontSize: 16, fontWeight: "900", color: Colors.text }}>
+                Skip Rest
+              </Text>
             </Pressable>
           </View>
         </View>
       )}
 
-      {/* Undo toast */}
-      {undoAction && !restTimer && (
+      {undoAction && !restTimer && !appliedHistoryToast && (
         <View
           style={{
             position: "absolute",
@@ -1171,20 +1848,81 @@ export default function WorkoutLogScreen() {
             elevation: 12,
           }}
         >
-          <Text style={{ color: Colors.surface, fontWeight: "800", fontSize: 15 }}>Set deleted</Text>
+          <Text style={{ color: Colors.surface, fontWeight: "800", fontSize: 15 }}>
+            Set deleted
+          </Text>
           <Pressable
             onPress={undoDelete}
-            style={{ paddingHorizontal: 16, paddingVertical: 10, backgroundColor: (Colors as any).premium ?? "#F4C84A", borderRadius: 10 }}
+            style={{
+              paddingHorizontal: 16,
+              paddingVertical: 10,
+              backgroundColor: (Colors as any).premium ?? "#F4C84A",
+              borderRadius: 10,
+            }}
           >
-            <Text style={{ color: Colors.text, fontWeight: "900", fontSize: 14 }}>UNDO</Text>
+            <Text style={{ color: Colors.text, fontWeight: "900", fontSize: 14 }}>
+              UNDO
+            </Text>
           </Pressable>
         </View>
       )}
 
-      {/* ───────────────────────── MODALS ───────────────────────── */}
+      {appliedHistoryToast && !restTimer && (
+        <View
+          style={{
+            position: "absolute",
+            bottom: 20,
+            left: 16,
+            right: 16,
+            zIndex: 199,
+            backgroundColor: Colors.text,
+            borderRadius: 16,
+            paddingVertical: 15,
+            paddingHorizontal: 16,
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 10,
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 6 },
+            shadowOpacity: 0.3,
+            shadowRadius: 12,
+            elevation: 12,
+          }}
+        >
+          <View
+            style={{
+              width: 26,
+              height: 26,
+              borderRadius: 13,
+              backgroundColor: (Colors as any).premium ?? "#F4C84A",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Check size={14} color={Colors.text} strokeWidth={3} />
+          </View>
+
+          <Text
+            style={{
+              flex: 1,
+              color: Colors.surface,
+              fontWeight: "800",
+              fontSize: 15,
+              letterSpacing: -0.1,
+            }}
+          >
+            {appliedHistoryToast}
+          </Text>
+        </View>
+      )}
 
       {/* Exit confirm */}
-      <Modal visible={exitConfirmOpen} transparent animationType="fade" onRequestClose={() => setExitConfirmOpen(false)}>
+      <Modal
+        visible={exitConfirmOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setExitConfirmOpen(false)}
+      >
         <Pressable style={S.modalOverlay} onPress={() => setExitConfirmOpen(false)} />
         <View style={S.modalSheet}>
           <View style={S.modalHeader}>
@@ -1193,7 +1931,9 @@ export default function WorkoutLogScreen() {
               <X size={18} color="#111" />
             </Pressable>
           </View>
-          <Text style={S.modalBody}>Your progress will be lost. Are you sure you want to exit?</Text>
+          <Text style={S.modalBody}>
+            Your progress will be lost. Are you sure you want to exit?
+          </Text>
           <View style={S.modalActions}>
             <Pressable onPress={() => setExitConfirmOpen(false)} style={S.modalGhost}>
               <Text style={S.modalGhostText}>Keep Going</Text>
@@ -1268,7 +2008,9 @@ export default function WorkoutLogScreen() {
         <Pressable style={S.modalOverlay} onPress={() => setHistoryOpen(false)} />
         <View style={S.modalSheetLarge}>
           <View style={S.modalHeader}>
-            <Text style={S.modalTitle}>Exercise History</Text>
+            <Text style={S.modalTitle} numberOfLines={2}>
+              {historyExercise?.name ?? "Exercise History"}
+            </Text>
             <Pressable onPress={() => setHistoryOpen(false)} style={S.modalX}>
               <X size={18} color="#111" />
             </Pressable>
@@ -1278,43 +2020,125 @@ export default function WorkoutLogScreen() {
             <View style={S.prBanner}>
               <Trophy size={16} color={(Colors as any).premium ?? "#F4C84A"} />
               <Text style={S.prText}>
-                PR: {pr.weight} lbs × {pr.reps} reps
+                PR: {pr.weight}{" "}
+                {historyExercise?.unitLabel === "REPS"
+                  ? "reps"
+                  : historyExercise?.unitLabel?.toLowerCase() ?? "lbs"}{" "}
+                × {pr.reps}
               </Text>
               <Text style={S.prDate}>({pr.date})</Text>
             </View>
           )}
 
-          <ScrollView style={{ maxHeight: 420 }} contentContainerStyle={{ paddingBottom: 12 }} showsVerticalScrollIndicator={false}>
-            {(historyExerciseId ? historyByExerciseId[historyExerciseId] : [])?.length ? (
-              (historyByExerciseId[historyExerciseId as string] ?? []).map((session, index) => (
-                <View key={session.id}>
-                  <View style={[S.historyCard, index > 0 && S.historyCardSpaced]}>
-                    <View style={S.historyCardHeader}>
+          <ScrollView
+            style={{ maxHeight: 460 }}
+            contentContainerStyle={{ paddingBottom: 12 }}
+            showsVerticalScrollIndicator={false}
+          >
+            {historySessions.length ? (
+              historySessions.map((session, index) => (
+                <View key={session.id} style={[S.historyCard, index > 0 && S.historyCardSpaced]}>
+                  <View style={S.historyCardHeader}>
+                    <View style={{ flex: 1, paddingRight: 10 }}>
                       <Text style={S.historyDate}>{session.dateLabel}</Text>
                     </View>
 
-                    <View style={S.historyTableHead}>
-                      <Text style={[S.historyHead, { width: 40 }]}>SET</Text>
-                      <Text style={S.historyHead}>W</Text>
-                      <Text style={S.historyHead}>R</Text>
-                      <Text style={S.historyHead}>REST</Text>
-                      <Text style={[S.historyHead, { width: 42, textAlign: "center" }]}>✓</Text>
-                    </View>
+                    {sessionHasPR(session) ? (
+                      <View
+                        style={{
+                          paddingHorizontal: 10,
+                          height: 28,
+                          borderRadius: 999,
+                          backgroundColor: "rgba(244,200,74,0.18)",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontSize: 11,
+                            fontWeight: "900",
+                            color: Colors.text,
+                            letterSpacing: 0.2,
+                          }}
+                        >
+                          PR
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
 
-                    {session.sets.map((hs) => (
+                  <View style={S.historyTableHead}>
+                    <Text style={[S.historyHead, { width: 40 }]}>SET</Text>
+                    <Text style={S.historyHead}>
+                      {historyExercise?.unitLabel === "REPS"
+                        ? "WORK"
+                        : historyExercise?.unitLabel ?? "W"}
+                    </Text>
+                    <Text style={S.historyHead}>REPS</Text>
+                    <Text style={S.historyHead}>REST</Text>
+                    <Text style={[S.historyHead, { width: 42, textAlign: "center" }]}>✓</Text>
+                  </View>
+
+                  {session.sets.map((hs) => {
+                    const isPrSet =
+                      !!pr &&
+                      parseFloat(hs.weight) === pr.weight &&
+                      parseFloat(hs.reps) === pr.reps;
+
+                    return (
                       <View key={`${session.id}-${hs.set}`} style={S.historyRow}>
                         <Text style={[S.historyCellText, { width: 40 }]}>{hs.set}</Text>
                         <Text style={S.historyCellText}>{hs.weight}</Text>
                         <Text style={S.historyCellText}>{hs.reps}</Text>
                         <Text style={S.historyCellText}>{hs.rest}</Text>
-                        <View style={[S.historyDot, hs.done && S.historyDotOn]}>{hs.done ? <Check size={14} color="#fff" /> : null}</View>
+                        <View
+                          style={[
+                            S.historyDot,
+                            hs.done && S.historyDotOn,
+                            isPrSet && {
+                              backgroundColor: (Colors as any).premium ?? "#F4C84A",
+                              borderColor: (Colors as any).premium ?? "#F4C84A",
+                            },
+                          ]}
+                        >
+                          {hs.done ? <Check size={14} color="#fff" /> : null}
+                        </View>
                       </View>
-                    ))}
-                  </View>
+                    );
+                  })}
+
+                  <Pressable
+                    onPress={() => applyHistorySessionToCurrentWorkout(session)}
+                    style={({ pressed }) => [
+                      {
+                        marginTop: 14,
+                        height: 46,
+                        borderRadius: 999,
+                        backgroundColor: Colors.text,
+                        alignItems: "center",
+                        justifyContent: "center",
+                      },
+                      pressed && { opacity: 0.82 },
+                    ]}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 14,
+                        fontWeight: "900",
+                        color: Colors.surface,
+                        letterSpacing: -0.1,
+                      }}
+                    >
+                      Apply to Current Workout
+                    </Text>
+                  </Pressable>
                 </View>
               ))
             ) : (
-              <Text style={{ color: "#666", fontWeight: "700", marginTop: 12 }}>No history yet.</Text>
+              <Text style={{ color: "#666", fontWeight: "700", marginTop: 12 }}>
+                No history yet.
+              </Text>
             )}
           </ScrollView>
 
@@ -1327,7 +2151,12 @@ export default function WorkoutLogScreen() {
       </Modal>
 
       {/* Custom timer modal */}
-      <Modal visible={customTimeOpen} transparent animationType="fade" onRequestClose={() => setCustomTimeOpen(false)}>
+      <Modal
+        visible={customTimeOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setCustomTimeOpen(false)}
+      >
         <Pressable style={S.modalOverlay} onPress={() => setCustomTimeOpen(false)} />
         <View style={S.modalSheet}>
           <View style={S.modalHeader}>
@@ -1347,19 +2176,49 @@ export default function WorkoutLogScreen() {
                 marginBottom: 20,
               }}
             >
-              <Text style={{ fontSize: 11, fontWeight: "900", color: "rgba(0,0,0,0.4)", marginBottom: 8 }}>SET DURATION</Text>
-              <Text style={{ fontSize: 48, fontWeight: "900", color: Colors.text, letterSpacing: 2 }}>
+              <Text
+                style={{
+                  fontSize: 11,
+                  fontWeight: "900",
+                  color: "rgba(0,0,0,0.4)",
+                  marginBottom: 8,
+                }}
+              >
+                SET DURATION
+              </Text>
+              <Text
+                style={{
+                  fontSize: 48,
+                  fontWeight: "900",
+                  color: Colors.text,
+                  letterSpacing: 2,
+                }}
+              >
                 {customMinutes || "0"}:{(customSeconds || "00").padStart(2, "0")}
               </Text>
             </View>
 
             <View style={{ flexDirection: "row", gap: 12, marginBottom: 20 }}>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 11, fontWeight: "900", color: "rgba(0,0,0,0.4)", marginBottom: 8, textAlign: "center" }}>
+                <Text
+                  style={{
+                    fontSize: 11,
+                    fontWeight: "900",
+                    color: "rgba(0,0,0,0.4)",
+                    marginBottom: 8,
+                    textAlign: "center",
+                  }}
+                >
                   MINUTES
                 </Text>
                 <ScrollView
-                  style={{ height: 150, backgroundColor: "rgba(0,0,0,0.02)", borderRadius: 12, borderWidth: 1, borderColor: "rgba(0,0,0,0.08)" }}
+                  style={{
+                    height: 150,
+                    backgroundColor: "rgba(0,0,0,0.02)",
+                    borderRadius: 12,
+                    borderWidth: 1,
+                    borderColor: "rgba(0,0,0,0.08)",
+                  }}
                   showsVerticalScrollIndicator={false}
                 >
                   {Array.from({ length: 11 }, (_, i) => i).map((min) => (
@@ -1369,13 +2228,25 @@ export default function WorkoutLogScreen() {
                       style={{
                         paddingVertical: 16,
                         alignItems: "center",
-                        backgroundColor: customMinutes === min.toString() ? ((Colors as any).premium ?? "#F4C84A") : "transparent",
+                        backgroundColor:
+                          customMinutes === min.toString()
+                            ? ((Colors as any).premium ?? "#F4C84A")
+                            : "transparent",
                         borderRadius: 8,
                         marginHorizontal: 4,
                         marginVertical: 2,
                       }}
                     >
-                      <Text style={{ fontSize: 24, fontWeight: "900", color: customMinutes === min.toString() ? Colors.text : "rgba(0,0,0,0.3)" }}>
+                      <Text
+                        style={{
+                          fontSize: 24,
+                          fontWeight: "900",
+                          color:
+                            customMinutes === min.toString()
+                              ? Colors.text
+                              : "rgba(0,0,0,0.3)",
+                        }}
+                      >
                         {min}
                       </Text>
                     </Pressable>
@@ -1384,11 +2255,25 @@ export default function WorkoutLogScreen() {
               </View>
 
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 11, fontWeight: "900", color: "rgba(0,0,0,0.4)", marginBottom: 8, textAlign: "center" }}>
+                <Text
+                  style={{
+                    fontSize: 11,
+                    fontWeight: "900",
+                    color: "rgba(0,0,0,0.4)",
+                    marginBottom: 8,
+                    textAlign: "center",
+                  }}
+                >
                   SECONDS
                 </Text>
                 <ScrollView
-                  style={{ height: 150, backgroundColor: "rgba(0,0,0,0.02)", borderRadius: 12, borderWidth: 1, borderColor: "rgba(0,0,0,0.08)" }}
+                  style={{
+                    height: 150,
+                    backgroundColor: "rgba(0,0,0,0.02)",
+                    borderRadius: 12,
+                    borderWidth: 1,
+                    borderColor: "rgba(0,0,0,0.08)",
+                  }}
                   showsVerticalScrollIndicator={false}
                 >
                   {Array.from({ length: 12 }, (_, i) => i * 5).map((sec) => (
@@ -1398,13 +2283,25 @@ export default function WorkoutLogScreen() {
                       style={{
                         paddingVertical: 16,
                         alignItems: "center",
-                        backgroundColor: customSeconds === sec.toString() ? ((Colors as any).premium ?? "#F4C84A") : "transparent",
+                        backgroundColor:
+                          customSeconds === sec.toString()
+                            ? ((Colors as any).premium ?? "#F4C84A")
+                            : "transparent",
                         borderRadius: 8,
                         marginHorizontal: 4,
                         marginVertical: 2,
                       }}
                     >
-                      <Text style={{ fontSize: 24, fontWeight: "900", color: customSeconds === sec.toString() ? Colors.text : "rgba(0,0,0,0.3)" }}>
+                      <Text
+                        style={{
+                          fontSize: 24,
+                          fontWeight: "900",
+                          color:
+                            customSeconds === sec.toString()
+                              ? Colors.text
+                              : "rgba(0,0,0,0.3)",
+                        }}
+                      >
                         {sec.toString().padStart(2, "0")}
                       </Text>
                     </Pressable>
@@ -1414,7 +2311,16 @@ export default function WorkoutLogScreen() {
             </View>
 
             <View style={{ gap: 8, marginBottom: 20 }}>
-              <Text style={{ fontSize: 11, fontWeight: "900", color: "rgba(0,0,0,0.4)", marginBottom: 4 }}>QUICK SELECT</Text>
+              <Text
+                style={{
+                  fontSize: 11,
+                  fontWeight: "900",
+                  color: "rgba(0,0,0,0.4)",
+                  marginBottom: 4,
+                }}
+              >
+                QUICK SELECT
+              </Text>
               <View style={{ flexDirection: "row", gap: 8 }}>
                 {[
                   { label: "30s", m: "0", s: "30" },
@@ -1428,9 +2334,17 @@ export default function WorkoutLogScreen() {
                       setCustomMinutes(preset.m);
                       setCustomSeconds(preset.s);
                     }}
-                    style={{ flex: 1, paddingVertical: 12, backgroundColor: "rgba(0,0,0,0.04)", borderRadius: 10, alignItems: "center" }}
+                    style={{
+                      flex: 1,
+                      paddingVertical: 12,
+                      backgroundColor: "rgba(0,0,0,0.04)",
+                      borderRadius: 10,
+                      alignItems: "center",
+                    }}
                   >
-                    <Text style={{ fontSize: 14, fontWeight: "900", color: Colors.text }}>{preset.label}</Text>
+                    <Text style={{ fontSize: 14, fontWeight: "900", color: Colors.text }}>
+                      {preset.label}
+                    </Text>
                   </Pressable>
                 ))}
               </View>
@@ -1438,9 +2352,17 @@ export default function WorkoutLogScreen() {
 
             <Pressable
               onPress={startCustomTimer}
-              style={{ height: 56, borderRadius: 14, backgroundColor: Colors.text, alignItems: "center", justifyContent: "center" }}
+              style={{
+                height: 56,
+                borderRadius: 14,
+                backgroundColor: Colors.text,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
             >
-              <Text style={{ fontSize: 17, fontWeight: "900", color: Colors.surface }}>START TIMER</Text>
+              <Text style={{ fontSize: 17, fontWeight: "900", color: Colors.surface }}>
+                START TIMER
+              </Text>
             </Pressable>
           </View>
         </View>
@@ -1490,16 +2412,43 @@ export default function WorkoutLogScreen() {
       </Modal>
 
       {/* Video modal */}
-      <Modal visible={videoModalOpen} animationType="slide" onRequestClose={() => setVideoModalOpen(false)} presentationStyle="fullScreen">
+      <Modal
+        visible={videoModalOpen}
+        animationType="slide"
+        onRequestClose={() => setVideoModalOpen(false)}
+        presentationStyle="fullScreen"
+      >
         <View style={{ flex: 1, backgroundColor: "#000" }}>
           <SafeAreaView style={{ position: "absolute", top: 0, left: 0, right: 0, zIndex: 100 }}>
-            <View style={{ padding: 16, flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-              <Text style={{ fontSize: 16, fontWeight: "900", color: "#FFF", flex: 1, paddingRight: 16 }}>
+            <View
+              style={{
+                padding: 16,
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 16,
+                  fontWeight: "900",
+                  color: "#FFF",
+                  flex: 1,
+                  paddingRight: 16,
+                }}
+              >
                 {videoExId ? exerciseById[videoExId]?.name : ""}
               </Text>
               <Pressable
                 onPress={() => setVideoModalOpen(false)}
-                style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(0,0,0,0.6)", alignItems: "center", justifyContent: "center" }}
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 20,
+                  backgroundColor: "rgba(0,0,0,0.6)",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
               >
                 <X size={20} color="#FFF" />
               </Pressable>
@@ -1517,7 +2466,9 @@ export default function WorkoutLogScreen() {
               />
             ) : (
               <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-                <Text style={{ color: "#FFF", fontWeight: "700", fontSize: 16 }}>No video available</Text>
+                <Text style={{ color: "#FFF", fontWeight: "700", fontSize: 16 }}>
+                  No video available
+                </Text>
               </View>
             )}
           </View>

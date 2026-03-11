@@ -174,8 +174,7 @@ export default function ProfileScreen() {
          style={styles.scroll} 
          contentContainerStyle={styles.content} 
          showsVerticalScrollIndicator={false}>
-        {/* DEBUG TOP LINE */}
-        <View style={{ height: 1, backgroundColor: "red" }} />
+        
 
         {/* ✅ CONSISTENT HEADER */}
         <ScreenHeader title={name} subtitle="Keep it simple. Execute consistently." />

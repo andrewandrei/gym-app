@@ -1,4 +1,5 @@
 import { Colors } from "@/styles/colors";
+import { BorderWidth } from "@/styles/hairline";
 import { Spacing } from "@/styles/spacing";
 import { StyleSheet } from "react-native";
 
@@ -105,7 +106,7 @@ railAllText: {
     paddingVertical: 7,
     borderRadius: 999,
     backgroundColor: "rgba(255,255,255,0.92)",
-    borderWidth: HAIR,
+    borderWidth: BorderWidth.default,
     borderColor: "rgba(0,0,0,0.10)",
   },
 
@@ -170,7 +171,7 @@ railAllText: {
   height: 30,
   borderRadius: 15,
   backgroundColor: "rgba(255,255,255,0.22)",
-  borderWidth: HAIR,
+  borderWidth: BorderWidth.default,
   borderColor: "rgba(255,255,255,0.28)",
   alignItems: "center",
   justifyContent: "center",
@@ -376,7 +377,7 @@ levelLabel: {
     borderRadius: 999,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: HAIR,
+    borderWidth: BorderWidth.default,
     borderColor: Colors.border,
     backgroundColor: "rgba(0,0,0,0.04)",
   },

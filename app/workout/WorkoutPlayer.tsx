@@ -64,7 +64,6 @@ export function WorkoutPlayer({
   workoutTitle,
   blocks,
   exerciseById,
-  estimatedTime,
   totalSets,
   completedSets,
   pct,
@@ -96,6 +95,8 @@ export function WorkoutPlayer({
   workoutDuration,
   onPressThumbnail,
 }: Props) {
+  const premium = (Colors as any).premium ?? "#F4C84A";
+
   return (
     <View style={S.page}>
       {/* TOP BAR */}
@@ -111,74 +112,148 @@ export function WorkoutPlayer({
           paddingHorizontal: 18,
           paddingBottom: 12,
           borderBottomWidth: 1,
-          borderBottomColor: "rgba(0,0,0,0.08)",
+          borderBottomColor: "rgba(0,0,0,0.06)",
           shadowColor: "#000",
           shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.08,
-          shadowRadius: 8,
-          elevation: 4,
+          shadowOpacity: 0.04,
+          shadowRadius: 10,
+          elevation: 3,
         }}
       >
-        <View style={{ flexDirection: "row", alignItems: "baseline", gap: 8, marginBottom: 12 }}>
-          <Text style={{ fontSize: 24, fontWeight: "800", color: Colors.text, letterSpacing: -0.5 }}>
-            {workoutTitle}
-          </Text>
-          {!kbVisible ? (
-            <Text style={{ fontSize: 14, fontWeight: "600", color: Colors.muted }}>{formatDuration(workoutDuration)}</Text>
-          ) : null}
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "flex-start",
+            justifyContent: "space-between",
+            gap: 12,
+          }}
+        >
+          <View style={{ flex: 1, paddingRight: 6 }}>
+            <Text
+              style={{
+                fontSize: 24,
+                lineHeight: 29,
+                fontWeight: "900",
+                color: Colors.text,
+                letterSpacing: -0.7,
+              }}
+            >
+              {workoutTitle}
+            </Text>
+
+            {!kbVisible ? (
+              <Text
+                style={{
+                  marginTop: 4,
+                  fontSize: 13,
+                  fontWeight: "700",
+                  color: Colors.muted,
+                  letterSpacing: -0.1,
+                }}
+              >
+                {formatDuration(workoutDuration)}
+              </Text>
+            ) : null}
+          </View>
+
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+            {!kbVisible ? (
+              <Pressable
+                onPress={() => setCustomTimeOpen(true)}
+                style={({ pressed }) => [
+                  {
+                    minWidth: 64,
+                    height: 38,
+                    paddingHorizontal: 12,
+                    borderRadius: 10,
+                    backgroundColor: restTimer
+                      ? "rgba(244,200,74,0.16)"
+                      : "rgba(0,0,0,0.045)",
+                    borderWidth: restTimer ? 1.5 : 0,
+                    borderColor: restTimer ? premium : "transparent",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  },
+                  pressed && { opacity: 0.72 },
+                ]}
+              >
+                <Text
+                  style={{
+                    fontSize: 13,
+                    fontWeight: "900",
+                    color: Colors.text,
+                    letterSpacing: -0.1,
+                  }}
+                >
+                  Timer
+                </Text>
+              </Pressable>
+            ) : null}
+
+            <Pressable
+              onPress={shareWorkout}
+              style={({ pressed }) => [
+                {
+                  width: 38,
+                  height: 38,
+                  borderRadius: 10,
+                  backgroundColor: "rgba(0,0,0,0.045)",
+                  alignItems: "center",
+                  justifyContent: "center",
+                },
+                pressed && { opacity: 0.72 },
+              ]}
+            >
+              <Share2 size={16} color={Colors.text} />
+            </Pressable>
+          </View>
         </View>
 
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 14, marginBottom: 10 }}>
-          <Text style={{ fontSize: 14, fontWeight: "800", color: Colors.text, minWidth: 80 }}>
+        <View
+          style={{
+            marginTop: 12,
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 12,
+          }}
+        >
+          <Text
+            style={{
+              minWidth: 78,
+              fontSize: 14,
+              fontWeight: "800",
+              color: Colors.text,
+              letterSpacing: -0.15,
+            }}
+          >
             {completedSets}/{totalSets} sets
           </Text>
 
-          <View style={{ flex: 1, height: 8, backgroundColor: "rgba(0,0,0,0.06)", borderRadius: 4, overflow: "hidden" }}>
+          <View
+            style={{
+              flex: 1,
+              height: 6,
+              backgroundColor: "rgba(0,0,0,0.06)",
+              borderRadius: 999,
+              overflow: "hidden",
+            }}
+          >
             <View
               style={{
                 width: `${pct}%`,
                 height: "100%",
-                backgroundColor: (Colors as any).premium ?? "#F4C84A",
-                borderRadius: 4,
+                backgroundColor: premium,
+                borderRadius: 999,
               }}
             />
           </View>
-
-          {!kbVisible ? (
-            <Pressable
-              onPress={() => setCustomTimeOpen(true)}
-              style={({ pressed }) => [
-                {
-                  paddingHorizontal: 12,
-                  paddingVertical: 8,
-                  backgroundColor: restTimer ? "rgba(244, 200, 74, 0.2)" : "rgba(0,0,0,0.06)",
-                  borderRadius: 8,
-                  borderWidth: restTimer ? 2 : 0,
-                  borderColor: (Colors as any).premium ?? "#F4C84A",
-                },
-                pressed && { opacity: 0.7 },
-              ]}
-            >
-              <Text style={{ fontSize: 13, fontWeight: "900", color: Colors.text }}>{restTimer ? "⏱️" : "Timer"}</Text>
-            </Pressable>
-          ) : null}
-
-          <Pressable
-            onPress={shareWorkout}
-            style={({ pressed }) => [
-              { paddingHorizontal: 12, paddingVertical: 8, backgroundColor: "rgba(0,0,0,0.06)", borderRadius: 8 },
-              pressed && { opacity: 0.7 },
-            ]}
-          >
-            <Share2 size={16} color={Colors.text} />
-          </Pressable>
         </View>
       </View>
 
       <ScrollView
         ref={scrollRef as any}
         style={S.scroll}
-        contentContainerStyle={[S.scrollContent, { paddingTop: 120 }]}
+        contentContainerStyle={[S.scrollContent, { paddingTop: 112 }]}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="none"
         showsVerticalScrollIndicator={false}
@@ -186,18 +261,17 @@ export function WorkoutPlayer({
         <View style={S.exerciseList}>
           {blocks.map((block) => (
             <View key={block.id} style={S.groupWrap}>
-              <View style={[S.groupRail, groupAccentStyle(block), celebratingBlock === block.id && { opacity: 0.3 }]} />
               <View
                 style={[
-                  S.groupSurface,
-                  celebratingBlock === block.id && {
-                    backgroundColor: "rgba(244, 200, 74, 0.2)",
-                  },
+                  S.groupRail,
+                  groupAccentStyle(block),
+                  celebratingBlock === block.id && { opacity: 0.3 },
                 ]}
               />
 
               <View style={S.blockHeader}>
                 <Text style={S.blockKicker}>{blockKickerFor(block)}</Text>
+
                 <View style={S.blockTitleRow}>
                   <Text style={S.blockTitle}>{block.title ?? blockKickerFor(block)}</Text>
                   <Text style={S.blockMeta}>{blockMetaFor(block)}</Text>
@@ -219,7 +293,10 @@ export function WorkoutPlayer({
                   >
                     <View style={S.card}>
                       <View style={S.exerciseHeader}>
-                        <Pressable onPress={() => onPressThumbnail(ex.id)} style={{ borderRadius: 12, overflow: "hidden" }}>
+                        <Pressable
+                          onPress={() => onPressThumbnail(ex.id)}
+                          style={{ borderRadius: 12, overflow: "hidden" }}
+                        >
                           <Image source={{ uri: ex.image }} style={S.thumb} />
                         </Pressable>
 
@@ -230,10 +307,12 @@ export function WorkoutPlayer({
                                 <Text style={S.blockTagText}>{blockTag}</Text>
                               </View>
                             ) : null}
+
                             <Text style={S.exerciseTitle} numberOfLines={2}>
                               {ex.name}
                             </Text>
                           </View>
+
                           <Text style={S.exerciseSub}>Tempo: {ex.tempo}</Text>
                         </View>
 
@@ -243,11 +322,25 @@ export function WorkoutPlayer({
                       </View>
 
                       <View style={[S.cols, { paddingVertical: 12 }]}>
-                        <Text style={[S.colLabel, { width: 44 }]}>SET</Text>
-                        <Text style={S.colLabel}>{ex.unitLabel}</Text>
-                        <Text style={S.colLabel}>REPS</Text>
-                        <Text style={S.colLabel}>REST</Text>
-                        <Text style={[S.colLabel, { width: 54 }]}>DONE</Text>
+                        <View style={S.colSetWrap}>
+                          <Text style={S.colLabel}>SET</Text>
+                        </View>
+
+                        <View style={S.colValueWrap}>
+                          <Text style={S.colLabel}>{ex.unitLabel}</Text>
+                        </View>
+
+                        <View style={S.colValueWrap}>
+                          <Text style={S.colLabel}>REPS</Text>
+                        </View>
+
+                        <View style={S.colValueWrap}>
+                          <Text style={S.colLabel}>REST</Text>
+                        </View>
+
+                        <View style={S.colDoneWrap}>
+                          <Text style={S.colLabel}>DONE</Text>
+                        </View>
                       </View>
 
                       {ex.sets.map((s, i) => (
@@ -271,10 +364,17 @@ export function WorkoutPlayer({
                       ))}
 
                       <View style={[S.cardActions, { marginTop: 16 }]}>
-                        <Pressable onPress={() => openHistory(ex.id)} style={[S.ghostBtn, { height: 50 }]}>
+                        <Pressable
+                          onPress={() => openHistory(ex.id)}
+                          style={[S.ghostBtn, { height: 50 }]}
+                        >
                           <Text style={S.ghostText}>Exercise History</Text>
                         </Pressable>
-                        <Pressable onPress={() => addSet(ex.id)} style={[S.ghostBtn, { height: 50 }]}>
+
+                        <Pressable
+                          onPress={() => addSet(ex.id)}
+                          style={[S.ghostBtn, { height: 50 }]}
+                        >
                           <Text style={S.ghostText}>Add Set</Text>
                         </Pressable>
                       </View>

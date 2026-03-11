@@ -1,54 +1,94 @@
+
+import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import {
   Check,
   ChevronLeft,
   ChevronRight,
-  Sparkles,
+  Info,
+  Lock,
+  X,
 } from "lucide-react-native";
-import React, { useMemo, useState } from "react";
-import { Image, ImageBackground, ScrollView, Text, View } from "react-native";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
-  SafeAreaView,
-  useSafeAreaInsets,
-} from "react-native-safe-area-context";
+  Animated,
+  Easing,
+  Image,
+  ImageBackground,
+  Modal,
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+} from "react-native";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { PressableScale } from "@/components/ui/PressableScale";
 import { styles } from "../programDetail.styles";
 
 type Week = { id: string; label: string };
 
+type WorkoutStatus = "next" | "done" | "available" | "locked";
+
 type Workout = {
   id: string;
+  label: string;
   title: string;
   meta: string;
   duration: string;
   image: string;
-  status?: "New" | "Done";
+  status: WorkoutStatus;
 };
 
-const FREE_WORKOUTS_PER_PROGRAM = 3;
+const FREE_WORKOUTS_PER_PROGRAM = 4;
+const WORKOUTS_PER_WEEK = 3;
+const WEEK_PILL_WIDTH = 104;
+const WEEK_PILL_GAP = 10;
+const WEEK_RAIL_SIDE_PADDING = 16;
 
 export default function ProgramDetailScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
 
-  // Demo only — replace later with entitlements
+  const [activeWeekIndex, setActiveWeekIndex] = useState(0);
+  const [infoVisible, setInfoVisible] = useState(false);
+  const [infoMounted, setInfoMounted] = useState(false);
+  const [nextWorkoutY, setNextWorkoutY] = useState<number | null>(null);
+
+  const backdropOpacity = useRef(new Animated.Value(0)).current;
+  const blurOpacity = useRef(new Animated.Value(0)).current;
+  const sheetTranslateY = useRef(new Animated.Value(42)).current;
+  const sheetScale = useRef(new Animated.Value(0.985)).current;
+
+  const verticalScrollRef = useRef<ScrollView | null>(null);
+  const weeksScrollRef = useRef<ScrollView | null>(null);
+  const didInitialAutoFocus = useRef(false);
+
+  // Demo only — replace with real entitlement logic later
   const isPro = false;
+  const completedCount = 3;
 
   const program = useMemo(() => {
     const isHybrid = id === "p2";
     const weeksCount = isHybrid ? 12 : 8;
 
     return {
-      id: id ?? "p1",
+      id: id ?? "strength-foundations",
       title: isHybrid ? "Hybrid Athlete" : "Strength Foundations",
+      subtitle: isHybrid
+        ? "Build strength, engine, and athletic capacity"
+        : "Build strength and lean muscle with structured progression",
       coach: "Andrei Andrei",
-      meta: isHybrid
-        ? "Advanced · 12 weeks · Full gym"
-        : "Intermediate · 8 weeks · Gym",
-      goalLine: isHybrid ? "Strength + engine" : "Lean muscle + performance",
+      meta: isHybrid ? "Advanced · Gym · 12 weeks" : "Intermediate · Gym · 8 weeks",
+      description: isHybrid
+        ? "A performance-driven plan built to improve strength, conditioning, and overall athletic capacity. Designed for advanced trainees who want structure, intensity, and progression across the full training week."
+        : "A structured strength and hypertrophy plan built to help you gain muscle, improve performance, and stay consistent week after week. Clear progression, clean structure, and one obvious next step every session.",
+      bullets: isHybrid
+        ? ["Strength progression", "Conditioning capacity", "Athletic work output"]
+        : ["Strength progression", "Lean muscle focus", "Consistent weekly structure"],
       hero: isHybrid
         ? "https://cdn.prod.website-files.com/6442b6aa142c4cb61a9a549d/6784fa945db9e2462bde508b_675b0276e2206c6b6a37ff0c_Hybrid%20Athlete%20(1)-p-800.jpg"
         : "https://cdn.prod.website-files.com/6442b6aa142c4cb61a9a549d/690f510381f5fead2d6257b8_c7d8a728-2fde-4254-a1a7-a505e1a4cf3e-p-2000.jpeg",
@@ -60,238 +100,510 @@ export default function ProgramDetailScreen() {
   }, [id]);
 
   const workoutsByWeek: Workout[][] = useMemo(() => {
+    const baseWorkouts = [
+      {
+        title: "Strength & Conditioning",
+        meta: "6 exercises",
+        duration: "52 min",
+        image:
+          "https://images.unsplash.com/photo-1517964603305-11c0f6f66012?auto=format&fit=crop&w=1400&q=70",
+      },
+      {
+        title: "Upper Body Builder",
+        meta: "7 exercises",
+        duration: "46 min",
+        image:
+          "https://cdn.prod.website-files.com/6442b6aa142c4cb61a9a549d/690f510381f5fead2d6257b8_c7d8a728-2fde-4254-a1a7-a505e1a4cf3e-p-2000.jpeg",
+      },
+      {
+        title: "Hypertrophy Focus",
+        meta: "6 exercises",
+        duration: "44 min",
+        image: "https://i.ytimg.com/vi/y3fAQLFi5Iw/maxresdefault.jpg",
+      },
+    ];
+
     return program.weeks.map((w, weekIdx) => {
-      const firstWeek = weekIdx === 0;
+      return baseWorkouts.map((item, workoutIdx) => {
+        const globalIndex = weekIdx * WORKOUTS_PER_WEEK + workoutIdx;
+        const workoutNumber = globalIndex + 1;
 
-      return [
-        {
-          id: `${w.id}-1`,
-          title: "Strength & Conditioning",
-          meta: "Strength · Full Gym",
-          duration: "45–60 min",
-          image:
-            "https://images.unsplash.com/photo-1517964603305-11c0f6f66012?auto=format&fit=crop&w=1400&q=70",
-          status: firstWeek ? "Done" : "New",
-        },
-        {
-          id: `${w.id}-2`,
-          title: "Upper Body",
-          meta: "Upper · Dumbbells",
-          duration: "25 min",
-          image:
-            "https://cdn.prod.website-files.com/6442b6aa142c4cb61a9a549d/690f510381f5fead2d6257b8_c7d8a728-2fde-4254-a1a7-a505e1a4cf3e-p-2000.jpeg",
-          status: "New",
-        },
-        {
-          id: `${w.id}-3`,
-          title: "Engine Builder",
-          meta: "Conditioning · Running",
-          duration: "18 min",
-          image: "https://i.ytimg.com/vi/y3fAQLFi5Iw/maxresdefault.jpg",
-          status: "New",
-        },
-      ];
+        let status: WorkoutStatus = "available";
+
+        if (globalIndex < completedCount) {
+          status = "done";
+        } else if (globalIndex === completedCount) {
+          status = "next";
+        } else {
+          const isUnlockedPreview = isPro || globalIndex < FREE_WORKOUTS_PER_PROGRAM;
+          status = isUnlockedPreview ? "available" : "locked";
+        }
+
+        return {
+          id: `${w.id}-${workoutIdx + 1}`,
+          label: `Workout ${workoutNumber}`,
+          title: item.title,
+          meta: item.meta,
+          duration: item.duration,
+          image: item.image,
+          status,
+        };
+      });
     });
-  }, [program.weeks]);
+  }, [completedCount, isPro, program.weeks]);
 
-  const [activeWeekIndex, setActiveWeekIndex] = useState(0);
+  const nextWorkout = useMemo(() => {
+    for (let weekIdx = 0; weekIdx < workoutsByWeek.length; weekIdx += 1) {
+      const workoutIdx = workoutsByWeek[weekIdx].findIndex((w) => w.status === "next");
+
+      if (workoutIdx !== -1) {
+        return {
+          weekIdx,
+          workoutIdx,
+          workout: workoutsByWeek[weekIdx][workoutIdx],
+          globalIndex: weekIdx * WORKOUTS_PER_WEEK + workoutIdx,
+        };
+      }
+    }
+
+    return null;
+  }, [workoutsByWeek]);
+
+  useEffect(() => {
+    if (nextWorkout) {
+      setActiveWeekIndex(nextWorkout.weekIdx);
+    }
+  }, [nextWorkout]);
+
+  useEffect(() => {
+    setNextWorkoutY(null);
+  }, [activeWeekIndex]);
+
   const activeWeek = program.weeks[activeWeekIndex];
   const workouts = workoutsByWeek[activeWeekIndex] ?? [];
 
-  // Demo progress
-  const completed = 3;
-  const total = program.weeks.length * 3;
+  const completed = completedCount;
+  const total = program.weeks.length * WORKOUTS_PER_WEEK;
   const progressPct = Math.round((completed / Math.max(1, total)) * 100);
 
-  const onPressWorkout = (weekIdx: number, workoutIdx: number) => {
-    const globalIndex = weekIdx * 3 + workoutIdx; // 0-based
-    const isFreePreview = globalIndex < FREE_WORKOUTS_PER_PROGRAM;
+  const weekNumber = activeWeekIndex + 1;
+  const totalWeeks = program.weeks.length;
 
-    if (!isPro && !isFreePreview) {
+  const handleBack = () => {
+    if (navigation.canGoBack()) {
+      router.back();
+      return;
+    }
+
+    router.replace("/(tabs)");
+  };
+
+  const openInfoModal = () => {
+    setInfoMounted(true);
+    setInfoVisible(true);
+  };
+
+  const closeInfoModal = () => {
+    setInfoVisible(false);
+  };
+
+  useEffect(() => {
+    if (infoVisible) {
+      Animated.parallel([
+        Animated.timing(backdropOpacity, {
+          toValue: 1,
+          duration: 220,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(blurOpacity, {
+          toValue: 1,
+          duration: 220,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.spring(sheetTranslateY, {
+          toValue: 0,
+          damping: 18,
+          mass: 0.85,
+          stiffness: 180,
+          useNativeDriver: true,
+        }),
+        Animated.spring(sheetScale, {
+          toValue: 1,
+          damping: 18,
+          mass: 0.9,
+          stiffness: 200,
+          useNativeDriver: true,
+        }),
+      ]).start();
+
+      return;
+    }
+
+    if (infoMounted) {
+      Animated.parallel([
+        Animated.timing(backdropOpacity, {
+          toValue: 0,
+          duration: 180,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(blurOpacity, {
+          toValue: 0,
+          duration: 180,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(sheetTranslateY, {
+          toValue: 28,
+          duration: 180,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(sheetScale, {
+          toValue: 0.992,
+          duration: 180,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+      ]).start(({ finished }) => {
+        if (finished) {
+          setInfoMounted(false);
+        }
+      });
+    }
+  }, [
+    backdropOpacity,
+    blurOpacity,
+    infoMounted,
+    infoVisible,
+    sheetScale,
+    sheetTranslateY,
+  ]);
+
+  useEffect(() => {
+    if (!nextWorkout) return;
+
+    const x =
+      WEEK_RAIL_SIDE_PADDING +
+      activeWeekIndex * (WEEK_PILL_WIDTH + WEEK_PILL_GAP) -
+      24;
+
+    const timer = setTimeout(() => {
+      weeksScrollRef.current?.scrollTo({
+        x: Math.max(0, x),
+        animated: true,
+      });
+    }, 80);
+
+    return () => clearTimeout(timer);
+  }, [activeWeekIndex, nextWorkout]);
+
+  useEffect(() => {
+    if (!nextWorkout && nextWorkout !== null) return;
+    if (nextWorkoutY == null) return;
+    if (!nextWorkout) return;
+    if (activeWeekIndex !== nextWorkout.weekIdx) return;
+
+    const timer = setTimeout(() => {
+      verticalScrollRef.current?.scrollTo({
+        y: Math.max(0, nextWorkoutY - 140),
+        animated: didInitialAutoFocus.current,
+      });
+      didInitialAutoFocus.current = true;
+    }, 120);
+
+    return () => clearTimeout(timer);
+  }, [activeWeekIndex, nextWorkout, nextWorkoutY]);
+
+  const onPressWorkout = (weekIdx: number, workoutIdx: number) => {
+    const workout = workoutsByWeek[weekIdx]?.[workoutIdx];
+    if (!workout) return;
+
+    if (workout.status === "locked") {
       router.push("/paywall");
       return;
     }
-    router.push({ pathname: "/workout" });
+
+    router.push("/workout");
   };
 
   return (
     <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
-      <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
-        {/* HERO */}
-        <ImageBackground
-          source={{ uri: program.hero }}
-          style={styles.hero}
-          resizeMode="cover"
+      <View style={styles.screen}>
+        <ScrollView
+          ref={verticalScrollRef}
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
         >
-          {/* Premium gradient: legibility without “dark wash” */}
-          <LinearGradient
-            colors={[
-              "rgba(0,0,0,0.10)",
-              "rgba(0,0,0,0.35)",
-              "rgba(0,0,0,0.72)",
-            ]}
-            locations={[0, 0.45, 1]}
-            style={styles.heroGradient}
-          />
+          <ImageBackground source={{ uri: program.hero }} style={styles.hero} resizeMode="cover">
+            <LinearGradient
+              colors={[
+                "rgba(0,0,0,0.12)",
+                "rgba(0,0,0,0.30)",
+                "rgba(0,0,0,0.64)",
+              ]}
+              locations={[0, 0.45, 1]}
+              style={styles.heroGradient}
+            />
 
-          {/* top bar */}
-          <View
-            style={[
-              styles.heroTopBar,
-              { paddingTop: Math.max(insets.top, 10) },
-            ]}
-          >
-            <PressableScale
-              onPress={() => router.back()}
-              style={styles.heroIconBtn}
-              accessibilityRole="button"
-              accessibilityLabel="Back"
-            >
-              <ChevronLeft size={22} color="#FFFFFF" />
-            </PressableScale>
-
-            {!isPro ? (
+            <View style={[styles.heroTopBar, { paddingTop: Math.max(insets.top, 10) }]}>
               <PressableScale
-                onPress={() => router.push("/paywall")}
-                style={styles.heroUpgradePill}
+                onPress={handleBack}
+                style={styles.heroIconBtn}
                 accessibilityRole="button"
-                accessibilityLabel="Upgrade"
+                accessibilityLabel="Back"
               >
-                <Sparkles size={16} color="#111111" />
-                <Text style={styles.heroUpgradeText}>Upgrade</Text>
+                <ChevronLeft size={22} color="#FFFFFF" />
               </PressableScale>
-            ) : (
-              <View style={styles.heroProChip}>
-                <Text style={styles.heroProChipText}>Elite</Text>
+
+              <PressableScale
+                onPress={openInfoModal}
+                style={styles.heroInfoBtn}
+                accessibilityRole="button"
+                accessibilityLabel="Program information"
+              >
+                <Info size={18} color="#FFFFFF" />
+              </PressableScale>
+            </View>
+
+            <View style={styles.heroContent}>
+              <Text style={styles.heroTitle}>{program.title}</Text>
+              <Text style={styles.heroSubtitle}>{program.subtitle}</Text>
+              <Text style={styles.heroMeta}>
+                with {program.coach} · {program.meta}
+              </Text>
+
+              <View style={styles.heroProgressTrack}>
+                <View style={[styles.heroProgressFill, { width: `${progressPct}%` }]} />
               </View>
-            )}
-          </View>
 
-          {/* header content */}
-          <View style={styles.heroContent}>
-            <Text style={styles.heroTitle}>{program.title}</Text>
-            <Text style={styles.heroSubtitle}>with {program.coach}</Text>
-            <Text style={styles.heroMeta}>{program.meta}</Text>
+              <View style={styles.heroStatsRow}>
+                <Text style={styles.heroStatText}>
+                  {completed}/{total} workouts
+                </Text>
+                <View style={styles.heroStatDot} />
+                <Text style={styles.heroStatText}>Week 2 of {totalWeeks}</Text>
+                <View style={styles.heroStatDot} />
+                <Text style={styles.heroStatText}>3-day streak</Text>
+              </View>
+            </View>
+          </ImageBackground>
 
-            <View style={styles.heroProgressTrack}>
-              <View
-                style={[styles.heroProgressFill, { width: `${progressPct}%` }]}
-              />
+          <View style={styles.content}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Weeks</Text>
             </View>
 
-            {/* Stats: keep minimal, no pill overload */}
-            <View style={styles.heroStatsRow}>
-              <Text style={styles.heroStatText}>3 sessions / week</Text>
-              <View style={styles.heroStatDot} />
-              <Text style={styles.heroStatText}>{program.goalLine}</Text>
-              <View style={styles.heroStatDot} />
-              <Text style={styles.heroStatText}>{progressPct}% complete</Text>
-            </View>
-          </View>
-        </ImageBackground>
-
-        {/* CONTENT */}
-        <View style={styles.content}>
-          {/* WEEKS STRIP (underline rail) */}
-          <View style={styles.weeksWrap}>
             <ScrollView
+              ref={weeksScrollRef}
               horizontal
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.weeksRail}
+              style={styles.weeksScroll}
             >
               {program.weeks.map((w, i) => {
                 const active = i === activeWeekIndex;
+
                 return (
                   <PressableScale
                     key={w.id}
                     onPress={() => setActiveWeekIndex(i)}
-                    style={styles.weekItem}
+                    style={[styles.weekPill, active && styles.weekPillActive]}
                     scaleTo={0.985}
-                    opacityTo={0.9}
+                    opacityTo={0.92}
                   >
-                    <Text
-                      style={[
-                        styles.weekItemText,
-                        active && styles.weekItemTextActive,
-                      ]}
-                    >
+                    <Text style={[styles.weekPillText, active && styles.weekPillTextActive]}>
                       {w.label}
                     </Text>
-                    <View
-                      style={[
-                        styles.weekUnderline,
-                        active && styles.weekUnderlineActive,
-                      ]}
-                    />
                   </PressableScale>
                 );
               })}
             </ScrollView>
-          </View>
 
-          {/* WEEK HEADER */}
-          <View style={styles.weekHeader}>
-            <View>
-              <Text style={styles.weekTitle}>{activeWeek?.label}</Text>
-              <Text style={styles.weekSub}>{workouts.length} workouts</Text>
+            <View style={styles.activeWeekHeader}>
+              <View>
+                <Text style={styles.activeWeekTitle}>{activeWeek?.label}</Text>
+                <Text style={styles.activeWeekSub}>{workouts.length} workouts</Text>
+              </View>
+
+              <View style={styles.activeWeekMetaChip}>
+                <Text style={styles.activeWeekMetaText}>
+                  {weekNumber}/{totalWeeks}
+                </Text>
+              </View>
             </View>
 
-            <View style={styles.weekMeta}>
-              <Text style={styles.weekMetaText}>Week plan</Text>
+            <View style={styles.workoutsInline}>
+              {workouts.map((w, idx) => {
+                const isLast = idx === workouts.length - 1;
+                const isNext = w.status === "next";
+
+                return (
+                  <View
+                    key={w.id}
+                    onLayout={isNext ? (event) => setNextWorkoutY(event.nativeEvent.layout.y) : undefined}
+                    style={isNext ? styles.nextWorkoutWrap : undefined}
+                  >
+                    <PressableScale
+                      onPress={() => onPressWorkout(activeWeekIndex, idx)}
+                      style={[styles.workoutRow, isNext && styles.workoutRowNext]}
+                      scaleTo={0.99}
+                      opacityTo={0.95}
+                    >
+                      {isNext && <View style={styles.nextWorkoutAccent} />}
+
+                      <Image source={{ uri: w.image }} style={styles.workoutThumb} />
+
+                      <View style={styles.workoutContent}>
+                        <Text style={styles.workoutLabel}>{w.label}</Text>
+
+                        <Text
+                          style={[
+                            styles.workoutTitle,
+                            w.status === "locked" && styles.workoutTitleLocked,
+                          ]}
+                          numberOfLines={2}
+                        >
+                          {w.title}
+                        </Text>
+
+                        <Text
+                          style={[
+                            styles.workoutMeta,
+                            w.status === "locked" && styles.workoutMetaLocked,
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {w.meta} · {w.duration}
+                        </Text>
+                      </View>
+
+                      <View style={styles.workoutRight}>
+                        {w.status === "done" ? (
+                          <View style={styles.statusDone}>
+                            <Check size={13} color="#111111" />
+                            <Text style={styles.statusDoneText}>Done</Text>
+                          </View>
+                        ) : w.status === "next" ? (
+                          <View style={styles.statusNext}>
+                            <Text style={styles.statusNextText}>Next</Text>
+                          </View>
+                        ) : w.status === "available" ? (
+                          <View style={styles.statusAvailable}>
+                            <Text style={styles.statusAvailableText}>Available</Text>
+                          </View>
+                        ) : (
+                          <View style={styles.statusLocked}>
+                            <Lock size={13} color="rgba(17,17,17,0.38)" />
+                          </View>
+                        )}
+
+                        <ChevronRight
+                          size={18}
+                          color={
+                            w.status === "locked"
+                              ? "rgba(17,17,17,0.18)"
+                              : "rgba(17,17,17,0.28)"
+                          }
+                        />
+                      </View>
+                    </PressableScale>
+
+                    {!isLast && !isNext && <View style={styles.inlineDivider} />}
+                  </View>
+                );
+              })}
             </View>
+
+            <View style={styles.bottomSpacer} />
           </View>
+        </ScrollView>
 
-          {/* WORKOUT GROUP (single surface, inset dividers) */}
-          <View style={styles.workoutGroup}>
-            {workouts.map((w, idx) => {
-              const isLast = idx === workouts.length - 1;
+        <Modal
+          visible={infoMounted}
+          animationType="none"
+          transparent
+          statusBarTranslucent
+          onRequestClose={closeInfoModal}
+        >
+          <View style={styles.modalRoot}>
+            <Animated.View style={[styles.modalDim, { opacity: backdropOpacity }]} />
 
-              return (
+            <Animated.View style={[styles.modalBlurWrap, { opacity: blurOpacity }]}>
+              <BlurView intensity={26} tint="dark" style={styles.modalBlur} />
+            </Animated.View>
+
+            <Pressable style={styles.modalBackdropTouch} onPress={closeInfoModal} />
+
+            <Animated.View
+              style={[
+                styles.infoModalOuter,
+                {
+                  paddingBottom: Math.max(insets.bottom, 18),
+                  transform: [{ translateY: sheetTranslateY }, { scale: sheetScale }],
+                },
+              ]}
+            >
+              <View style={styles.infoGrabber} />
+
+              <View style={styles.infoModalTop}>
+                <View style={styles.infoModalTitleWrap}>
+                  <Text style={styles.infoModalEyebrow}>Program overview</Text>
+                  <Text style={styles.infoModalTitle}>{program.title}</Text>
+                </View>
+
                 <PressableScale
-                  key={w.id}
-                  onPress={() => onPressWorkout(activeWeekIndex, idx)}
-                  style={styles.workoutRow}
-                  scaleTo={0.99}
-                  opacityTo={0.94}
+                  onPress={closeInfoModal}
+                  style={styles.infoCloseBtn}
+                  accessibilityRole="button"
+                  accessibilityLabel="Close program information"
                 >
-                  <Image
-                    source={{ uri: w.image }}
-                    style={styles.workoutThumb}
-                  />
-
-                  <View style={styles.workoutMid}>
-                    <Text style={styles.workoutTitle} numberOfLines={1}>
-                      {w.title}
-                    </Text>
-                    <Text style={styles.workoutMeta} numberOfLines={1}>
-                      {w.meta} · {w.duration}
-                    </Text>
-                  </View>
-
-                  <View style={styles.workoutRight}>
-                    {w.status === "Done" ? (
-                      <View style={styles.statusPillDone}>
-                        <Check size={14} color="#111111" />
-                        <Text style={styles.statusPillText}>Done</Text>
-                      </View>
-                    ) : (
-                      <View style={styles.statusPillNew}>
-                        <Text style={styles.statusPillText}>New</Text>
-                      </View>
-                    )}
-
-                    <ChevronRight size={18} color="rgba(0,0,0,0.28)" />
-                  </View>
-
-                  {!isLast && <View style={styles.rowDivider} />}
+                  <X size={18} color="#111111" />
                 </PressableScale>
-              );
-            })}
-          </View>
+              </View>
 
-          <View style={styles.bottomSpacer} />
-        </View>
-      </ScrollView>
+              <Text style={styles.infoModalBody}>{program.description}</Text>
+
+              <View style={styles.infoBulletsCard}>
+                {program.bullets.map((item, index) => {
+                  const isLast = index === program.bullets.length - 1;
+
+                  return (
+                    <View
+                      key={item}
+                      style={[styles.infoBulletRow, !isLast && styles.infoBulletRowSpaced]}
+                    >
+                      <View style={styles.infoBulletDotWrap}>
+                        <View style={styles.infoBulletDot} />
+                      </View>
+
+                      <View style={styles.infoBulletTextWrap}>
+                        <Text style={styles.infoBulletText}>{item}</Text>
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+
+              <View style={styles.infoMetaRow}>
+                <Text style={styles.infoMetaText}>{program.meta}</Text>
+              </View>
+
+              <PressableScale
+                onPress={closeInfoModal}
+                style={styles.infoModalButton}
+                accessibilityRole="button"
+                accessibilityLabel="Close"
+              >
+                <Text style={styles.infoModalButtonText}>Got it</Text>
+              </PressableScale>
+            </Animated.View>
+          </View>
+        </Modal>
+      </View>
     </SafeAreaView>
   );
 }
