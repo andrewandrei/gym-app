@@ -1,7 +1,7 @@
-// gym-app/app/(tabs)/index.tsx
+// app/(tabs)/index.tsx
 
 import { useFocusEffect, useRouter } from "expo-router";
-import { ChevronRight, Moon } from "lucide-react-native";
+import { ChevronRight, Moon, Sun } from "lucide-react-native";
 import React, { useMemo, useState } from "react";
 import {
   ImageBackground,
@@ -15,11 +15,15 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { EditorialCard } from "@/components/ui/EditorialCard";
 import { ScreenHeader } from "@/components/ui/ScreenHeader";
-import { Colors } from "@/styles/colors";
-import { GlobalStyles } from "@/styles/global";
 import { BorderWidth } from "@/styles/hairline";
 import { Spacing } from "@/styles/spacing";
 
+import { useAppTheme } from "../_providers/theme";
+import { getProgram } from "../program/program.data";
+import {
+  getProgramWorkoutTemplate,
+  parseProgramWorkoutId,
+} from "../program/programWorkouts";
 import {
   clearWorkoutDraft,
   loadWorkoutDraft,
@@ -36,21 +40,17 @@ type PrepCard = {
   badge?: string;
 };
 
+const HERO_PROGRAM_ID = "strength-foundations";
+const HERO_WORKOUT_ID = "strength-foundations-week-2-workout-1";
+
 export default function HomeScreen() {
   const router = useRouter();
+  const { colors, isDark, toggleTheme } = useAppTheme();
 
   const [workoutDraft, setWorkoutDraft] = useState<WorkoutDraft | null>(null);
 
-  /* ───────────── DEMO DATA (replace with real program state later) ───────────── */
-
   const weeklyDone = 0;
   const weeklyTotal = 3;
-
-  const programTitle = "Strength Foundations";
-  const programMeta = "Intermediate · Gym";
-
-  const workoutLabel = "Workout 4";
-  const workoutName = "Hypertrophy Focus";
 
   const programCompleted = 3;
   const programTotal = 21;
@@ -77,7 +77,21 @@ export default function HomeScreen() {
     [],
   );
 
-  /* ───────────── LOAD DRAFT ───────────── */
+  const activeProgram = useMemo(() => getProgram(HERO_PROGRAM_ID), []);
+
+  const heroWorkoutParsed = useMemo(
+    () => parseProgramWorkoutId(HERO_WORKOUT_ID),
+    [],
+  );
+
+  const heroWorkoutTemplate = useMemo(() => {
+    if (!heroWorkoutParsed) return null;
+    return getProgramWorkoutTemplate(heroWorkoutParsed.workoutIndex);
+  }, [heroWorkoutParsed]);
+
+  const programTitle = activeProgram.title;
+  const programMeta = activeProgram.meta;
+  const heroImage = activeProgram.hero;
 
   useFocusEffect(
     React.useCallback(() => {
@@ -94,8 +108,6 @@ export default function HomeScreen() {
     }, []),
   );
 
-  /* ───────────── DRAFT PROGRESS ───────────── */
-
   const draftProgress = useMemo(() => {
     if (!workoutDraft) return null;
 
@@ -111,7 +123,19 @@ export default function HomeScreen() {
 
   const ctaState: CtaState = workoutDraft ? "resume" : "start";
 
-  /* ───────────── DERIVED VALUES ───────────── */
+  const defaultWorkoutLabel = heroWorkoutParsed
+    ? `Workout ${((heroWorkoutParsed.weekNumber - 1) * 3) + heroWorkoutParsed.workoutNumber}`
+    : "Workout 4";
+
+  const defaultWorkoutName = heroWorkoutTemplate?.title ?? "Hypertrophy Focus";
+
+  const workoutLabel =
+    ctaState === "resume" ? "Unfinished workout" : defaultWorkoutLabel;
+
+  const workoutName =
+    ctaState === "resume" && workoutDraft?.workoutTitle
+      ? workoutDraft.workoutTitle
+      : defaultWorkoutName;
 
   const weeklyProgress = weeklyTotal > 0 ? weeklyDone / weeklyTotal : 0;
   const programProgress = programTotal > 0 ? programCompleted / programTotal : 0;
@@ -126,18 +150,27 @@ export default function HomeScreen() {
 
   const weeklyLeft = Math.max(0, weeklyTotal - weeklyDone);
 
-  /* ───────────── ACTIONS ───────────── */
-
   const startWorkout = () => {
-    if (ctaState === "resume") {
+    if (ctaState === "resume" && workoutDraft) {
       router.push({
         pathname: "/workout",
-        params: { resumeDraft: "1" },
+        params: {
+          resumeDraft: "1",
+          workoutId: workoutDraft.workoutId,
+          source: "home",
+        },
       });
       return;
     }
 
-    router.push("/workout");
+    router.push({
+      pathname: "/workout",
+      params: {
+        workoutId: HERO_WORKOUT_ID,
+        programId: HERO_PROGRAM_ID,
+        source: "home",
+      },
+    });
   };
 
   const discardWorkout = async () => {
@@ -148,29 +181,28 @@ export default function HomeScreen() {
   const openPlanOverview = () => {
     router.push({
       pathname: "/program/[id]",
-      params: { id: "strength-foundations" },
+      params: { id: HERO_PROGRAM_ID },
     });
   };
 
-  const openPrograms = () => {
-    router.push("/programs");
+  const openAllPrep = () => {
+    router.push("/workouts");
   };
 
-   const openPrepCard = (id: string) => {
-      router.push({
-        pathname: "/workout",
-        params: { workoutId: id },
-      });
-    };
+  const openPrepCard = (id: string) => {
+    router.push({
+      pathname: "/workout",
+      params: {
+        workoutId: id,
+        source: "home",
+      },
+    });
+  };
 
-  const openAllPrep = () => {
-  router.push("/workouts");
-};
-
-  /* ───────────── UI ───────────── */
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   return (
-    <SafeAreaView style={GlobalStyles.screen} edges={["top"]}>
+    <SafeAreaView style={styles.safe} edges={["top"]}>
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.container}
@@ -181,8 +213,16 @@ export default function HomeScreen() {
           title={greetingTitle}
           subtitle={greetingSub}
           right={
-            <TouchableOpacity style={styles.iconButton} activeOpacity={0.85}>
-              <Moon size={18} color={Colors.text} />
+            <TouchableOpacity
+              style={styles.iconButton}
+              activeOpacity={0.85}
+              onPress={toggleTheme}
+            >
+              {isDark ? (
+                <Sun size={18} color={colors.text} />
+              ) : (
+                <Moon size={18} color={colors.text} />
+              )}
             </TouchableOpacity>
           }
         />
@@ -212,7 +252,7 @@ export default function HomeScreen() {
             onPress={openPlanOverview}
           >
             <Text style={styles.planLinkText}>Plan overview</Text>
-            <ChevronRight size={16} color={Colors.muted} />
+            <ChevronRight size={16} color={colors.muted} />
           </TouchableOpacity>
         </View>
 
@@ -220,9 +260,7 @@ export default function HomeScreen() {
 
         <View style={styles.heroCard}>
           <ImageBackground
-            source={{
-              uri: "https://cdn.prod.website-files.com/6442b6aa142c4cb61a9a549d/685bf886d23017768f4614b5_img%20(1).png",
-            }}
+            source={{ uri: heroImage }}
             style={styles.heroImage}
             imageStyle={styles.heroImageRadius}
           >
@@ -282,8 +320,8 @@ export default function HomeScreen() {
                 <Text style={styles.heroCtaIcon}>▶</Text>
                 <Text style={styles.heroCtaText}>
                   {ctaState === "resume"
-                    ? `Resume workout: ${workoutLabel}`
-                    : `Start workout: ${workoutLabel}`}
+                    ? "Resume workout"
+                    : `Start workout: ${defaultWorkoutLabel}`}
                 </Text>
               </TouchableOpacity>
 
@@ -300,13 +338,11 @@ export default function HomeScreen() {
           </ImageBackground>
         </View>
 
-       
-
         <View style={styles.sectionHeaderRow}>
           <Text style={styles.sectionTitle}>Prep for today</Text>
           <TouchableOpacity style={styles.sectionLink} activeOpacity={0.8} onPress={openAllPrep}>
             <Text style={styles.sectionLinkText}>See all</Text>
-            <ChevronRight size={16} color={Colors.muted} />
+            <ChevronRight size={16} color={colors.muted} />
           </TouchableOpacity>
         </View>
 
@@ -337,321 +373,333 @@ export default function HomeScreen() {
   );
 }
 
-const BORDER = Colors.borderSubtle ?? Colors.border ?? "rgba(0,0,0,0.10)";
+function createStyles(colors: {
+  background: string;
+  surface: string;
+  card: string;
+  text: string;
+  muted: string;
+  border: string;
+  borderSubtle: string;
+  premium: string;
+}) {
+  const BORDER = colors.borderSubtle ?? colors.border ?? "rgba(0,0,0,0.10)";
 
-const styles = StyleSheet.create({
-  scroll: {
-    flex: 1,
-  },
+  return StyleSheet.create({
+    safe: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
 
-  container: {
-    paddingTop: 4,
-    paddingBottom: Spacing.lg,
-    paddingHorizontal: Spacing.md,
-  },
+    scroll: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
 
-  iconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: Colors.card,
-    borderWidth: BorderWidth.default,
-    borderColor: BORDER,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+    container: {
+      paddingTop: 4,
+      paddingBottom: Spacing.lg,
+      paddingHorizontal: Spacing.md,
+    },
 
-  weekMetaRow: {
-    marginTop: 8,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
+    iconButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: colors.card,
+      borderWidth: BorderWidth.default,
+      borderColor: BORDER,
+      alignItems: "center",
+      justifyContent: "center",
+    },
 
-  weekMetaLeft: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: Colors.muted,
-    letterSpacing: -0.1,
-  },
+    weekMetaRow: {
+      marginTop: 8,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+    },
 
-  weekMetaRight: {
-    fontSize: 14,
-    fontWeight: "900",
-    color: Colors.text,
-    letterSpacing: -0.1,
-  },
+    weekMetaLeft: {
+      fontSize: 14,
+      fontWeight: "700",
+      color: colors.muted,
+      letterSpacing: -0.1,
+    },
 
-  weekProgressBg: {
-    marginTop: 10,
-    height: 8,
-    backgroundColor: "rgba(0,0,0,0.08)",
-    borderRadius: 999,
-    overflow: "hidden",
-  },
+    weekMetaRight: {
+      fontSize: 14,
+      fontWeight: "900",
+      color: colors.text,
+      letterSpacing: -0.1,
+    },
 
-  weekProgressFill: {
-    height: 8,
-    backgroundColor: "#000",
-    borderRadius: 999,
-  },
+    weekProgressBg: {
+      marginTop: 10,
+      height: 8,
+      backgroundColor: isDarkLike(colors.background)
+        ? "rgba(255,255,255,0.12)"
+        : "rgba(0,0,0,0.08)",
+      borderRadius: 999,
+      overflow: "hidden",
+    },
 
-  todayRow: {
-    marginTop: 20,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-end",
-  },
+    weekProgressFill: {
+      height: 8,
+      backgroundColor: colors.text,
+      borderRadius: 999,
+    },
 
-  todayTitle: {
-    fontSize: 26,
-    fontWeight: "900",
-    color: Colors.text,
-    letterSpacing: -0.25,
-  },
+    todayRow: {
+      marginTop: 20,
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "flex-end",
+    },
 
-  planLink: {
-    paddingVertical: 6,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
+    todayTitle: {
+      fontSize: 26,
+      fontWeight: "900",
+      color: colors.text,
+      letterSpacing: -0.25,
+    },
 
-  planLinkText: {
-    fontSize: 14,
-    color: Colors.muted,
-    fontWeight: "800",
-    letterSpacing: -0.1,
-  },
+    planLink: {
+      paddingVertical: 6,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+    },
 
-  todaySub: {
-    fontSize: 15,
-    color: Colors.muted,
-    marginTop: 8,
-    marginBottom: 14,
-    fontWeight: "700",
-    letterSpacing: -0.1,
-  },
+    planLinkText: {
+      fontSize: 14,
+      color: colors.muted,
+      fontWeight: "800",
+      letterSpacing: -0.1,
+    },
 
-  heroCard: {
-    borderRadius: 28,
-    overflow: "hidden",
-    backgroundColor: Colors.card,
-    borderWidth: BorderWidth.default,
-    borderColor: "rgba(0,0,0,0.06)",
-  },
+    todaySub: {
+      fontSize: 15,
+      color: colors.muted,
+      marginTop: 8,
+      marginBottom: 14,
+      fontWeight: "700",
+      letterSpacing: -0.1,
+    },
 
-  heroImage: {
-    width: "100%",
-    height: 470,
-    justifyContent: "space-between",
-  },
+    heroCard: {
+      borderRadius: 28,
+      overflow: "hidden",
+      backgroundColor: colors.card,
+      borderWidth: BorderWidth.default,
+      borderColor: isDarkLike(colors.background)
+        ? "rgba(255,255,255,0.08)"
+        : "rgba(0,0,0,0.06)",
+    },
 
-  heroImageRadius: {
-    borderRadius: 28,
-  },
+    heroImage: {
+      width: "100%",
+      height: 470,
+      justifyContent: "space-between",
+    },
 
-  heroOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.30)",
-  },
+    heroImageRadius: {
+      borderRadius: 28,
+    },
 
-  heroTop: {
-    marginTop: 16,
-    paddingHorizontal: 16,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-  },
+    heroOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: "rgba(0,0,0,0.30)",
+    },
 
-  leftChips: {
-    gap: 10,
-  },
+    heroTop: {
+      marginTop: 16,
+      paddingHorizontal: 16,
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "flex-start",
+    },
 
-  chipLight: {
-    backgroundColor: "rgba(255,255,255,0.84)",
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 999,
-  },
+    leftChips: {
+      gap: 10,
+    },
 
-  chipLightText: {
-    color: "#111",
-    fontSize: 12,
-    fontWeight: "900",
-    letterSpacing: -0.05,
-  },
+    chipLight: {
+      backgroundColor: "rgba(255,255,255,0.84)",
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+      borderRadius: 999,
+    },
 
-  chipOutline: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 999,
-    borderWidth: BorderWidth.default,
-    borderColor: "rgba(255,255,255,0.32)",
-    backgroundColor: "rgba(0,0,0,0.22)",
-  },
+    chipLightText: {
+      color: "#111",
+      fontSize: 12,
+      fontWeight: "900",
+      letterSpacing: -0.05,
+    },
 
-  chipOutlineText: {
-    color: "#FFF",
-    fontSize: 12,
-    fontWeight: "900",
-    letterSpacing: -0.05,
-  },
+    chipOutline: {
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+      borderRadius: 999,
+      borderWidth: BorderWidth.default,
+      borderColor: "rgba(255,255,255,0.32)",
+      backgroundColor: "rgba(0,0,0,0.22)",
+    },
 
-  heroBottom: {
-    paddingHorizontal: 18,
-    paddingBottom: 18,
-  },
+    chipOutlineText: {
+      color: "#FFF",
+      fontSize: 12,
+      fontWeight: "900",
+      letterSpacing: -0.05,
+    },
 
-  heroEyebrow: {
-    color: "rgba(255,255,255,0.76)",
-    fontSize: 12,
-    fontWeight: "900",
-    letterSpacing: 1,
-    textTransform: "uppercase",
-  },
+    heroBottom: {
+      paddingHorizontal: 18,
+      paddingBottom: 18,
+    },
 
-  heroTitle: {
-    marginTop: 8,
-    color: "#FFF",
-    fontSize: 34,
-    lineHeight: 38,
-    fontWeight: "900",
-    letterSpacing: -0.5,
-  },
+    heroEyebrow: {
+      color: "rgba(255,255,255,0.76)",
+      fontSize: 12,
+      fontWeight: "900",
+      letterSpacing: 1,
+      textTransform: "uppercase",
+    },
 
-  heroMeta: {
-    marginTop: 6,
-    color: "rgba(255,255,255,0.88)",
-    fontSize: 15,
-    fontWeight: "700",
-    letterSpacing: -0.1,
-  },
+    heroTitle: {
+      marginTop: 8,
+      color: "#FFF",
+      fontSize: 34,
+      lineHeight: 38,
+      fontWeight: "900",
+      letterSpacing: -0.5,
+    },
 
-  heroProgressBg: {
-    marginTop: 14,
-    height: 10,
-    backgroundColor: "rgba(255,255,255,0.22)",
-    borderRadius: 999,
-    overflow: "hidden",
-  },
+    heroMeta: {
+      marginTop: 6,
+      color: "rgba(255,255,255,0.88)",
+      fontSize: 15,
+      fontWeight: "700",
+      letterSpacing: -0.1,
+    },
 
-  heroProgressFill: {
-    height: 10,
-    backgroundColor: "#FFF",
-    borderRadius: 999,
-  },
+    heroProgressBg: {
+      marginTop: 14,
+      height: 10,
+      backgroundColor: "rgba(255,255,255,0.22)",
+      borderRadius: 999,
+      overflow: "hidden",
+    },
 
-  metricsRow: {
-    marginTop: 10,
-    minHeight: 0,
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
-  },
+    heroProgressFill: {
+      height: 10,
+      backgroundColor: "#FFF",
+      borderRadius: 999,
+    },
 
-  metricPill: {
-    backgroundColor: "rgba(0,0,0,0.42)",
-    borderRadius: 999,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderWidth: BorderWidth.default,
-    borderColor: "rgba(255,255,255,0.18)",
-  },
+    metricsRow: {
+      marginTop: 10,
+      minHeight: 0,
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 10,
+    },
 
-  metricPillText: {
-    color: "rgba(255,255,255,0.94)",
-    fontSize: 12,
-    fontWeight: "900",
-    letterSpacing: -0.05,
-  },
+    metricPill: {
+      backgroundColor: "rgba(0,0,0,0.42)",
+      borderRadius: 999,
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+      borderWidth: BorderWidth.default,
+      borderColor: "rgba(255,255,255,0.18)",
+    },
 
-  heroCta: {
-    marginTop: 12,
-    backgroundColor: "#FFF",
-    borderRadius: 999,
-    paddingVertical: 16,
-    paddingHorizontal: 18,
-    alignItems: "center",
-    justifyContent: "center",
-    flexDirection: "row",
-    gap: 10,
-  },
+    metricPillText: {
+      color: "rgba(255,255,255,0.94)",
+      fontSize: 12,
+      fontWeight: "900",
+      letterSpacing: -0.05,
+    },
 
-  heroCtaIcon: {
-    fontSize: 16,
-    color: "#000",
-    fontWeight: "900",
-  },
+    heroCta: {
+      marginTop: 12,
+      backgroundColor: "#FFF",
+      borderRadius: 999,
+      paddingVertical: 16,
+      paddingHorizontal: 18,
+      alignItems: "center",
+      justifyContent: "center",
+      flexDirection: "row",
+      gap: 10,
+    },
 
-  heroCtaText: {
-    fontSize: 16,
-    fontWeight: "900",
-    color: "#000",
-    letterSpacing: -0.15,
-  },
+    heroCtaIcon: {
+      fontSize: 16,
+      color: "#000",
+      fontWeight: "900",
+    },
 
-  discardButton: {
-    alignSelf: "center",
-    marginTop: 10,
-  },
+    heroCtaText: {
+      fontSize: 16,
+      fontWeight: "900",
+      color: "#000",
+      letterSpacing: -0.15,
+    },
 
-  discardText: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "rgba(255,255,255,0.62)",
-  },
+    discardButton: {
+      alignSelf: "center",
+      marginTop: 10,
+    },
 
-  switchProgram: {
-    alignItems: "center",
-    marginTop: 18,
-    marginBottom: 28,
-  },
+    discardText: {
+      fontSize: 13,
+      fontWeight: "700",
+      color: "rgba(255,255,255,0.62)",
+    },
 
-  switchText: {
-    fontSize: 16,
-    fontWeight: "900",
-    color: Colors.text,
-    letterSpacing: -0.15,
-  },
+    sectionHeaderRow: {
+      marginTop: 30,
+      marginBottom: 14,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+    },
 
-  sectionHeaderRow: {
-    marginTop: 70,
-    marginBottom: 14,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
+    sectionTitle: {
+      fontSize: 22,
+      fontWeight: "900",
+      color: colors.text,
+      letterSpacing: -0.25,
+    },
 
-  sectionTitle: {
-    fontSize: 22,
-    fontWeight: "900",
-    color: Colors.text,
-    letterSpacing: -0.25,
-  },
+    sectionLink: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+    },
 
-  sectionLink: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
+    sectionLinkText: {
+      fontSize: 14,
+      fontWeight: "800",
+      color: colors.muted,
+      letterSpacing: -0.1,
+    },
 
-  sectionLinkText: {
-    fontSize: 14,
-    fontWeight: "800",
-    color: Colors.muted,
-    letterSpacing: -0.1,
-  },
+    prepRail: {
+      paddingBottom: 6,
+    },
 
-  prepRail: {
-    paddingBottom: 6,
-  },
+    prepCardGap: {
+      marginRight: Spacing.md,
+    },
 
-  prepCardGap: {
-    marginRight: Spacing.md,
-  },
+    bottomSpacer: {
+      height: 32,
+    },
+  });
+}
 
-  bottomSpacer: {
-    height: 32,
-  },
-});
+function isDarkLike(background: string) {
+  return background === "#0B0B0C" || background === "#111214";
+}

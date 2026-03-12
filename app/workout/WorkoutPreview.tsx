@@ -1,10 +1,10 @@
 // app/workout/WorkoutPreview.tsx
 
-import React from "react";
+import React, { useMemo } from "react";
 import { Image, Pressable, ScrollView, Text, View } from "react-native";
 
-import { Colors } from "@/styles/colors";
-import { S } from "./workout.styles";
+import { useAppTheme } from "@/app/_providers/theme";
+import { createWorkoutStyles } from "./workout.styles";
 
 /* ───────────────────────── Types (shared) ───────────────────────── */
 
@@ -62,6 +62,9 @@ export function WorkoutPreview({
   onStartWorkout,
   onBack,
 }: Props) {
+  const { colors, isDark } = useAppTheme();
+  const S = useMemo(() => createWorkoutStyles(colors, isDark), [colors, isDark]);
+
   const blockKickerFor = (block: StrengthBlock) => {
     if (block.type === "superset") return "SUPERSET";
     if (block.type === "giant") return "GIANT SET";
@@ -85,7 +88,6 @@ export function WorkoutPreview({
   };
 
   const groupAccentStyle = (block: StrengthBlock) => {
-    // These styles already exist in workout.styles.ts per your file.
     if (block.type === "superset") return S.groupRailSuperset;
     if (block.type === "giant") return S.groupRailGiant;
     if (block.type === "circuit") return S.groupRailCircuit;
@@ -103,17 +105,17 @@ export function WorkoutPreview({
               hitSlop={12}
               style={({ pressed }) => [{ paddingVertical: 6, paddingHorizontal: 8, borderRadius: 10 }, pressed && { opacity: 0.7 }]}
             >
-              <Text style={{ fontSize: 13, fontWeight: "900", color: Colors.text }}>Back</Text>
+              <Text style={{ fontSize: 13, fontWeight: "900", color: colors.text }}>Back</Text>
             </Pressable>
 
             <View style={{ flex: 1 }} />
 
-            <Text style={{ fontSize: 12, fontWeight: "800", color: Colors.muted }}>
+            <Text style={{ fontSize: 12, fontWeight: "800", color: colors.muted }}>
               {exercises.length} exercises • ~{estimatedTime} min • {totalSets} sets
             </Text>
           </View>
 
-          <Text style={{ marginTop: 10, fontSize: 24, fontWeight: "900", color: Colors.text, letterSpacing: -0.6 }}>
+          <Text style={{ marginTop: 10, fontSize: 24, fontWeight: "900", color: colors.text, letterSpacing: -0.6 }}>
             {workoutTitle}
           </Text>
         </View>

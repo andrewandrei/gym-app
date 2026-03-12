@@ -1,9 +1,9 @@
 // components/ui/ScreenHeader.tsx
 import { ChevronLeft } from "lucide-react-native";
-import React from "react";
+import React, { useMemo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { Colors } from "@/styles/colors";
+import { useAppTheme } from "@/app/_providers/theme";
 import { Spacing } from "@/styles/spacing";
 
 type Props = {
@@ -19,10 +19,7 @@ type Props = {
 
   after?: "none" | "default";
 
-  /** NEW: back support */
   onBack?: () => void;
-
-  /** NEW: compact mode (workout screens) */
   compact?: boolean;
 };
 
@@ -39,13 +36,15 @@ export function ScreenHeader({
   onBack,
   compact = false,
 }: Props) {
+  const { colors, isDark } = useAppTheme();
+  const S = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
+
   const isHero = variant === "hero";
   const px = horizontal ?? 0;
 
-  // vertical rhythm
-  const padTop = Spacing.xs; // 8
-  const padBottom = isHero ? Spacing.sm : Spacing.xs; // hero 12, page 8
-  const afterGap = after === "none" ? 0 : isHero ? Spacing.lg : Spacing.xs; // page=8
+  const padTop = Spacing.xs;
+  const padBottom = isHero ? Spacing.sm : Spacing.xs;
+  const afterGap = after === "none" ? 0 : isHero ? Spacing.lg : Spacing.xs;
 
   const tightMult = spacing === "tight" ? 0.75 : 1;
 
@@ -63,7 +62,6 @@ export function ScreenHeader({
           { paddingHorizontal: px, paddingTop: padTop, paddingBottom: padBottom },
         ]}
       >
-        {/* Top row: Back + Titles + Right */}
         <View style={S.row}>
           {onBack ? (
             <Pressable
@@ -72,7 +70,7 @@ export function ScreenHeader({
               hitSlop={12}
               style={({ pressed }) => [S.backBtn, pressed && { opacity: 0.6 }]}
             >
-              <ChevronLeft size={22} color={Colors.text} />
+              <ChevronLeft size={22} color={colors.text} />
             </Pressable>
           ) : null}
 
@@ -111,80 +109,94 @@ export function ScreenHeader({
   );
 }
 
-// Also export default to avoid “named vs default” import breakage elsewhere.
 export default ScreenHeader;
 
-const S = StyleSheet.create({
-  wrap: {
-    backgroundColor: Colors.surface,
+function createStyles(
+  colors: {
+    background: string;
+    surface: string;
+    card: string;
+    text: string;
+    muted: string;
+    border: string;
+    borderSubtle: string;
+    premium: string;
   },
-  debugTop: {
-    borderTopWidth: 2,
-    borderTopColor: "red",
-  },
-  inner: {},
+  isDark: boolean,
+) {
+  return StyleSheet.create({
+    wrap: {
+      backgroundColor: "transparent",
+    },
 
-  row: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    gap: 12,
-  },
+    debugTop: {
+      borderTopWidth: 2,
+      borderTopColor: "red",
+    },
 
-  backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(0,0,0,0.03)",
-  },
+    inner: {},
 
-  left: {
-    flex: 1,
-    minWidth: 0,
-  },
+    row: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      justifyContent: "space-between",
+      gap: 12,
+    },
 
-  right: {
-    alignSelf: "flex-start",
-  },
+    backBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.03)",
+    },
 
-  kicker: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: Colors.muted,
-    marginBottom: 6,
-    letterSpacing: 0.2,
-  },
+    left: {
+      flex: 1,
+      minWidth: 0,
+    },
 
-  title: {
-    color: Colors.text,
-    fontWeight: "800",
-  },
+    right: {
+      alignSelf: "flex-start",
+    },
 
-  titleHero: {
-    fontSize: 46,
-    lineHeight: 50,
-    letterSpacing: -0.6,
-  },
+    kicker: {
+      fontSize: 13,
+      fontWeight: "600",
+      color: colors.muted,
+      marginBottom: 6,
+      letterSpacing: 0.2,
+    },
 
-  titlePage: {
-    fontSize: 34,
-    lineHeight: 38,
-    letterSpacing: -0.4,
-  },
+    title: {
+      color: colors.text,
+      fontWeight: "800",
+    },
 
-  // Compact = workout header (slightly calmer than page)
-  titleCompact: {
-    fontSize: 28,
-    lineHeight: 32,
-    letterSpacing: -0.3,
-  },
+    titleHero: {
+      fontSize: 46,
+      lineHeight: 50,
+      letterSpacing: -0.6,
+    },
 
-  subtitle: {
-    fontSize: 14,
-    lineHeight: 18,
-    color: Colors.muted,
-    fontWeight: "500",
-  },
-});
+    titlePage: {
+      fontSize: 34,
+      lineHeight: 38,
+      letterSpacing: -0.4,
+    },
+
+    titleCompact: {
+      fontSize: 28,
+      lineHeight: 32,
+      letterSpacing: -0.3,
+    },
+
+    subtitle: {
+      fontSize: 14,
+      lineHeight: 18,
+      color: colors.muted,
+      fontWeight: "500",
+    },
+  });
+}

@@ -1,25 +1,34 @@
 import { StyleSheet } from "react-native";
-import { Colors } from "./colors";
 import { Typography } from "./type";
 
-export const GlobalStyles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: Colors.surface,
-  },
+export function createGlobalStyles(colors: {
+  background: string;
+  surface: string;
+  card: string;
+  text: string;
+  muted: string;
+  border: string;
+  borderSubtle: string;
+  premium: string;
+}) {
+  return StyleSheet.create({
+    screen: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
 
-  // commonly used paddings
-  pad: {
-    paddingHorizontal: 24,
-  },
+    pad: {
+      paddingHorizontal: 24,
+    },
 
-  // Editorial header styles (optional, but now safe)
-  headerTitle: {
-    ...Typography.title1,
-    color: Colors.text,
-  },
-  headerSub: {
-    ...Typography.sub,
-    color: Colors.muted,
-  },
-});
+    headerTitle: {
+      ...Typography.title1,
+      color: colors.text,
+    },
+
+    headerSub: {
+      ...Typography.sub,
+      color: colors.muted,
+    },
+  });
+}

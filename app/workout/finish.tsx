@@ -18,11 +18,12 @@ import {
   Pressable,
   SafeAreaView,
   ScrollView,
+  StyleSheet,
   Text,
   View,
 } from "react-native";
 
-import { Colors } from "@/styles/colors";
+import { useAppTheme } from "@/app/_providers/theme";
 import {
   type FinishFeedbackTone,
   type FinishSummary,
@@ -41,12 +42,18 @@ function formatVolume(value: number) {
   return `${Math.round(value)}`;
 }
 
-function toneColors(tone: FinishFeedbackTone) {
+function toneColors(
+  tone: FinishFeedbackTone,
+  colors: {
+    text: string;
+    premium: string;
+  },
+) {
   if (tone === "pr") {
     return {
       halo: "rgba(244,200,74,0.16)",
-      chip: (Colors as any).premium ?? "#F4C84A",
-      icon: Colors.text,
+      chip: colors.premium,
+      icon: colors.text,
     };
   }
 
@@ -61,35 +68,36 @@ function toneColors(tone: FinishFeedbackTone) {
   if (tone === "solid" || tone === "volume") {
     return {
       halo: "rgba(244,200,74,0.12)",
-      chip: Colors.text,
+      chip: colors.text,
       icon: "#FFFFFF",
     };
   }
 
   if (tone === "partial" || tone === "log-load" || tone === "recovery") {
     return {
-      halo: "rgba(0,0,0,0.05)",
-      chip: Colors.text,
+      halo: "rgba(127,127,127,0.08)",
+      chip: colors.text,
       icon: "#FFFFFF",
     };
   }
 
   return {
-    halo: "rgba(0,0,0,0.05)",
-    chip: Colors.text,
+    halo: "rgba(127,127,127,0.08)",
+    chip: colors.text,
     icon: "#FFFFFF",
   };
 }
 
 function ToneIcon({ tone, color }: { tone: FinishFeedbackTone; color: string }) {
-  if (tone === "pr") return <Trophy size={30} color={color} strokeWidth={2.4} />;
-  if (tone === "excellent") return <Flame size={30} color={color} strokeWidth={2.4} />;
-  if (tone === "volume") return <TrendingUp size={30} color={color} strokeWidth={2.4} />;
-  return <Check size={30} color={color} strokeWidth={3} />;
+  if (tone === "pr") return <Trophy size={32} color={color} strokeWidth={2.4} />;
+  if (tone === "excellent") return <Flame size={32} color={color} strokeWidth={2.4} />;
+  if (tone === "volume") return <TrendingUp size={32} color={color} strokeWidth={2.4} />;
+  return <Check size={32} color={color} strokeWidth={3} />;
 }
 
 function compareBadge(
   result?: "better" | "same" | "mixed" | "no_data",
+  textColor?: string,
 ): {
   label: string;
   bg: string;
@@ -107,204 +115,25 @@ function compareBadge(
     return {
       label: "Matched",
       bg: "rgba(244,200,74,0.18)",
-      text: Colors.text,
+      text: textColor ?? "#111111",
     };
   }
 
   if (result === "mixed") {
     return {
       label: "Mixed",
-      bg: "rgba(0,0,0,0.05)",
-      text: "rgba(0,0,0,0.68)",
+      bg: "rgba(127,127,127,0.10)",
+      text: "rgba(127,127,127,0.92)",
     };
   }
 
   return null;
-}
-
-function getExerciseTopSet(exercise: FinishSummary["exercises"][number]) {
-  const usableSets = exercise.sets.filter((s) => s.done);
-
-  if (!usableSets.length) return null;
-
-  let best = usableSets[0];
-  let bestWeight = Number(best.weight || 0);
-  let bestReps = Number(best.reps || 0);
-
-  usableSets.forEach((set) => {
-    const weight = Number(set.weight || 0);
-    const reps = Number(set.reps || 0);
-
-    if (weight > bestWeight || (weight === bestWeight && reps > bestReps)) {
-      best = set;
-      bestWeight = weight;
-      bestReps = reps;
-    }
-  });
-
-  return {
-    weight: bestWeight,
-    reps: bestReps,
-  };
-}
-
-function formatTopSetLine(
-  exercise: FinishSummary["exercises"][number] & { unitLabel?: string },
-  topSet: { weight: number; reps: number } | null,
-) {
-  if (!topSet) return "No load data";
-
-  if (exercise.unitLabel === "REPS") {
-    return `${topSet.reps} reps`;
-  }
-
-  const unit = exercise.unitLabel ? exercise.unitLabel.toLowerCase() : "lb";
-  return `${topSet.weight} ${unit} × ${topSet.reps}`;
-}
-
-function getPreviousComparisonLine(
-  exercise: FinishSummary["exercises"][number] & {
-    comparedToLast?: {
-      result?: "better" | "same" | "mixed" | "no_data";
-      previousBestWeight?: number;
-      previousBestReps?: number;
-      previousVolume?: number;
-      volumeDeltaPct?: number;
-    };
-    unitLabel?: string;
-  },
-) {
-  const comparison = exercise.comparedToLast;
-  if (!comparison) return null;
-
-  const unit = exercise.unitLabel ? exercise.unitLabel.toLowerCase() : "lb";
-
-  if (
-    typeof comparison.previousBestWeight === "number" &&
-    typeof comparison.previousBestReps === "number"
-  ) {
-    if (exercise.unitLabel === "REPS") {
-      return `${comparison.previousBestReps} reps`;
-    }
-
-    return `${comparison.previousBestWeight} ${unit} × ${comparison.previousBestReps}`;
-  }
-
-  if (typeof comparison.previousVolume === "number" && comparison.previousVolume > 0) {
-    return `Vol ${formatVolume(comparison.previousVolume)}`;
-  }
-
-  return null;
-}
-
-function getDeltaPresentation(
-  exercise: FinishSummary["exercises"][number] & {
-    comparedToLast?: {
-      volumeDeltaPct?: number;
-      result?: "better" | "same" | "mixed" | "no_data";
-    };
-  },
-) {
-  const badge = compareBadge(exercise.comparedToLast?.result);
-  const volumeDeltaPct = exercise.comparedToLast?.volumeDeltaPct;
-
-  if (typeof volumeDeltaPct === "number" && Number.isFinite(volumeDeltaPct)) {
-    const rounded = Math.round(volumeDeltaPct);
-
-    if (rounded > 0) {
-      return {
-        label: `+${rounded}% vol`,
-        bg: "rgba(34,197,94,0.10)",
-        text: "rgb(23,120,65)",
-      };
-    }
-
-    if (rounded < 0) {
-      return {
-        label: `${rounded}% vol`,
-        bg: "rgba(0,0,0,0.05)",
-        text: "rgba(0,0,0,0.68)",
-      };
-    }
-
-    return {
-      label: "Vol even",
-      bg: "rgba(0,0,0,0.05)",
-      text: "rgba(0,0,0,0.68)",
-    };
-  }
-
-  if (badge) {
-    return {
-      label: badge.label,
-      bg: badge.bg,
-      text: badge.text,
-    };
-  }
-
-  return null;
-}
-
-function StatCell({
-  label,
-  value,
-}: {
-  label: string;
-  value: string | number;
-}) {
-  return (
-    <View
-      style={{
-        flex: 1,
-        minHeight: 88,
-        borderRadius: 18,
-        paddingTop: 12,
-        paddingBottom: 12,
-        paddingHorizontal: 12,
-        backgroundColor: Colors.surface,
-        borderWidth: 1,
-        borderColor: "rgba(0,0,0,0.08)",
-        justifyContent: "flex-start",
-      }}
-    >
-      <Text
-        style={{
-          minHeight: 18,
-          fontSize: 9,
-          lineHeight: 11,
-          fontWeight: "900",
-          letterSpacing: 1.0,
-          textTransform: "uppercase",
-          color: "rgba(0,0,0,0.38)",
-        }}
-        numberOfLines={1}
-        adjustsFontSizeToFit
-        minimumFontScale={0.9}
-      >
-        {label}
-      </Text>
-
-      <Text
-        style={{
-          marginTop: 9,
-          fontSize: 17,
-          lineHeight: 20,
-          fontWeight: "900",
-          color: Colors.text,
-          letterSpacing: -0.35,
-        }}
-        numberOfLines={1}
-        adjustsFontSizeToFit
-        minimumFontScale={0.82}
-      >
-        {value}
-      </Text>
-    </View>
-  );
 }
 
 export default function FinishScreen() {
   const params = useLocalSearchParams<{ summary?: string }>();
+  const { colors, isDark } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
 
   const summary = useMemo<FinishSummary | null>(() => {
     if (!params.summary) return null;
@@ -321,7 +150,7 @@ export default function FinishScreen() {
     [summary],
   );
 
-  const tone = toneColors(feedback?.tone ?? "default");
+  const tone = toneColors(feedback?.tone ?? "default", colors);
 
   const heroScale = useRef(new Animated.Value(0.96)).current;
   const heroOpacity = useRef(new Animated.Value(0)).current;
@@ -378,13 +207,7 @@ export default function FinishScreen() {
       await clearWorkoutDraft();
     } catch {}
 
-    router.replace({
-      pathname: "/progress",
-      params: {
-        updated: "1",
-        title: summary?.workoutTitle ?? "Workout",
-      },
-    });
+    router.replace("/progress");
   };
 
   const onBackHome = async () => {
@@ -407,54 +230,17 @@ export default function FinishScreen() {
 
   if (!summary || !feedback) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: Colors.surface }}>
-        <View style={{ paddingHorizontal: 18, paddingTop: 14 }}>
-          <Text
-            style={{
-              fontSize: 24,
-              fontWeight: "900",
-              color: Colors.text,
-              letterSpacing: -0.5,
-            }}
-          >
-            Workout complete
-          </Text>
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.fallbackWrap}>
+          <Text style={styles.fallbackTitle}>Workout complete</Text>
 
-          <Text
-            style={{
-              marginTop: 6,
-              fontSize: 13,
-              fontWeight: "700",
-              color: Colors.muted,
-            }}
-          >
-            Missing summary payload.
-          </Text>
+          <Text style={styles.fallbackSub}>Missing summary payload.</Text>
 
           <Pressable
             onPress={onFallbackBack}
-            style={({ pressed }) => [
-              {
-                marginTop: 16,
-                height: 56,
-                borderRadius: 999,
-                backgroundColor: Colors.text,
-                alignItems: "center",
-                justifyContent: "center",
-              },
-              pressed && { opacity: 0.9 },
-            ]}
+            style={({ pressed }) => [styles.fallbackButton, pressed && { opacity: 0.9 }]}
           >
-            <Text
-              style={{
-                color: Colors.surface,
-                fontWeight: "900",
-                fontSize: 16,
-                letterSpacing: -0.2,
-              }}
-            >
-              Back
-            </Text>
+            <Text style={styles.fallbackButtonText}>Back</Text>
           </Pressable>
         </View>
       </SafeAreaView>
@@ -462,274 +248,119 @@ export default function FinishScreen() {
   }
 
   const completedExercises = summary.exercises.filter((ex) => ex.sets.length > 0);
-  const streakDays = 8; // demo
-  const programProgressDelta = "+1 session"; // demo
+  const streakDays = 8;
+  const programProgressDelta = "+1 session";
   const topWins = summary.wins.slice(0, 3);
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: Colors.surface }}>
+    <SafeAreaView style={styles.safe}>
       <ScrollView
-        style={{ flex: 1, backgroundColor: Colors.surface }}
-        contentContainerStyle={{
-          paddingHorizontal: 18,
-          paddingTop: 12,
-          paddingBottom: 180,
-        }}
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
         <Animated.View
-          style={{
-            opacity: heroOpacity,
-            transform: [{ scale: heroScale }],
-            alignItems: "center",
-            marginTop: 4,
-          }}
+          style={[
+            styles.heroWrap,
+            {
+              opacity: heroOpacity,
+              transform: [{ scale: heroScale }],
+            },
+          ]}
         >
-          <View
-            style={{
-              width: 108,
-              height: 108,
-              borderRadius: 54,
-              backgroundColor: tone.halo,
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <View
-              style={{
-                width: 74,
-                height: 74,
-                borderRadius: 37,
-                backgroundColor: tone.chip,
-                alignItems: "center",
-                justifyContent: "center",
-                shadowColor: "#000",
-                shadowOffset: { width: 0, height: 10 },
-                shadowOpacity: 0.08,
-                shadowRadius: 16,
-                elevation: 7,
-              }}
-            >
+          <View style={[styles.heroHalo, { backgroundColor: tone.halo }]}>
+            <View style={[styles.heroChip, { backgroundColor: tone.chip }]}>
               <ToneIcon tone={feedback.tone} color={tone.icon} />
             </View>
           </View>
 
-          <View
-            style={{
-              marginTop: 16,
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 8,
-            }}
-          >
-            <Sparkles size={15} color={(Colors as any).premium ?? "#F4C84A"} />
-            <Text
-              style={{
-                fontSize: 10,
-                fontWeight: "900",
-                letterSpacing: 1.45,
-                textTransform: "uppercase",
-                color: "rgba(0,0,0,0.42)",
-              }}
-            >
-              {feedback.kicker}
-            </Text>
+          <View style={styles.heroKickerRow}>
+            <Sparkles size={16} color={colors.premium} />
+            <Text style={styles.heroKicker}>{feedback.kicker}</Text>
           </View>
 
-          <Text
-            style={{
-              marginTop: 10,
-              fontSize: 28,
-              lineHeight: 33,
-              fontWeight: "900",
-              color: Colors.text,
-              letterSpacing: -0.75,
-              textAlign: "center",
-            }}
-          >
-            {feedback.title}
-          </Text>
+          <Text style={styles.heroTitle}>{feedback.title}</Text>
 
-          <Text
-            style={{
-              marginTop: 8,
-              fontSize: 15,
-              lineHeight: 21,
-              fontWeight: "700",
-              color: Colors.muted,
-              textAlign: "center",
-              paddingHorizontal: 12,
-            }}
-          >
-            {feedback.body}
-          </Text>
+          <Text style={styles.heroBody}>{feedback.body}</Text>
         </Animated.View>
 
         <Animated.View
-          style={{
-            opacity: cardsOpacity,
-            transform: [{ translateY: cardsY }],
-            marginTop: 22,
-          }}
+          style={[
+            styles.cardsWrap,
+            {
+              opacity: cardsOpacity,
+              transform: [{ translateY: cardsY }],
+            },
+          ]}
         >
-          <View>
-            <Text
-              style={{
-                fontSize: 18,
-                lineHeight: 23,
-                fontWeight: "900",
-                color: Colors.text,
-                letterSpacing: -0.35,
-              }}
-              numberOfLines={2}
-            >
+          <View style={styles.summaryCard}>
+            <Text style={styles.summaryWorkoutTitle} numberOfLines={2}>
               {summary.workoutTitle}
             </Text>
 
-            <View
-              style={{
-                marginTop: 10,
-                borderRadius: 22,
-                backgroundColor: "rgba(0,0,0,0.022)",
-                borderWidth: 1,
-                borderColor: "rgba(0,0,0,0.08)",
-                padding: 16,
-              }}
-            >
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "stretch",
-                  gap: 10,
-                }}
-              >
-                <StatCell label="Sets" value={summary.totals.completedSets} />
-                <StatCell label="Duration" value={shortDuration(summary.durationSec)} />
-                <StatCell
-                  label="Complete"
-                  value={`${Math.round(summary.insights.completionRate * 100)}%`}
-                />
+            <View style={styles.statsRow}>
+              <View style={styles.statTile}>
+                <Text style={styles.statTileLabel}>Sets</Text>
+                <Text style={styles.statTileValue}>{summary.totals.completedSets}</Text>
               </View>
 
-              <View
-                style={{
-                  marginTop: 12,
-                  flexDirection: "row",
-                  alignItems: "stretch",
-                  gap: 10,
-                }}
-              >
-                <StatCell label="Volume" value={formatVolume(summary.totals.totalVolume)} />
-                <StatCell label="Improved" value={summary.insights.improvedExerciseCount} />
-                <StatCell label="PRs" value={summary.insights.prCount} />
+              <View style={styles.statTile}>
+                <Text style={styles.statTileLabel}>Duration</Text>
+                <Text style={styles.statTileValue}>{shortDuration(summary.durationSec)}</Text>
+              </View>
+
+              <View style={styles.statTile}>
+                <Text style={styles.statTileLabel}>Completion</Text>
+                <Text style={styles.statTileValue}>
+                  {Math.round(summary.insights.completionRate * 100)}%
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.statsRowBottom}>
+              <View style={styles.statTile}>
+                <Text style={styles.statTileLabel}>Volume</Text>
+                <Text style={styles.statTileValue}>{formatVolume(summary.totals.totalVolume)}</Text>
+              </View>
+
+              <View style={styles.statTile}>
+                <Text style={styles.statTileLabel}>Improved</Text>
+                <Text style={styles.statTileValue}>
+                  {summary.insights.improvedExerciseCount}
+                </Text>
+              </View>
+
+              <View style={styles.statTile}>
+                <Text style={styles.statTileLabel}>PRs</Text>
+                <Text style={styles.statTileValue}>{summary.insights.prCount}</Text>
               </View>
             </View>
           </View>
 
-          <View
-            style={{
-              marginTop: 14,
-              borderRadius: 22,
-              backgroundColor: Colors.surface,
-              borderWidth: 1,
-              borderColor: "rgba(0,0,0,0.08)",
-              padding: 16,
-            }}
-          >
-            <View
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 10,
-              }}
-            >
-              <View
-                style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: 18,
-                  backgroundColor: "rgba(244,200,74,0.16)",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <Flame size={17} color={Colors.text} />
+          <View style={styles.secondaryCard}>
+            <View style={styles.infoRow}>
+              <View style={styles.infoIconWrapPremium}>
+                <Flame size={18} color={colors.text} />
               </View>
 
-              <View style={{ flex: 1 }}>
-                <Text
-                  style={{
-                    fontSize: 15,
-                    fontWeight: "900",
-                    color: Colors.text,
-                    letterSpacing: -0.2,
-                  }}
-                >
-                  {streakDays} day streak
-                </Text>
-                <Text
-                  style={{
-                    marginTop: 2,
-                    fontSize: 13,
-                    lineHeight: 18,
-                    fontWeight: "700",
-                    color: Colors.muted,
-                  }}
-                >
+              <View style={styles.infoTextCol}>
+                <Text style={styles.infoTitle}>{streakDays} day streak</Text>
+                <Text style={styles.infoSub}>
                   Momentum is building. Keep it alive tomorrow.
                 </Text>
               </View>
             </View>
 
-            <View
-              style={{
-                marginTop: 14,
-                height: 1,
-                backgroundColor: "rgba(0,0,0,0.06)",
-              }}
-            />
+            <View style={styles.softDivider} />
 
-            <View
-              style={{
-                marginTop: 14,
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 10,
-              }}
-            >
-              <View
-                style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: 18,
-                  backgroundColor: "rgba(0,0,0,0.04)",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <Trophy size={17} color={Colors.text} />
+            <View style={styles.infoRow}>
+              <View style={styles.infoIconWrapNeutral}>
+                <Trophy size={18} color={colors.text} />
               </View>
 
-              <View style={{ flex: 1 }}>
-                <Text
-                  style={{
-                    fontSize: 15,
-                    fontWeight: "900",
-                    color: Colors.text,
-                    letterSpacing: -0.2,
-                  }}
-                >
-                  Progress updated
-                </Text>
-                <Text
-                  style={{
-                    marginTop: 2,
-                    fontSize: 13,
-                    lineHeight: 18,
-                    fontWeight: "700",
-                    color: Colors.muted,
-                  }}
-                >
+              <View style={styles.infoTextCol}>
+                <Text style={styles.infoTitle}>Progress updated</Text>
+                <Text style={styles.infoSub}>
                   {programProgressDelta} added to your training history.
                 </Text>
               </View>
@@ -737,62 +368,20 @@ export default function FinishScreen() {
 
             {summary.prs.length > 0 && (
               <>
-                <View
-                  style={{
-                    marginTop: 14,
-                    height: 1,
-                    backgroundColor: "rgba(0,0,0,0.06)",
-                  }}
-                />
+                <View style={styles.softDivider} />
 
-                <View style={{ marginTop: 14, gap: 10 }}>
-                  <Text
-                    style={{
-                      fontSize: 12,
-                      fontWeight: "900",
-                      color: "rgba(0,0,0,0.54)",
-                      letterSpacing: 0.25,
-                      textTransform: "uppercase",
-                    }}
-                  >
+                <View style={styles.prBlock}>
+                  <Text style={styles.blockTitle}>
                     New PR{summary.prs.length === 1 ? "" : "s"}
                   </Text>
 
                   {summary.prs.map((item) => (
-                    <View
-                      key={item.exerciseId}
-                      style={{
-                        borderRadius: 14,
-                        backgroundColor: "rgba(244,200,74,0.12)",
-                        paddingVertical: 11,
-                        paddingHorizontal: 12,
-                        flexDirection: "row",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        gap: 12,
-                      }}
-                    >
-                      <Text
-                        style={{
-                          flex: 1,
-                          fontSize: 14,
-                          fontWeight: "900",
-                          color: Colors.text,
-                          letterSpacing: -0.1,
-                        }}
-                        numberOfLines={1}
-                      >
+                    <View key={item.exerciseId} style={styles.prRow}>
+                      <Text style={styles.prExercise} numberOfLines={1}>
                         {item.exerciseName}
                       </Text>
 
-                      <Text
-                        style={{
-                          fontSize: 12,
-                          fontWeight: "900",
-                          color: Colors.text,
-                          letterSpacing: -0.08,
-                        }}
-                      >
+                      <Text style={styles.prValue}>
                         {item.weight} × {item.reps}
                       </Text>
                     </View>
@@ -803,78 +392,24 @@ export default function FinishScreen() {
           </View>
 
           {topWins.length > 0 && (
-            <View
-              style={{
-                marginTop: 16,
-                borderRadius: 18,
-                backgroundColor: "rgba(0,0,0,0.018)",
-                borderWidth: 1,
-                borderColor: "rgba(0,0,0,0.05)",
-                padding: 14,
-              }}
-            >
-              <Text
-                style={{
-                  fontSize: 12,
-                  fontWeight: "800",
-                  color: "rgba(0,0,0,0.46)",
-                  letterSpacing: 0.2,
-                  textTransform: "uppercase",
-                  marginBottom: 10,
-                }}
-              >
-                Session wins
-              </Text>
+            <View style={styles.secondaryCard}>
+              <Text style={styles.blockTitle}>Session wins</Text>
 
-              <View style={{ gap: 8 }}>
+              <View style={styles.winList}>
                 {topWins.map((win, idx) => (
                   <View
                     key={`${win.exerciseId}-${win.type}-${idx}`}
-                    style={{
-                      borderRadius: 12,
-                      backgroundColor: "rgba(255,255,255,0.72)",
-                      paddingVertical: 10,
-                      paddingHorizontal: 12,
-                      flexDirection: "row",
-                      alignItems: "center",
-                      gap: 10,
-                    }}
+                    style={styles.winRow}
                   >
-                    <View
-                      style={{
-                        width: 24,
-                        height: 24,
-                        borderRadius: 12,
-                        backgroundColor: "rgba(244,200,74,0.12)",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      <TrendingUp size={12} color={Colors.text} />
+                    <View style={styles.winIconWrap}>
+                      <TrendingUp size={14} color={colors.text} />
                     </View>
 
-                    <View style={{ flex: 1 }}>
-                      <Text
-                        style={{
-                          fontSize: 13,
-                          fontWeight: "800",
-                          color: Colors.text,
-                          letterSpacing: -0.08,
-                        }}
-                        numberOfLines={1}
-                      >
+                    <View style={styles.winTextCol}>
+                      <Text style={styles.winTitle} numberOfLines={1}>
                         {win.exerciseName}
                       </Text>
-                      <Text
-                        style={{
-                          marginTop: 1,
-                          fontSize: 12,
-                          lineHeight: 16,
-                          fontWeight: "700",
-                          color: "rgba(0,0,0,0.52)",
-                        }}
-                        numberOfLines={1}
-                      >
+                      <Text style={styles.winSub} numberOfLines={1}>
                         {win.label}
                       </Text>
                     </View>
@@ -884,383 +419,84 @@ export default function FinishScreen() {
             </View>
           )}
 
-          <View style={{ marginTop: 26 }}>
-            <Text
-              style={{
-                fontSize: 16,
-                fontWeight: "900",
-                color: Colors.text,
-                letterSpacing: -0.18,
-                marginBottom: 12,
-              }}
-            >
-              Completed exercises
-            </Text>
+          <View style={styles.completedBlock}>
+            <Text style={styles.blockTitle}>Completed exercises</Text>
 
-            <View style={{ gap: 14 }}>
+            <View style={styles.completedList}>
               {completedExercises.length ? (
                 completedExercises.map((ex) => {
-                  const badge = compareBadge(ex.comparedToLast?.result);
-                  const topSet = getExerciseTopSet(ex);
-                  const previousLine = getPreviousComparisonLine(ex);
-                  const todayLine = formatTopSetLine(ex, topSet);
-                  const delta = getDeltaPresentation(ex);
-                  const isExercisePr = summary.prs.some((pr) => pr.exerciseId === ex.id);
+                  const badge = compareBadge(ex.comparedToLast?.result, colors.text);
 
                   return (
-                    <View
-                      key={ex.id}
-                      style={{
-                        borderRadius: 20,
-                        borderWidth: 1,
-                        borderColor: "rgba(0,0,0,0.08)",
-                        backgroundColor: Colors.surface,
-                        padding: 16,
-                      }}
-                    >
-                      <View
-                        style={{
-                          flexDirection: "row",
-                          alignItems: "flex-start",
-                          justifyContent: "space-between",
-                          gap: 12,
-                        }}
-                      >
-                        <View style={{ flex: 1 }}>
-                          <Text
-                            style={{
-                              fontSize: 16,
-                              lineHeight: 21,
-                              fontWeight: "900",
-                              color: Colors.text,
-                              letterSpacing: -0.2,
-                            }}
-                            numberOfLines={2}
-                          >
+                    <View key={ex.id} style={styles.exerciseCard}>
+                      <View style={styles.exerciseHeader}>
+                        <View style={styles.exerciseHeaderLeft}>
+                          <Text style={styles.exerciseName} numberOfLines={2}>
                             {ex.name}
                           </Text>
 
-                          <View
-                            style={{
-                              marginTop: 10,
-                              flexDirection: "row",
-                              flexWrap: "wrap",
-                              gap: 8,
-                            }}
-                          >
-                            <View
-                              style={{
-                                height: 28,
-                                borderRadius: 999,
-                                backgroundColor: "rgba(0,0,0,0.045)",
-                                paddingHorizontal: 10,
-                                alignItems: "center",
-                                justifyContent: "center",
-                              }}
-                            >
-                              <Text
-                                style={{
-                                  fontSize: 11,
-                                  fontWeight: "900",
-                                  color: "rgba(0,0,0,0.56)",
-                                  letterSpacing: 0.12,
-                                }}
-                              >
+                          <View style={styles.exerciseBadgesRow}>
+                            <View style={styles.badgeNeutral}>
+                              <Text style={styles.badgeNeutralText}>
                                 {ex.completedSets} set{ex.completedSets === 1 ? "" : "s"}
                               </Text>
                             </View>
 
                             {ex.sessionVolume > 0 && (
+                              <View style={styles.badgePremiumSoft}>
+                                <Text style={styles.badgePremiumSoftText}>
+                                  Vol {formatVolume(ex.sessionVolume)}
+                                </Text>
+                              </View>
+                            )}
+
+                            {badge && (
                               <View
-                                style={{
-                                  height: 28,
-                                  borderRadius: 999,
-                                  backgroundColor: "rgba(244,200,74,0.12)",
-                                  paddingHorizontal: 10,
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                }}
+                                style={[
+                                  styles.dynamicBadge,
+                                  { backgroundColor: badge.bg },
+                                ]}
                               >
                                 <Text
-                                  style={{
-                                    fontSize: 11,
-                                    fontWeight: "900",
-                                    color: Colors.text,
-                                    letterSpacing: 0.12,
-                                  }}
+                                  style={[
+                                    styles.dynamicBadgeText,
+                                    { color: badge.text },
+                                  ]}
                                 >
-                                  Vol {formatVolume(ex.sessionVolume)}
+                                  {badge.label}
                                 </Text>
                               </View>
                             )}
                           </View>
                         </View>
-
-                        {badge && (
-                          <View
-                            style={{
-                              minWidth: 82,
-                              height: 30,
-                              borderRadius: 999,
-                              backgroundColor: badge.bg,
-                              paddingHorizontal: 12,
-                              alignItems: "center",
-                              justifyContent: "center",
-                            }}
-                          >
-                            <Text
-                              style={{
-                                fontSize: 11,
-                                fontWeight: "900",
-                                color: badge.text,
-                                letterSpacing: 0.12,
-                              }}
-                            >
-                              {badge.label}
-                            </Text>
-                          </View>
-                        )}
                       </View>
 
-                      <View
-                        style={{
-                          marginTop: 14,
-                          borderRadius: 16,
-                          backgroundColor: "rgba(0,0,0,0.03)",
-                          paddingVertical: 12,
-                          paddingHorizontal: 12,
-                          gap: 10,
-                        }}
-                      >
-                        <View
-                          style={{
-                            flexDirection: "row",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                            gap: 12,
-                          }}
-                        >
-                          <View style={{ flex: 1 }}>
-                            <Text
-                              style={{
-                                fontSize: 11,
-                                fontWeight: "800",
-                                color: "rgba(0,0,0,0.45)",
-                                letterSpacing: 0.1,
-                                textTransform: "uppercase",
-                              }}
-                            >
-                              Previous
-                            </Text>
-                            <Text
-                              style={{
-                                marginTop: 3,
-                                fontSize: 13,
-                                fontWeight: "800",
-                                color: "rgba(0,0,0,0.72)",
-                                letterSpacing: -0.08,
-                              }}
-                              numberOfLines={1}
-                            >
-                              {previousLine ?? "No previous data"}
-                            </Text>
-                          </View>
-                        </View>
-
-                        <View
-                          style={{
-                            height: 1,
-                            backgroundColor: "rgba(0,0,0,0.05)",
-                          }}
-                        />
-
-                        <View
-                          style={{
-                            flexDirection: "row",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                            gap: 12,
-                          }}
-                        >
-                          <View style={{ flex: 1 }}>
-                            <Text
-                              style={{
-                                fontSize: 11,
-                                fontWeight: "800",
-                                color: "rgba(0,0,0,0.45)",
-                                letterSpacing: 0.1,
-                                textTransform: "uppercase",
-                              }}
-                            >
-                              Today
-                            </Text>
-                            <Text
-                              style={{
-                                marginTop: 3,
-                                fontSize: 14,
-                                fontWeight: "900",
-                                color: Colors.text,
-                                letterSpacing: -0.1,
-                              }}
-                              numberOfLines={1}
-                            >
-                              {todayLine}
-                            </Text>
-                          </View>
-
-                          {delta ? (
-                            <View
-                              style={{
-                                minWidth: 76,
-                                height: 28,
-                                borderRadius: 999,
-                                backgroundColor: delta.bg,
-                                paddingHorizontal: 10,
-                                alignItems: "center",
-                                justifyContent: "center",
-                              }}
-                            >
-                              <Text
-                                style={{
-                                  fontSize: 11,
-                                  fontWeight: "900",
-                                  color: delta.text,
-                                  letterSpacing: 0.08,
-                                }}
-                              >
-                                {delta.label}
-                              </Text>
-                            </View>
-                          ) : null}
-                        </View>
-                      </View>
-
-                      {isExercisePr ? (
-                        <View
-                          style={{
-                            marginTop: 12,
-                            borderRadius: 14,
-                            backgroundColor: "rgba(244,200,74,0.12)",
-                            paddingVertical: 10,
-                            paddingHorizontal: 12,
-                            flexDirection: "row",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                            gap: 12,
-                          }}
-                        >
-                          <View
-                            style={{
-                              flexDirection: "row",
-                              alignItems: "center",
-                              gap: 8,
-                              flex: 1,
-                            }}
-                          >
-                            <Trophy size={14} color={Colors.text} />
-                            <Text
-                              style={{
-                                fontSize: 12,
-                                fontWeight: "900",
-                                color: Colors.text,
-                                letterSpacing: -0.08,
-                              }}
-                            >
-                              New PR
-                            </Text>
-                          </View>
-
-                          <Text
-                            style={{
-                              fontSize: 12,
-                              fontWeight: "900",
-                              color: Colors.text,
-                              letterSpacing: -0.08,
-                            }}
-                            numberOfLines={1}
-                          >
-                            {todayLine}
-                          </Text>
-                        </View>
-                      ) : null}
-
-                      <View
-                        style={{
-                          marginTop: 14,
-                          borderRadius: 16,
-                          overflow: "hidden",
-                          borderWidth: 1,
-                          borderColor: "rgba(0,0,0,0.06)",
-                          backgroundColor: "rgba(0,0,0,0.015)",
-                        }}
-                      >
-                        {ex.sets.map((s, idx) => {
+                      <View style={styles.setList}>
+                        {ex.sets.map((s) => {
                           const weight = s.weight?.trim() ? s.weight : "0";
                           const reps = s.reps?.trim() ? s.reps : "0";
-                          const isRepOnly = ex.unitLabel === "REPS";
-                          const unit = ex.unitLabel ? ex.unitLabel.toLowerCase() : "lb";
 
                           return (
-                            <View key={`${ex.id}-${s.set}`}>
-                              <View
-                                style={{
-                                  minHeight: 46,
-                                  paddingHorizontal: 12,
-                                  flexDirection: "row",
-                                  alignItems: "center",
-                                  justifyContent: "space-between",
-                                  gap: 12,
-                                }}
-                              >
-                                <Text
-                                  style={{
-                                    width: 46,
-                                    fontSize: 12,
-                                    fontWeight: "800",
-                                    color: "rgba(0,0,0,0.48)",
-                                  }}
-                                >
-                                  Set {s.set}
-                                </Text>
+                            <View
+                              key={`${ex.id}-${s.set}`}
+                              style={styles.setRow}
+                            >
+                              <Text style={styles.setLabel}>Set {s.set}</Text>
 
-                                <Text
-                                  style={{
-                                    flex: 1,
-                                    textAlign: "right",
-                                    fontSize: 13,
-                                    fontWeight: "900",
-                                    color: Colors.text,
-                                    letterSpacing: -0.08,
-                                  }}
-                                  numberOfLines={1}
-                                >
-                                  {isRepOnly ? `${reps} reps` : `${weight} ${unit} × ${reps}`}
-                                </Text>
-
-                                <View
-                                  style={{
-                                    width: 18,
-                                    height: 18,
-                                    borderRadius: 9,
-                                    backgroundColor: "rgb(34,197,94)",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                  }}
-                                >
+                              <View style={styles.setRight}>
+                                <View style={styles.setDoneDot}>
                                   <Check size={12} color="#fff" strokeWidth={3} />
                                 </View>
-                              </View>
 
-                              {idx !== ex.sets.length - 1 ? (
-                                <View
-                                  style={{
-                                    height: 1,
-                                    backgroundColor: "rgba(0,0,0,0.05)",
-                                    marginLeft: 12,
-                                    marginRight: 12,
-                                  }}
-                                />
-                              ) : null}
+                                <Text style={styles.setValue}>
+                                  {weight}{" "}
+                                  {ex.unitLabel === "REPS"
+                                    ? "reps"
+                                    : ex.unitLabel.toLowerCase()}{" "}
+                                  {ex.unitLabel === "REPS" ? "" : "× "}
+                                  {reps}
+                                </Text>
+                              </View>
                             </View>
                           );
                         })}
@@ -1269,118 +505,564 @@ export default function FinishScreen() {
                   );
                 })
               ) : (
-                <Text
-                  style={{
-                    marginTop: 4,
-                    fontSize: 13,
-                    fontWeight: "700",
-                    color: Colors.muted,
-                  }}
-                >
-                  No completed sets yet.
-                </Text>
+                <Text style={styles.emptyText}>No completed sets yet.</Text>
               )}
             </View>
           </View>
 
           <Pressable
             onPress={onShare}
-            style={({ pressed }) => [
-              {
-                marginTop: 20,
-                height: 46,
-                borderRadius: 15,
-                borderWidth: 1,
-                borderColor: "rgba(0,0,0,0.09)",
-                backgroundColor: Colors.surface,
-                alignItems: "center",
-                justifyContent: "center",
-                flexDirection: "row",
-                gap: 8,
-              },
-              pressed && { opacity: 0.8 },
-            ]}
+            style={({ pressed }) => [styles.shareButton, pressed && { opacity: 0.8 }]}
           >
-            <Share2 size={15} color={Colors.text} />
-            <Text
-              style={{
-                fontSize: 14,
-                fontWeight: "900",
-                color: Colors.text,
-                letterSpacing: -0.1,
-              }}
-            >
-              Share workout
-            </Text>
+            <Share2 size={16} color={colors.text} />
+            <Text style={styles.shareButtonText}>Share workout</Text>
           </Pressable>
         </Animated.View>
       </ScrollView>
 
-      <View
-        style={{
-          position: "absolute",
-          left: 0,
-          right: 0,
-          bottom: 0,
-          paddingHorizontal: 18,
-          paddingTop: 12,
-          paddingBottom: 18,
-          backgroundColor: Colors.surface,
-          borderTopWidth: 1,
-          borderTopColor: "rgba(0,0,0,0.08)",
-        }}
-      >
+      <View style={styles.bottomBar}>
         <Pressable
           onPress={onViewProgress}
-          style={({ pressed }) => [
-            {
-              height: 58,
-              borderRadius: 999,
-              backgroundColor: Colors.text,
-              alignItems: "center",
-              justifyContent: "center",
-              flexDirection: "row",
-              gap: 8,
-            },
-            pressed && { opacity: 0.92 },
-          ]}
+          style={({ pressed }) => [styles.primaryCta, pressed && { opacity: 0.92 }]}
         >
-          <Text
-            style={{
-              color: Colors.surface,
-              fontWeight: "900",
-              fontSize: 16,
-              letterSpacing: -0.2,
-            }}
-          >
-            View Progress
-          </Text>
-          <ChevronRight size={18} color={Colors.surface} />
+          <Text style={styles.primaryCtaText}>View Progress</Text>
+          <ChevronRight size={18} color={colors.surface} />
         </Pressable>
 
         <Pressable
           onPress={onBackHome}
-          style={({ pressed }) => [
-            {
-              marginTop: 10,
-              height: 44,
-              alignItems: "center",
-              justifyContent: "center",
-            },
-            pressed && { opacity: 0.7 },
-          ]}
+          style={({ pressed }) => [styles.secondaryCta, pressed && { opacity: 0.7 }]}
         >
-          <Text
-            style={{
-              fontSize: 13,
-              fontWeight: "800",
-              color: "rgba(0,0,0,0.55)",
-            }}
-          >
-            Back Home
-          </Text>
+          <Text style={styles.secondaryCtaText}>Back Home</Text>
         </Pressable>
       </View>
     </SafeAreaView>
   );
+}
+
+function createStyles(
+  colors: {
+    background: string;
+    surface: string;
+    card: string;
+    text: string;
+    muted: string;
+    border: string;
+    borderSubtle: string;
+    premium: string;
+  },
+  isDark: boolean,
+) {
+  const BORDER = colors.borderSubtle ?? colors.border;
+  const SOFT = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.025)";
+  const SOFT_2 = isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.04)";
+
+  return StyleSheet.create({
+    safe: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+
+    scroll: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+
+    content: {
+      paddingHorizontal: 18,
+      paddingTop: 14,
+      paddingBottom: 180,
+    },
+
+    heroWrap: {
+      alignItems: "center",
+      marginTop: 6,
+    },
+
+    heroHalo: {
+      width: 118,
+      height: 118,
+      borderRadius: 59,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+
+    heroChip: {
+      width: 80,
+      height: 80,
+      borderRadius: 40,
+      alignItems: "center",
+      justifyContent: "center",
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 10 },
+      shadowOpacity: 0.1,
+      shadowRadius: 18,
+      elevation: 8,
+    },
+
+    heroKickerRow: {
+      marginTop: 18,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+    },
+
+    heroKicker: {
+      fontSize: 11,
+      fontWeight: "900",
+      letterSpacing: 1.8,
+      textTransform: "uppercase",
+      color: colors.muted,
+    },
+
+    heroTitle: {
+      marginTop: 10,
+      fontSize: 29,
+      lineHeight: 34,
+      fontWeight: "900",
+      color: colors.text,
+      letterSpacing: -0.8,
+      textAlign: "center",
+    },
+
+    heroBody: {
+      marginTop: 8,
+      fontSize: 15,
+      lineHeight: 21,
+      fontWeight: "700",
+      color: colors.muted,
+      textAlign: "center",
+      paddingHorizontal: 12,
+    },
+
+    cardsWrap: {
+      marginTop: 22,
+    },
+
+    summaryCard: {
+      borderRadius: 22,
+      backgroundColor: SOFT,
+      borderWidth: 1,
+      borderColor: BORDER,
+      padding: 16,
+    },
+
+    summaryWorkoutTitle: {
+      fontSize: 18,
+      fontWeight: "900",
+      color: colors.text,
+      letterSpacing: -0.3,
+    },
+
+    statsRow: {
+      marginTop: 16,
+      flexDirection: "row",
+      alignItems: "stretch",
+      gap: 10,
+    },
+
+    statsRowBottom: {
+      marginTop: 10,
+      flexDirection: "row",
+      alignItems: "stretch",
+      gap: 10,
+    },
+
+    statTile: {
+      flex: 1,
+      borderRadius: 18,
+      paddingVertical: 14,
+      paddingHorizontal: 12,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: BORDER,
+    },
+
+    statTileLabel: {
+      fontSize: 11,
+      fontWeight: "900",
+      letterSpacing: 1.2,
+      textTransform: "uppercase",
+      color: colors.muted,
+    },
+
+    statTileValue: {
+      marginTop: 8,
+      fontSize: 20,
+      fontWeight: "900",
+      color: colors.text,
+      letterSpacing: -0.4,
+    },
+
+    secondaryCard: {
+      marginTop: 14,
+      borderRadius: 22,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: BORDER,
+      padding: 16,
+    },
+
+    infoRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+    },
+
+    infoIconWrapPremium: {
+      width: 38,
+      height: 38,
+      borderRadius: 19,
+      backgroundColor: "rgba(244,200,74,0.16)",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+
+    infoIconWrapNeutral: {
+      width: 38,
+      height: 38,
+      borderRadius: 19,
+      backgroundColor: SOFT_2,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+
+    infoTextCol: {
+      flex: 1,
+    },
+
+    infoTitle: {
+      fontSize: 15,
+      fontWeight: "900",
+      color: colors.text,
+      letterSpacing: -0.2,
+    },
+
+    infoSub: {
+      marginTop: 2,
+      fontSize: 13,
+      fontWeight: "700",
+      color: colors.muted,
+    },
+
+    softDivider: {
+      marginTop: 14,
+      marginBottom: 14,
+      height: 1,
+      backgroundColor: BORDER,
+    },
+
+    prBlock: {
+      gap: 10,
+    },
+
+    blockTitle: {
+      fontSize: 13,
+      fontWeight: "900",
+      color: colors.text,
+      letterSpacing: -0.1,
+      marginBottom: 10,
+    },
+
+    prRow: {
+      borderRadius: 14,
+      backgroundColor: "rgba(244,200,74,0.12)",
+      paddingVertical: 12,
+      paddingHorizontal: 12,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 12,
+    },
+
+    prExercise: {
+      flex: 1,
+      fontSize: 14,
+      fontWeight: "900",
+      color: colors.text,
+    },
+
+    prValue: {
+      fontSize: 13,
+      fontWeight: "900",
+      color: colors.text,
+    },
+
+    winList: {
+      gap: 10,
+    },
+
+    winRow: {
+      borderRadius: 14,
+      backgroundColor: SOFT,
+      paddingVertical: 12,
+      paddingHorizontal: 12,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+    },
+
+    winIconWrap: {
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      backgroundColor: "rgba(244,200,74,0.16)",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+
+    winTextCol: {
+      flex: 1,
+    },
+
+    winTitle: {
+      fontSize: 14,
+      fontWeight: "900",
+      color: colors.text,
+      letterSpacing: -0.1,
+    },
+
+    winSub: {
+      marginTop: 2,
+      fontSize: 13,
+      fontWeight: "700",
+      color: colors.muted,
+    },
+
+    completedBlock: {
+      marginTop: 20,
+    },
+
+    completedList: {
+      gap: 12,
+    },
+
+    exerciseCard: {
+      borderRadius: 18,
+      borderWidth: 1,
+      borderColor: BORDER,
+      backgroundColor: colors.surface,
+      padding: 14,
+    },
+
+    exerciseHeader: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      justifyContent: "space-between",
+      gap: 12,
+    },
+
+    exerciseHeaderLeft: {
+      flex: 1,
+    },
+
+    exerciseName: {
+      fontSize: 15,
+      fontWeight: "900",
+      color: colors.text,
+      letterSpacing: -0.2,
+    },
+
+    exerciseBadgesRow: {
+      marginTop: 8,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      flexWrap: "wrap",
+    },
+
+    badgeNeutral: {
+      minWidth: 62,
+      height: 28,
+      borderRadius: 999,
+      backgroundColor: SOFT_2,
+      alignItems: "center",
+      justifyContent: "center",
+      paddingHorizontal: 10,
+    },
+
+    badgeNeutralText: {
+      fontSize: 11,
+      fontWeight: "900",
+      color: colors.muted,
+      letterSpacing: 0.2,
+    },
+
+    badgePremiumSoft: {
+      minWidth: 72,
+      height: 28,
+      borderRadius: 999,
+      backgroundColor: "rgba(244,200,74,0.12)",
+      alignItems: "center",
+      justifyContent: "center",
+      paddingHorizontal: 10,
+    },
+
+    badgePremiumSoftText: {
+      fontSize: 11,
+      fontWeight: "900",
+      color: colors.text,
+      letterSpacing: 0.2,
+    },
+
+    dynamicBadge: {
+      minWidth: 74,
+      height: 28,
+      borderRadius: 999,
+      alignItems: "center",
+      justifyContent: "center",
+      paddingHorizontal: 10,
+    },
+
+    dynamicBadgeText: {
+      fontSize: 11,
+      fontWeight: "900",
+      letterSpacing: 0.2,
+    },
+
+    setList: {
+      marginTop: 12,
+      gap: 10,
+    },
+
+    setRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 10,
+    },
+
+    setLabel: {
+      fontSize: 13,
+      fontWeight: "800",
+      color: colors.muted,
+    },
+
+    setRight: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+    },
+
+    setDoneDot: {
+      width: 18,
+      height: 18,
+      borderRadius: 9,
+      backgroundColor: "rgb(34,197,94)",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+
+    setValue: {
+      fontSize: 13,
+      fontWeight: "900",
+      color: colors.text,
+      letterSpacing: -0.1,
+    },
+
+    emptyText: {
+      marginTop: 4,
+      fontSize: 13,
+      fontWeight: "700",
+      color: colors.muted,
+    },
+
+    shareButton: {
+      marginTop: 18,
+      height: 48,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: BORDER,
+      backgroundColor: colors.surface,
+      alignItems: "center",
+      justifyContent: "center",
+      flexDirection: "row",
+      gap: 8,
+    },
+
+    shareButtonText: {
+      fontSize: 14,
+      fontWeight: "900",
+      color: colors.text,
+      letterSpacing: -0.1,
+    },
+
+    bottomBar: {
+      position: "absolute",
+      left: 0,
+      right: 0,
+      bottom: 0,
+      paddingHorizontal: 18,
+      paddingTop: 12,
+      paddingBottom: 18,
+      backgroundColor: colors.surface,
+      borderTopWidth: 1,
+      borderTopColor: BORDER,
+    },
+
+    primaryCta: {
+      height: 58,
+      borderRadius: 999,
+      backgroundColor: colors.text,
+      alignItems: "center",
+      justifyContent: "center",
+      flexDirection: "row",
+      gap: 8,
+    },
+
+    primaryCtaText: {
+      color: colors.surface,
+      fontWeight: "900",
+      fontSize: 16,
+      letterSpacing: -0.2,
+    },
+
+    secondaryCta: {
+      marginTop: 10,
+      height: 44,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+
+    secondaryCtaText: {
+      fontSize: 13,
+      fontWeight: "800",
+      color: colors.muted,
+    },
+
+    fallbackWrap: {
+      paddingHorizontal: 18,
+      paddingTop: 14,
+    },
+
+    fallbackTitle: {
+      fontSize: 24,
+      fontWeight: "900",
+      color: colors.text,
+      letterSpacing: -0.5,
+    },
+
+    fallbackSub: {
+      marginTop: 6,
+      fontSize: 13,
+      fontWeight: "700",
+      color: colors.muted,
+    },
+
+    fallbackButton: {
+      marginTop: 16,
+      height: 56,
+      borderRadius: 999,
+      backgroundColor: colors.text,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+
+    fallbackButtonText: {
+      color: colors.surface,
+      fontWeight: "900",
+      fontSize: 16,
+      letterSpacing: -0.2,
+    },
+  });
 }

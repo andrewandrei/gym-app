@@ -5,8 +5,8 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Animated, Pressable, Text, TextInput, View } from "react-native";
 import { Swipeable } from "react-native-gesture-handler";
 
-import { Colors } from "@/styles/colors";
-import { S } from "./workout.styles";
+import { useAppTheme } from "@/app/_providers/theme";
+import { createWorkoutStyles } from "./workout.styles";
 
 export type SetRow = {
   id: string;
@@ -18,27 +18,6 @@ export type SetRow = {
 };
 
 export type UnitLabel = "LBS" | "KG" | "REPS";
-
-const cellStyle = (done: boolean, isActive: boolean) => ({
-  height: 56,
-  borderWidth: 2,
-  borderColor: done
-    ? "rgba(34, 197, 94, 0.30)"
-    : isActive
-      ? "rgba(244, 200, 74, 0.60)"
-      : "rgba(0,0,0,0.12)",
-  backgroundColor: done
-    ? "rgba(34, 197, 94, 0.04)"
-    : isActive
-      ? "rgba(244, 200, 74, 0.08)"
-      : Colors.surface,
-});
-
-const inputTextStyle = (done: boolean) => ({
-  fontSize: 17,
-  fontWeight: "800" as const,
-  color: done ? "rgba(34, 197, 94, 0.90)" : Colors.text,
-});
 
 type Props = {
   set: SetRow;
@@ -72,6 +51,34 @@ export function SetRowItem({
   swipeRef,
   closeOthers,
 }: Props) {
+  const { colors, isDark } = useAppTheme();
+  const S = useMemo(() => createWorkoutStyles(colors, isDark), [colors, isDark]);
+
+  const cellStyle = (done: boolean, active: boolean) => ({
+  height: 52,
+  borderWidth: 1.5,
+  borderColor: done
+    ? "rgba(34, 197, 94, 0.26)"
+    : active
+      ? "rgba(244, 200, 74, 0.70)"
+      : colors.borderSubtle,
+  backgroundColor: done
+    ? "rgba(34, 197, 94, 0.05)"
+    : active
+      ? "rgba(244, 200, 74, 0.10)"
+      : colors.surface,
+});
+
+const inputTextStyle = (done: boolean) => ({
+  fontSize: 16,
+  fontWeight: "800" as const,
+  color: done ? "rgba(34, 197, 94, 0.92)" : colors.text,
+});
+
+  const placeholderColor = isDark ? "rgba(255,255,255,0.24)" : "rgba(0,0,0,0.25)";
+  const mutedIndexColor = isDark ? "rgba(255,255,255,0.45)" : "rgba(0,0,0,0.45)";
+  const noteIconColor = isDark ? "rgba(255,255,255,0.40)" : "rgba(0,0,0,0.4)";
+
   const rowKey = useMemo(() => `${exId}:${set.id}`, [exId, set.id]);
   const setKey = useMemo(() => `${exId}:${index}`, [exId, index]);
 
@@ -155,7 +162,7 @@ export function SetRowItem({
               ? "rgba(34, 197, 94, 0.08)"
               : isActive
                 ? "rgba(244, 200, 74, 0.12)"
-                : Colors.surface,
+                : colors.surface,
           },
         ]}
       >
@@ -173,8 +180,8 @@ export function SetRowItem({
                 color: isDone
                   ? "rgba(34, 197, 94, 0.80)"
                   : isActive
-                    ? Colors.text
-                    : "rgba(0,0,0,0.45)",
+                    ? colors.text
+                    : mutedIndexColor,
                 fontWeight: "900",
               },
             ]}
@@ -182,8 +189,20 @@ export function SetRowItem({
             {index + 1}
           </Text>
 
-          {set.note ? (
-            <MessageSquare size={12} color="rgba(0,0,0,0.4)" style={{ marginTop: 2 }} />
+         {set.note ? (
+            <View
+              style={{
+                marginTop: 4,
+                width: 18,
+                height: 18,
+                borderRadius: 9,
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
+              }}
+            >
+              <MessageSquare size={10} color={noteIconColor} />
+            </View>
           ) : null}
         </Pressable>
 
@@ -200,7 +219,7 @@ export function SetRowItem({
               inputMode="numeric"
               style={[S.input, inputTextStyle(isDone)]}
               placeholder="—"
-              placeholderTextColor="rgba(0,0,0,0.25)"
+              placeholderTextColor={placeholderColor}
               editable={!isDone}
               selectTextOnFocus
               autoCorrect={false}
@@ -224,7 +243,7 @@ export function SetRowItem({
               inputMode="numeric"
               style={[S.input, inputTextStyle(isDone)]}
               placeholder="—"
-              placeholderTextColor="rgba(0,0,0,0.25)"
+              placeholderTextColor={placeholderColor}
               editable={!isDone}
               selectTextOnFocus
               autoCorrect={false}
@@ -247,7 +266,7 @@ export function SetRowItem({
               keyboardType="default"
               style={[S.input, inputTextStyle(isDone)]}
               placeholder="—"
-              placeholderTextColor="rgba(0,0,0,0.25)"
+              placeholderTextColor={placeholderColor}
               editable={!isDone}
               selectTextOnFocus
               autoCorrect={false}
@@ -263,16 +282,16 @@ export function SetRowItem({
           style={[
             S.checkBtn,
             {
-              width: 50,
-              height: 50,
-              borderRadius: 25,
-              borderWidth: 2.5,
-              borderColor: isDone ? "rgb(34, 197, 94)" : "rgba(0,0,0,0.15)",
-              backgroundColor: isDone ? "rgb(34, 197, 94)" : Colors.surface,
+                width: 46,
+                height: 46,
+                borderRadius: 23,
+                borderWidth: 1.5,
+                borderColor: isDone ? "rgb(34, 197, 94)" : colors.borderSubtle,
+                backgroundColor: isDone ? "rgb(34, 197, 94)" : colors.surface,
             },
           ]}
         >
-          {isDone ? <Check size={24} color="#FFF" strokeWidth={3} /> : null}
+          {isDone ? <Check size={20} color="#FFF" strokeWidth={3} /> : null}
         </Pressable>
       </View>
     </Swipeable>

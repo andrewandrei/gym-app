@@ -16,10 +16,10 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { EditorialCard } from "@/components/ui/EditorialCard";
 import { ScreenHeader } from "@/components/ui/ScreenHeader";
-import { Colors } from "@/styles/colors";
-import { GlobalStyles } from "@/styles/global";
 import { Spacing } from "@/styles/spacing";
-import { styles } from "./explore.styles";
+
+import { useAppTheme } from "../_providers/theme";
+import { createExploreStyles } from "./explore.styles";
 
 const RAIL_GAP = Spacing.md;
 
@@ -67,9 +67,13 @@ type Rail<T> = {
 function RailHeader({
   title,
   onPressAll,
+  mutedColor,
+  styles,
 }: {
   title: string;
   onPressAll?: () => void;
+  mutedColor: string;
+  styles: ReturnType<typeof createExploreStyles>;
 }) {
   return (
     <View style={styles.railHeaderRow}>
@@ -78,22 +82,38 @@ function RailHeader({
       {!!onPressAll && (
         <Pressable onPress={onPressAll} style={styles.railAll} hitSlop={10}>
           <Text style={styles.railAllText}>See all</Text>
-          <ChevronRight size={16} color={Colors.muted} />
+          <ChevronRight size={16} color={mutedColor} />
         </Pressable>
       )}
     </View>
   );
 }
 
-function Badge({ label, variant = "light" }: { label: string; variant?: "light" | "gold" }) {
+function Badge({
+  label,
+  variant = "light",
+  styles,
+}: {
+  label: string;
+  variant?: "light" | "gold";
+  styles: ReturnType<typeof createExploreStyles>;
+}) {
   return (
     <View style={[styles.badge, variant === "gold" && styles.badgeGold]}>
-      <Text style={[styles.badgeText, variant === "gold" && styles.badgeTextGold]}>{label}</Text>
+      <Text style={[styles.badgeText, variant === "gold" && styles.badgeTextGold]}>
+        {label}
+      </Text>
     </View>
   );
 }
 
-function LevelChip({ level }: { level: Level }) {
+function LevelChip({
+  level,
+  styles,
+}: {
+  level: Level;
+  styles: ReturnType<typeof createExploreStyles>;
+}) {
   return (
     <Text style={styles.levelText} allowFontScaling={false}>
       {level}
@@ -105,10 +125,12 @@ function ProgramCard({
   program,
   onPress,
   onPressInfo,
+  styles,
 }: {
   program: Program;
   onPress: (id: string) => void;
   onPressInfo: (program: Program) => void;
+  styles: ReturnType<typeof createExploreStyles>;
 }) {
   return (
     <Pressable
@@ -118,10 +140,19 @@ function ProgramCard({
       accessibilityLabel={`Open ${program.title}`}
     >
       <View style={styles.programTile}>
-        <Image source={{ uri: program.imageUrl }} style={styles.programTileImage} resizeMode="cover" />
+        <Image
+          source={{ uri: program.imageUrl }}
+          style={styles.programTileImage}
+          resizeMode="cover"
+        />
 
         <LinearGradient
-          colors={["rgba(0,0,0,0)", "rgba(0,0,0,0.18)", "rgba(0,0,0,0.45)", "rgba(0,0,0,0.75)"]}
+          colors={[
+            "rgba(0,0,0,0)",
+            "rgba(0,0,0,0.18)",
+            "rgba(0,0,0,0.45)",
+            "rgba(0,0,0,0.75)",
+          ]}
           locations={[0, 0.35, 0.65, 1]}
           style={styles.programBottomScrim}
           pointerEvents="none"
@@ -129,9 +160,9 @@ function ProgramCard({
 
         <View style={styles.programTopLeft}>
           {program.isActive ? (
-            <Badge label="Active" />
+            <Badge label="Active" styles={styles} />
           ) : program.isFeatured ? (
-            <Badge label="Featured" variant="gold" />
+            <Badge label="Featured" variant="gold" styles={styles} />
           ) : null}
         </View>
 
@@ -146,7 +177,7 @@ function ProgramCard({
         </Pressable>
 
         <View style={styles.programBottomRight}>
-          <LevelChip level={program.level} />
+          <LevelChip level={program.level} styles={styles} />
         </View>
 
         <View style={styles.programTextOverlay}>
@@ -169,6 +200,8 @@ function ProgramCard({
 
 export default function ExploreScreen() {
   const insets = useSafeAreaInsets();
+  const { colors, isDark } = useAppTheme();
+  const styles = useMemo(() => createExploreStyles(colors, isDark), [colors, isDark]);
 
   const [infoOpen, setInfoOpen] = useState(false);
   const [selectedProgram, setSelectedProgram] = useState<Program | null>(null);
@@ -330,15 +363,20 @@ export default function ExploreScreen() {
   }, [programs, workouts, recipes]);
 
   const onPressProgram = (id: string) => router.push(`/program/${id}`);
+
   const onPressWorkout = (id: string) =>
-  router.push({
-    pathname: "/workout",
-    params: { workoutId: id },
-  });
+    router.push({
+      pathname: "/workout",
+      params: {
+        workoutId: id,
+        source: "explore",
+      },
+    });
+
   const onPressRecipe = (_id: string) => router.push("/recipes");
 
   return (
-    <SafeAreaView style={GlobalStyles.screen} edges={["top"]}>
+    <SafeAreaView style={styles.safe} edges={["top"]}>
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={[
@@ -357,14 +395,13 @@ export default function ExploreScreen() {
           {rails.map((rail, index) => (
             <View
               key={rail.id}
-              style={[
-                styles.rail,
-                index !== 0 && { marginTop: Spacing.xl },
-              ]}
+              style={[styles.rail, index !== 0 && { marginTop: Spacing.xl }]}
             >
               <View style={styles.pad}>
                 <RailHeader
                   title={rail.title}
+                  mutedColor={colors.muted}
+                  styles={styles}
                   onPressAll={() => {
                     if (rail.kind === "program") router.push("/programs");
                     if (rail.kind === "workout") router.push("/workouts");
@@ -392,6 +429,7 @@ export default function ExploreScreen() {
                         program={item as Program}
                         onPress={onPressProgram}
                         onPressInfo={openInfo}
+                        styles={styles}
                       />
                     );
                   }

@@ -4,9 +4,11 @@ import { MoreVertical, Share2 } from "lucide-react-native";
 import React from "react";
 import { Image, Pressable, ScrollView, Text, View } from "react-native";
 
-import { Colors } from "@/styles/colors";
+import { useAppTheme } from "@/app/_providers/theme";
+import { BorderWidth } from "@/styles/hairline";
+import { useMemo } from "react";
 import { SetRowItem, SetRow as SetRowLocal } from "./SetRowItem";
-import { S } from "./workout.styles";
+import { createWorkoutStyles } from "./workout.styles";
 import type { Exercise, StrengthBlock } from "./WorkoutPreview";
 
 type Props = {
@@ -95,7 +97,11 @@ export function WorkoutPlayer({
   workoutDuration,
   onPressThumbnail,
 }: Props) {
-  const premium = (Colors as any).premium ?? "#F4C84A";
+  const { colors, isDark } = useAppTheme();
+  const S = useMemo(() => createWorkoutStyles(colors, isDark), [colors, isDark]);
+  const premium = colors.premium;
+
+  
 
   return (
     <View style={S.page}>
@@ -107,7 +113,7 @@ export function WorkoutPlayer({
           left: 0,
           right: 0,
           zIndex: 100,
-          backgroundColor: Colors.background,
+          backgroundColor: colors.background,
           paddingTop: 12,
           paddingHorizontal: 18,
           paddingBottom: 12,
@@ -134,7 +140,7 @@ export function WorkoutPlayer({
                 fontSize: 24,
                 lineHeight: 29,
                 fontWeight: "900",
-                color: Colors.text,
+                color: colors.text,
                 letterSpacing: -0.7,
               }}
             >
@@ -147,7 +153,7 @@ export function WorkoutPlayer({
                   marginTop: 4,
                   fontSize: 13,
                   fontWeight: "700",
-                  color: Colors.muted,
+                  color: colors.muted,
                   letterSpacing: -0.1,
                 }}
               >
@@ -166,11 +172,13 @@ export function WorkoutPlayer({
                     height: 38,
                     paddingHorizontal: 12,
                     borderRadius: 10,
-                    backgroundColor: restTimer
-                      ? "rgba(244,200,74,0.16)"
-                      : "rgba(0,0,0,0.045)",
-                    borderWidth: restTimer ? 1.5 : 0,
-                    borderColor: restTimer ? premium : "transparent",
+                   backgroundColor: restTimer
+                      ? "rgba(244,200,74,0.18)"
+                      : colors.surface,
+                    borderWidth: BorderWidth.default,
+                    borderColor: restTimer
+                      ? premium
+                      : colors.borderSubtle,
                     alignItems: "center",
                     justifyContent: "center",
                   },
@@ -181,7 +189,7 @@ export function WorkoutPlayer({
                   style={{
                     fontSize: 13,
                     fontWeight: "900",
-                    color: Colors.text,
+                    color: colors.text,
                     letterSpacing: -0.1,
                   }}
                 >
@@ -194,17 +202,19 @@ export function WorkoutPlayer({
               onPress={shareWorkout}
               style={({ pressed }) => [
                 {
-                  width: 38,
-                  height: 38,
-                  borderRadius: 10,
-                  backgroundColor: "rgba(0,0,0,0.045)",
+                  width: 40,
+                  height: 40,
+                  borderRadius: 999,
+                  backgroundColor: colors.surface,
+                  borderWidth: BorderWidth.default,
+                  borderColor: colors.borderSubtle,
                   alignItems: "center",
                   justifyContent: "center",
                 },
-                pressed && { opacity: 0.72 },
+                pressed && { opacity: 0.7 },
               ]}
             >
-              <Share2 size={16} color={Colors.text} />
+              <Share2 size={16} color={colors.text} />
             </Pressable>
           </View>
         </View>
@@ -222,7 +232,7 @@ export function WorkoutPlayer({
               minWidth: 78,
               fontSize: 14,
               fontWeight: "800",
-              color: Colors.text,
+              color: colors.text,
               letterSpacing: -0.15,
             }}
           >
@@ -317,7 +327,7 @@ export function WorkoutPlayer({
                         </View>
 
                         <Pressable style={S.menuBtn} onPress={() => openMenu(ex.id)}>
-                          <MoreVertical size={18} color={Colors.text} />
+                          <MoreVertical size={18} color={colors.text} />
                         </Pressable>
                       </View>
 
@@ -366,14 +376,14 @@ export function WorkoutPlayer({
                       <View style={[S.cardActions, { marginTop: 16 }]}>
                         <Pressable
                           onPress={() => openHistory(ex.id)}
-                          style={[S.ghostBtn, { height: 50 }]}
+                          style={S.ghostBtn}
                         >
                           <Text style={S.ghostText}>Exercise History</Text>
                         </Pressable>
 
                         <Pressable
                           onPress={() => addSet(ex.id)}
-                          style={[S.ghostBtn, { height: 50 }]}
+                          style={S.ghostBtn}
                         >
                           <Text style={S.ghostText}>Add Set</Text>
                         </Pressable>
@@ -391,7 +401,7 @@ export function WorkoutPlayer({
 
         <View style={S.finishSectionWrap}>
           <View style={S.finishSection}>
-            <Pressable onPress={openFinish} style={[S.finishBtn, { height: 60 }]}>
+            <Pressable onPress={openFinish} style={S.finishBtn}>
               <Text style={[S.finishBtnText, { fontSize: 17 }]}>Complete Workout</Text>
             </Pressable>
           </View>

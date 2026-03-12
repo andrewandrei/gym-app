@@ -5,10 +5,12 @@ import { Platform, StyleSheet, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
-import { Colors } from "@/styles/colors";
 import { EntitlementsProvider } from "./_providers/entitlements";
+import { ThemeProvider, useAppTheme } from "./_providers/theme";
 
-export default function RootLayout() {
+function RootNavigator() {
+  const { colors } = useAppTheme();
+
   const StackTree = (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
@@ -22,8 +24,18 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <EntitlementsProvider>
           {Platform.OS === "web" ? (
-            <View style={webStyles.page}>
-              <View style={webStyles.phoneFrame}>{StackTree}</View>
+            <View style={[webStyles.page, { backgroundColor: colors.background }]}>
+              <View
+                style={[
+                  webStyles.phoneFrame,
+                  {
+                    backgroundColor: colors.surface,
+                    borderColor: colors.border,
+                  },
+                ]}
+              >
+                {StackTree}
+              </View>
             </View>
           ) : (
             StackTree
@@ -34,6 +46,14 @@ export default function RootLayout() {
   );
 }
 
+export default function RootLayout() {
+  return (
+    <ThemeProvider>
+      <RootNavigator />
+    </ThemeProvider>
+  );
+}
+
 const styles = StyleSheet.create({
   flex: { flex: 1 },
 });
@@ -41,7 +61,6 @@ const styles = StyleSheet.create({
 const webStyles = StyleSheet.create({
   page: {
     flex: 1,
-    backgroundColor: Colors.surface,
     alignItems: "center",
     justifyContent: "flex-start",
     paddingTop: 16,
@@ -53,9 +72,7 @@ const webStyles = StyleSheet.create({
     maxHeight: 920,
     minHeight: 720,
     borderRadius: 34,
-    backgroundColor: Colors.surface,
     overflow: "hidden",
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Colors.border,
+    borderWidth: 1,
   },
 });

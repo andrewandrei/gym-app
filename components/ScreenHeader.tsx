@@ -1,3 +1,5 @@
+//components/ScreenHeader.tsx
+
 import { Colors } from "@/styles/colors";
 import { Spacing } from "@/styles/spacing";
 import { ChevronLeft } from "lucide-react-native";

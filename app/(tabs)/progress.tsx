@@ -1,6 +1,13 @@
 // app/(tabs)/progress.tsx
 import { useRouter } from "expo-router";
-import { ArrowDown, ArrowUp, Check, ChevronRight, Minus, Sparkles } from "lucide-react-native";
+import {
+  ArrowDown,
+  ArrowUp,
+  Check,
+  ChevronRight,
+  Minus,
+  Sparkles,
+} from "lucide-react-native";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import Animated, {
@@ -20,9 +27,9 @@ import Animated, {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { ScreenHeader } from "@/components/ui/ScreenHeader";
-import { Colors } from "@/styles/colors";
-import { GlobalStyles } from "@/styles/global";
-import { styles } from "./progress.styles";
+
+import { useAppTheme } from "../_providers/theme";
+import { createProgressStyles } from "./progress.styles";
 
 type RecentSession = {
   id: string;
@@ -70,8 +77,13 @@ type FinishSummary = {
   }>;
 };
 
-/* ───────────────────────── Animated helpers ───────────────────────── */
-function AnimatedProgressBar({ value }: { value: number }) {
+function AnimatedProgressBar({
+  value,
+  styles,
+}: {
+  value: number;
+  styles: ReturnType<typeof createProgressStyles>;
+}) {
   const w = useSharedValue(0);
 
   useEffect(() => {
@@ -109,8 +121,7 @@ function usePulseOnChange(deps: any[]) {
       withTiming(1.02, { duration: 160, easing: Easing.out(Easing.quad) }),
       withTiming(1, { duration: 260, easing: Easing.out(Easing.quad) }),
     );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, deps);
+  }, deps); // eslint-disable-line react-hooks/exhaustive-deps
 
   return useAnimatedStyle(() => {
     const lift = interpolate(t.value, [1, 1.02], [0, -2], Extrapolate.CLAMP);
@@ -118,13 +129,16 @@ function usePulseOnChange(deps: any[]) {
   });
 }
 
-/* ───────────────────────── UI bits ───────────────────────── */
 function RecentRow({
   item,
   onPress,
+  styles,
+  mutedColor,
 }: {
   item: RecentSession;
   onPress: () => void;
+  styles: ReturnType<typeof createProgressStyles>;
+  mutedColor: string;
 }) {
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [styles.recentRow, pressed && styles.pressed]}>
@@ -139,19 +153,39 @@ function RecentRow({
 
       <View style={styles.recentRight}>
         <Text style={styles.recentDate}>{item.dateLabel}</Text>
-        <ChevronRight size={16} color={Colors.muted} />
+        <ChevronRight size={16} color={mutedColor} />
       </View>
     </Pressable>
   );
 }
 
-function TrendIcon({ trend }: { trend: Trend }) {
-  if (trend === "down") return <ArrowDown size={14} color={Colors.text} />;
-  if (trend === "up") return <ArrowUp size={14} color={Colors.muted} />;
-  return <Minus size={14} color={Colors.muted} />;
+function TrendIcon({
+  trend,
+  textColor,
+  mutedColor,
+}: {
+  trend: Trend;
+  textColor: string;
+  mutedColor: string;
+}) {
+  if (trend === "down") return <ArrowDown size={14} color={textColor} />;
+  if (trend === "up") return <ArrowUp size={14} color={mutedColor} />;
+  return <Minus size={14} color={mutedColor} />;
 }
 
-function TrendPill({ trend, label }: { trend: Trend; label: string }) {
+function TrendPill({
+  trend,
+  label,
+  styles,
+  textColor,
+  mutedColor,
+}: {
+  trend: Trend;
+  label: string;
+  styles: ReturnType<typeof createProgressStyles>;
+  textColor: string;
+  mutedColor: string;
+}) {
   const pillStyle =
     trend === "down"
       ? styles.trendPillGood
@@ -168,7 +202,7 @@ function TrendPill({ trend, label }: { trend: Trend; label: string }) {
 
   return (
     <View style={[styles.trendPillBase, pillStyle]}>
-      <TrendIcon trend={trend} />
+      <TrendIcon trend={trend} textColor={textColor} mutedColor={mutedColor} />
       <Text style={[styles.trendTextBase, textStyle]} numberOfLines={1}>
         {label}
       </Text>
@@ -180,10 +214,12 @@ function WeekStrip({
   days,
   selected,
   onSelect,
+  styles,
 }: {
   days: DayItem[];
   selected: DayKey;
   onSelect: (k: DayKey) => void;
+  styles: ReturnType<typeof createProgressStyles>;
 }) {
   return (
     <View style={styles.weekStrip}>
@@ -225,6 +261,8 @@ function WeekStrip({
 
 export default function ProgressScreen() {
   const router = useRouter();
+  const { colors, isDark } = useAppTheme();
+  const styles = useMemo(() => createProgressStyles(colors, isDark), [colors, isDark]);
 
   const weeklyDone = 2;
   const weeklyTotal = 3;
@@ -439,7 +477,7 @@ export default function ProgressScreen() {
         : "View plan";
 
   return (
-    <SafeAreaView style={GlobalStyles.screen} edges={["top"]}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={["top"]}>
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.content}
@@ -452,7 +490,7 @@ export default function ProgressScreen() {
 
         <Animated.View entering={FadeInDown.duration(360)} style={styles.successStrip}>
           <View style={styles.successIconWrap}>
-            <Check size={16} color={Colors.text} strokeWidth={3} />
+            <Check size={16} color={colors.text} strokeWidth={3} />
           </View>
 
           <View style={styles.successTextWrap}>
@@ -460,7 +498,7 @@ export default function ProgressScreen() {
             <Text style={styles.successSubtitle}>Progress updated successfully.</Text>
           </View>
 
-          <Sparkles size={16} color={(Colors as any).premium ?? "#F4C84A"} />
+          <Sparkles size={16} color={colors.premium} />
         </Animated.View>
 
         <View style={styles.section}>
@@ -471,7 +509,7 @@ export default function ProgressScreen() {
             </Text>
           </View>
 
-          <AnimatedProgressBar value={weekProgress} />
+          <AnimatedProgressBar value={weekProgress} styles={styles} />
 
           <View style={styles.weekHintRow}>
             <Text style={styles.weekHint}>Keep it simple.</Text>
@@ -480,7 +518,7 @@ export default function ProgressScreen() {
             </Text>
           </View>
 
-          <WeekStrip days={days} selected={selectedDay} onSelect={setSelectedDay} />
+          <WeekStrip days={days} selected={selectedDay} onSelect={setSelectedDay} styles={styles} />
 
           <Animated.View style={[styles.dayCard, dayCardStyle]}>
             <View style={styles.dayCardTop}>
@@ -517,7 +555,7 @@ export default function ProgressScreen() {
               style={({ pressed }) => [styles.dayCardCta, pressed && styles.pressed]}
             >
               <Text style={styles.dayCardCtaText}>{selectedCtaLabel}</Text>
-              <ChevronRight size={18} color={Colors.muted} />
+              <ChevronRight size={18} color={colors.muted} />
             </Pressable>
           </Animated.View>
         </View>
@@ -543,7 +581,7 @@ export default function ProgressScreen() {
             <Text style={styles.sectionTitle}>Personal best</Text>
             <Pressable style={({ pressed }) => [styles.link, pressed && styles.pressed]}>
               <Text style={styles.linkText}>Details</Text>
-              <ChevronRight size={16} color={Colors.muted} />
+              <ChevronRight size={16} color={colors.muted} />
             </Pressable>
           </View>
 
@@ -561,7 +599,7 @@ export default function ProgressScreen() {
             <Text style={styles.sectionTitle}>Body metrics</Text>
             <Pressable style={({ pressed }) => [styles.link, pressed && styles.pressed]}>
               <Text style={styles.linkText}>Update</Text>
-              <ChevronRight size={16} color={Colors.muted} />
+              <ChevronRight size={16} color={colors.muted} />
             </Pressable>
           </View>
 
@@ -570,7 +608,13 @@ export default function ProgressScreen() {
               <View style={styles.metricLeft}>
                 <Text style={styles.metricLabel}>Weight</Text>
                 <View style={styles.metricTrendRow}>
-                  <TrendPill trend={metrics.weight.trend} label={metrics.weight.trendLabel} />
+                  <TrendPill
+                    trend={metrics.weight.trend}
+                    label={metrics.weight.trendLabel}
+                    styles={styles}
+                    textColor={colors.text}
+                    mutedColor={colors.muted}
+                  />
                 </View>
               </View>
               <Text style={styles.metricValue}>{metrics.weight.value}</Text>
@@ -582,7 +626,13 @@ export default function ProgressScreen() {
               <View style={styles.metricLeft}>
                 <Text style={styles.metricLabel}>Waist</Text>
                 <View style={styles.metricTrendRow}>
-                  <TrendPill trend={metrics.waist.trend} label={metrics.waist.trendLabel} />
+                  <TrendPill
+                    trend={metrics.waist.trend}
+                    label={metrics.waist.trendLabel}
+                    styles={styles}
+                    textColor={colors.text}
+                    mutedColor={colors.muted}
+                  />
                 </View>
               </View>
               <Text style={styles.metricValue}>{metrics.waist.value}</Text>
@@ -602,14 +652,19 @@ export default function ProgressScreen() {
             <Text style={styles.sectionTitle}>Recent sessions</Text>
             <Pressable style={({ pressed }) => [styles.link, pressed && styles.pressed]}>
               <Text style={styles.linkText}>View all</Text>
-              <ChevronRight size={16} color={Colors.muted} />
+              <ChevronRight size={16} color={colors.muted} />
             </Pressable>
           </View>
 
           <View style={styles.card}>
             {recent.map((item, idx) => (
               <View key={item.id}>
-                <RecentRow item={item} onPress={() => handleRecentSessionPress(item)} />
+                <RecentRow
+                  item={item}
+                  onPress={() => handleRecentSessionPress(item)}
+                  styles={styles}
+                  mutedColor={colors.muted}
+                />
                 {idx !== recent.length - 1 ? <View style={styles.divider} /> : null}
               </View>
             ))}

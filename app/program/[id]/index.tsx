@@ -1,4 +1,3 @@
-
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
@@ -24,10 +23,15 @@ import {
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { useAppTheme } from "@/app/_providers/theme";
 import { PressableScale } from "@/components/ui/PressableScale";
-import { styles } from "../programDetail.styles";
-
-type Week = { id: string; label: string };
+import { getProgram } from "../program.data";
+import { createProgramDetailStyles } from "../programDetail.styles";
+import {
+  WORKOUTS_PER_WEEK,
+  buildProgramWorkoutId,
+  getProgramWorkoutTemplate,
+} from "../programWorkouts";
 
 type WorkoutStatus = "next" | "done" | "available" | "locked";
 
@@ -42,7 +46,6 @@ type Workout = {
 };
 
 const FREE_WORKOUTS_PER_PROGRAM = 4;
-const WORKOUTS_PER_WEEK = 3;
 const WEEK_PILL_WIDTH = 104;
 const WEEK_PILL_GAP = 10;
 const WEEK_RAIL_SIDE_PADDING = 16;
@@ -51,7 +54,11 @@ export default function ProgramDetailScreen() {
   const router = useRouter();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
+  const { colors, isDark } = useAppTheme();
+  const styles = useMemo(() => createProgramDetailStyles(colors, isDark), [colors, isDark]);
+
   const { id } = useLocalSearchParams<{ id: string }>();
+  const program = useMemo(() => getProgram(id), [id]);
 
   const [activeWeekIndex, setActiveWeekIndex] = useState(0);
   const [infoVisible, setInfoVisible] = useState(false);
@@ -67,64 +74,14 @@ export default function ProgramDetailScreen() {
   const weeksScrollRef = useRef<ScrollView | null>(null);
   const didInitialAutoFocus = useRef(false);
 
-  // Demo only — replace with real entitlement logic later
   const isPro = false;
   const completedCount = 3;
 
-  const program = useMemo(() => {
-    const isHybrid = id === "p2";
-    const weeksCount = isHybrid ? 12 : 8;
-
-    return {
-      id: id ?? "strength-foundations",
-      title: isHybrid ? "Hybrid Athlete" : "Strength Foundations",
-      subtitle: isHybrid
-        ? "Build strength, engine, and athletic capacity"
-        : "Build strength and lean muscle with structured progression",
-      coach: "Andrei Andrei",
-      meta: isHybrid ? "Advanced · Gym · 12 weeks" : "Intermediate · Gym · 8 weeks",
-      description: isHybrid
-        ? "A performance-driven plan built to improve strength, conditioning, and overall athletic capacity. Designed for advanced trainees who want structure, intensity, and progression across the full training week."
-        : "A structured strength and hypertrophy plan built to help you gain muscle, improve performance, and stay consistent week after week. Clear progression, clean structure, and one obvious next step every session.",
-      bullets: isHybrid
-        ? ["Strength progression", "Conditioning capacity", "Athletic work output"]
-        : ["Strength progression", "Lean muscle focus", "Consistent weekly structure"],
-      hero: isHybrid
-        ? "https://cdn.prod.website-files.com/6442b6aa142c4cb61a9a549d/6784fa945db9e2462bde508b_675b0276e2206c6b6a37ff0c_Hybrid%20Athlete%20(1)-p-800.jpg"
-        : "https://cdn.prod.website-files.com/6442b6aa142c4cb61a9a549d/690f510381f5fead2d6257b8_c7d8a728-2fde-4254-a1a7-a505e1a4cf3e-p-2000.jpeg",
-      weeks: Array.from({ length: weeksCount }).map((_, i) => ({
-        id: `week-${i + 1}`,
-        label: `Week ${i + 1}`,
-      })) as Week[],
-    };
-  }, [id]);
-
   const workoutsByWeek: Workout[][] = useMemo(() => {
-    const baseWorkouts = [
-      {
-        title: "Strength & Conditioning",
-        meta: "6 exercises",
-        duration: "52 min",
-        image:
-          "https://images.unsplash.com/photo-1517964603305-11c0f6f66012?auto=format&fit=crop&w=1400&q=70",
-      },
-      {
-        title: "Upper Body Builder",
-        meta: "7 exercises",
-        duration: "46 min",
-        image:
-          "https://cdn.prod.website-files.com/6442b6aa142c4cb61a9a549d/690f510381f5fead2d6257b8_c7d8a728-2fde-4254-a1a7-a505e1a4cf3e-p-2000.jpeg",
-      },
-      {
-        title: "Hypertrophy Focus",
-        meta: "6 exercises",
-        duration: "44 min",
-        image: "https://i.ytimg.com/vi/y3fAQLFi5Iw/maxresdefault.jpg",
-      },
-    ];
+    return program.weeks.map((_, weekIdx) => {
+      return Array.from({ length: WORKOUTS_PER_WEEK }).map((__, workoutIdx) => {
+        const template = getProgramWorkoutTemplate(workoutIdx);
 
-    return program.weeks.map((w, weekIdx) => {
-      return baseWorkouts.map((item, workoutIdx) => {
         const globalIndex = weekIdx * WORKOUTS_PER_WEEK + workoutIdx;
         const workoutNumber = globalIndex + 1;
 
@@ -140,17 +97,17 @@ export default function ProgramDetailScreen() {
         }
 
         return {
-          id: `${w.id}-${workoutIdx + 1}`,
+          id: buildProgramWorkoutId(program.id, weekIdx, workoutIdx),
           label: `Workout ${workoutNumber}`,
-          title: item.title,
-          meta: item.meta,
-          duration: item.duration,
-          image: item.image,
+          title: template.title,
+          meta: template.meta,
+          duration: template.duration,
+          image: template.image,
           status,
         };
       });
     });
-  }, [completedCount, isPro, program.weeks]);
+  }, [completedCount, isPro, program.id, program.weeks]);
 
   const nextWorkout = useMemo(() => {
     for (let weekIdx = 0; weekIdx < workoutsByWeek.length; weekIdx += 1) {
@@ -301,9 +258,8 @@ export default function ProgramDetailScreen() {
   }, [activeWeekIndex, nextWorkout]);
 
   useEffect(() => {
-    if (!nextWorkout && nextWorkout !== null) return;
-    if (nextWorkoutY == null) return;
     if (!nextWorkout) return;
+    if (nextWorkoutY == null) return;
     if (activeWeekIndex !== nextWorkout.weekIdx) return;
 
     const timer = setTimeout(() => {
@@ -326,11 +282,18 @@ export default function ProgramDetailScreen() {
       return;
     }
 
-    router.push("/workout");
+    router.push({
+      pathname: "/workout",
+      params: {
+        workoutId: workout.id,
+        programId: String(id ?? "strength-foundations"),
+        source: "program",
+      },
+    });
   };
 
   return (
-    <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={["top", "left", "right"]}>
       <View style={styles.screen}>
         <ScrollView
           ref={verticalScrollRef}
@@ -385,7 +348,9 @@ export default function ProgramDetailScreen() {
                   {completed}/{total} workouts
                 </Text>
                 <View style={styles.heroStatDot} />
-                <Text style={styles.heroStatText}>Week 2 of {totalWeeks}</Text>
+                <Text style={styles.heroStatText}>
+                  Week {Math.min(weekNumber, totalWeeks)} of {totalWeeks}
+                </Text>
                 <View style={styles.heroStatDot} />
                 <Text style={styles.heroStatText}>3-day streak</Text>
               </View>
@@ -497,7 +462,7 @@ export default function ProgramDetailScreen() {
                           </View>
                         ) : (
                           <View style={styles.statusLocked}>
-                            <Lock size={13} color="rgba(17,17,17,0.38)" />
+                            <Lock size={13} color={isDark ? "rgba(255,255,255,0.42)" : "rgba(17,17,17,0.38)"} />
                           </View>
                         )}
 
@@ -505,8 +470,12 @@ export default function ProgramDetailScreen() {
                           size={18}
                           color={
                             w.status === "locked"
-                              ? "rgba(17,17,17,0.18)"
-                              : "rgba(17,17,17,0.28)"
+                              ? isDark
+                                ? "rgba(255,255,255,0.22)"
+                                : "rgba(17,17,17,0.18)"
+                              : isDark
+                                ? "rgba(255,255,255,0.38)"
+                                : "rgba(17,17,17,0.28)"
                           }
                         />
                       </View>
@@ -533,7 +502,7 @@ export default function ProgramDetailScreen() {
             <Animated.View style={[styles.modalDim, { opacity: backdropOpacity }]} />
 
             <Animated.View style={[styles.modalBlurWrap, { opacity: blurOpacity }]}>
-              <BlurView intensity={26} tint="dark" style={styles.modalBlur} />
+              <BlurView intensity={26} tint={isDark ? "dark" : "light"} style={styles.modalBlur} />
             </Animated.View>
 
             <Pressable style={styles.modalBackdropTouch} onPress={closeInfoModal} />
@@ -561,7 +530,7 @@ export default function ProgramDetailScreen() {
                   accessibilityRole="button"
                   accessibilityLabel="Close program information"
                 >
-                  <X size={18} color="#111111" />
+                  <X size={18} color={colors.text} />
                 </PressableScale>
               </View>
 
