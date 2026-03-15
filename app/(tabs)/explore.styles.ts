@@ -53,13 +53,13 @@ export function createExploreStyles(
       alignItems: "center",
       justifyContent: "space-between",
       gap: 12,
-      marginBottom: Spacing.sm,
+      marginBottom: 16,
     },
 
     railTitle: {
       flex: 1,
-      fontSize: 22,
-      lineHeight: 26,
+      fontSize: 18,
+      lineHeight: 20,
       fontWeight: "800",
       color: colors.text,
       letterSpacing: -0.2,
@@ -180,10 +180,10 @@ export function createExploreStyles(
 
     programTitleOnImage: {
       color: "#fff",
-      fontSize: 28,
-      lineHeight: 32,
+      fontSize: 26,
+      lineHeight: 30,
       fontWeight: "900",
-      letterSpacing: -0.45,
+      letterSpacing: -0.35,
     },
 
     programDurationOnImage: {
@@ -194,16 +194,15 @@ export function createExploreStyles(
     },
 
     programBelowPrimary: {
-      marginTop: Spacing.sm,
+      marginTop: 10,
       color: colors.text,
       fontSize: 15,
-      lineHeight: 18,
       fontWeight: "700",
       letterSpacing: -0.1,
     },
 
     programBelowSecondary: {
-      marginTop: Spacing.xxs,
+      marginTop: 4,
       color: colors.muted,
       fontSize: 13,
       lineHeight: 16,

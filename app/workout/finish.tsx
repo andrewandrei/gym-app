@@ -44,10 +44,7 @@ function formatVolume(value: number) {
 
 function toneColors(
   tone: FinishFeedbackTone,
-  colors: {
-    text: string;
-    premium: string;
-  },
+  colors: { text: string; premium: string },
 ) {
   if (tone === "pr") {
     return {
@@ -73,14 +70,6 @@ function toneColors(
     };
   }
 
-  if (tone === "partial" || tone === "log-load" || tone === "recovery") {
-    return {
-      halo: "rgba(127,127,127,0.08)",
-      chip: colors.text,
-      icon: "#FFFFFF",
-    };
-  }
-
   return {
     halo: "rgba(127,127,127,0.08)",
     chip: colors.text,
@@ -95,49 +84,14 @@ function ToneIcon({ tone, color }: { tone: FinishFeedbackTone; color: string }) 
   return <Check size={32} color={color} strokeWidth={3} />;
 }
 
-function compareBadge(
-  result?: "better" | "same" | "mixed" | "no_data",
-  textColor?: string,
-): {
-  label: string;
-  bg: string;
-  text: string;
-} | null {
-  if (result === "better") {
-    return {
-      label: "Improved",
-      bg: "rgba(34,197,94,0.10)",
-      text: "rgb(23,120,65)",
-    };
-  }
-
-  if (result === "same") {
-    return {
-      label: "Matched",
-      bg: "rgba(244,200,74,0.18)",
-      text: textColor ?? "#111111",
-    };
-  }
-
-  if (result === "mixed") {
-    return {
-      label: "Mixed",
-      bg: "rgba(127,127,127,0.10)",
-      text: "rgba(127,127,127,0.92)",
-    };
-  }
-
-  return null;
-}
-
 export default function FinishScreen() {
   const params = useLocalSearchParams<{ summary?: string }>();
   const { colors, isDark } = useAppTheme();
+
   const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
 
   const summary = useMemo<FinishSummary | null>(() => {
     if (!params.summary) return null;
-
     try {
       return JSON.parse(String(params.summary)) as FinishSummary;
     } catch {
@@ -187,16 +141,7 @@ export default function FinishScreen() {
         useNativeDriver: true,
       }),
     ]).start();
-  }, [cardsOpacity, cardsY, heroOpacity, heroScale]);
-
-  const onFallbackBack = async () => {
-    if (Platform.OS !== "web") {
-      await Haptics.selectionAsync();
-    }
-
-    if (router.canGoBack()) router.back();
-    else router.replace("/");
-  };
+  }, []);
 
   const onViewProgress = async () => {
     if (Platform.OS !== "web") {
@@ -233,24 +178,11 @@ export default function FinishScreen() {
       <SafeAreaView style={styles.safe}>
         <View style={styles.fallbackWrap}>
           <Text style={styles.fallbackTitle}>Workout complete</Text>
-
           <Text style={styles.fallbackSub}>Missing summary payload.</Text>
-
-          <Pressable
-            onPress={onFallbackBack}
-            style={({ pressed }) => [styles.fallbackButton, pressed && { opacity: 0.9 }]}
-          >
-            <Text style={styles.fallbackButtonText}>Back</Text>
-          </Pressable>
         </View>
       </SafeAreaView>
     );
   }
-
-  const completedExercises = summary.exercises.filter((ex) => ex.sets.length > 0);
-  const streakDays = 8;
-  const programProgressDelta = "+1 session";
-  const topWins = summary.wins.slice(0, 3);
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -280,7 +212,6 @@ export default function FinishScreen() {
           </View>
 
           <Text style={styles.heroTitle}>{feedback.title}</Text>
-
           <Text style={styles.heroBody}>{feedback.body}</Text>
         </Animated.View>
 
@@ -294,19 +225,23 @@ export default function FinishScreen() {
           ]}
         >
           <View style={styles.summaryCard}>
-            <Text style={styles.summaryWorkoutTitle} numberOfLines={2}>
+            <Text style={styles.summaryWorkoutTitle}>
               {summary.workoutTitle}
             </Text>
 
             <View style={styles.statsRow}>
               <View style={styles.statTile}>
                 <Text style={styles.statTileLabel}>Sets</Text>
-                <Text style={styles.statTileValue}>{summary.totals.completedSets}</Text>
+                <Text style={styles.statTileValue}>
+                  {summary.totals.completedSets}
+                </Text>
               </View>
 
               <View style={styles.statTile}>
                 <Text style={styles.statTileLabel}>Duration</Text>
-                <Text style={styles.statTileValue}>{shortDuration(summary.durationSec)}</Text>
+                <Text style={styles.statTileValue}>
+                  {shortDuration(summary.durationSec)}
+                </Text>
               </View>
 
               <View style={styles.statTile}>
@@ -316,203 +251,14 @@ export default function FinishScreen() {
                 </Text>
               </View>
             </View>
-
-            <View style={styles.statsRowBottom}>
-              <View style={styles.statTile}>
-                <Text style={styles.statTileLabel}>Volume</Text>
-                <Text style={styles.statTileValue}>{formatVolume(summary.totals.totalVolume)}</Text>
-              </View>
-
-              <View style={styles.statTile}>
-                <Text style={styles.statTileLabel}>Improved</Text>
-                <Text style={styles.statTileValue}>
-                  {summary.insights.improvedExerciseCount}
-                </Text>
-              </View>
-
-              <View style={styles.statTile}>
-                <Text style={styles.statTileLabel}>PRs</Text>
-                <Text style={styles.statTileValue}>{summary.insights.prCount}</Text>
-              </View>
-            </View>
-          </View>
-
-          <View style={styles.secondaryCard}>
-            <View style={styles.infoRow}>
-              <View style={styles.infoIconWrapPremium}>
-                <Flame size={18} color={colors.text} />
-              </View>
-
-              <View style={styles.infoTextCol}>
-                <Text style={styles.infoTitle}>{streakDays} day streak</Text>
-                <Text style={styles.infoSub}>
-                  Momentum is building. Keep it alive tomorrow.
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.softDivider} />
-
-            <View style={styles.infoRow}>
-              <View style={styles.infoIconWrapNeutral}>
-                <Trophy size={18} color={colors.text} />
-              </View>
-
-              <View style={styles.infoTextCol}>
-                <Text style={styles.infoTitle}>Progress updated</Text>
-                <Text style={styles.infoSub}>
-                  {programProgressDelta} added to your training history.
-                </Text>
-              </View>
-            </View>
-
-            {summary.prs.length > 0 && (
-              <>
-                <View style={styles.softDivider} />
-
-                <View style={styles.prBlock}>
-                  <Text style={styles.blockTitle}>
-                    New PR{summary.prs.length === 1 ? "" : "s"}
-                  </Text>
-
-                  {summary.prs.map((item) => (
-                    <View key={item.exerciseId} style={styles.prRow}>
-                      <Text style={styles.prExercise} numberOfLines={1}>
-                        {item.exerciseName}
-                      </Text>
-
-                      <Text style={styles.prValue}>
-                        {item.weight} × {item.reps}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-              </>
-            )}
-          </View>
-
-          {topWins.length > 0 && (
-            <View style={styles.secondaryCard}>
-              <Text style={styles.blockTitle}>Session wins</Text>
-
-              <View style={styles.winList}>
-                {topWins.map((win, idx) => (
-                  <View
-                    key={`${win.exerciseId}-${win.type}-${idx}`}
-                    style={styles.winRow}
-                  >
-                    <View style={styles.winIconWrap}>
-                      <TrendingUp size={14} color={colors.text} />
-                    </View>
-
-                    <View style={styles.winTextCol}>
-                      <Text style={styles.winTitle} numberOfLines={1}>
-                        {win.exerciseName}
-                      </Text>
-                      <Text style={styles.winSub} numberOfLines={1}>
-                        {win.label}
-                      </Text>
-                    </View>
-                  </View>
-                ))}
-              </View>
-            </View>
-          )}
-
-          <View style={styles.completedBlock}>
-            <Text style={styles.blockTitle}>Completed exercises</Text>
-
-            <View style={styles.completedList}>
-              {completedExercises.length ? (
-                completedExercises.map((ex) => {
-                  const badge = compareBadge(ex.comparedToLast?.result, colors.text);
-
-                  return (
-                    <View key={ex.id} style={styles.exerciseCard}>
-                      <View style={styles.exerciseHeader}>
-                        <View style={styles.exerciseHeaderLeft}>
-                          <Text style={styles.exerciseName} numberOfLines={2}>
-                            {ex.name}
-                          </Text>
-
-                          <View style={styles.exerciseBadgesRow}>
-                            <View style={styles.badgeNeutral}>
-                              <Text style={styles.badgeNeutralText}>
-                                {ex.completedSets} set{ex.completedSets === 1 ? "" : "s"}
-                              </Text>
-                            </View>
-
-                            {ex.sessionVolume > 0 && (
-                              <View style={styles.badgePremiumSoft}>
-                                <Text style={styles.badgePremiumSoftText}>
-                                  Vol {formatVolume(ex.sessionVolume)}
-                                </Text>
-                              </View>
-                            )}
-
-                            {badge && (
-                              <View
-                                style={[
-                                  styles.dynamicBadge,
-                                  { backgroundColor: badge.bg },
-                                ]}
-                              >
-                                <Text
-                                  style={[
-                                    styles.dynamicBadgeText,
-                                    { color: badge.text },
-                                  ]}
-                                >
-                                  {badge.label}
-                                </Text>
-                              </View>
-                            )}
-                          </View>
-                        </View>
-                      </View>
-
-                      <View style={styles.setList}>
-                        {ex.sets.map((s) => {
-                          const weight = s.weight?.trim() ? s.weight : "0";
-                          const reps = s.reps?.trim() ? s.reps : "0";
-
-                          return (
-                            <View
-                              key={`${ex.id}-${s.set}`}
-                              style={styles.setRow}
-                            >
-                              <Text style={styles.setLabel}>Set {s.set}</Text>
-
-                              <View style={styles.setRight}>
-                                <View style={styles.setDoneDot}>
-                                  <Check size={12} color="#fff" strokeWidth={3} />
-                                </View>
-
-                                <Text style={styles.setValue}>
-                                  {weight}{" "}
-                                  {ex.unitLabel === "REPS"
-                                    ? "reps"
-                                    : ex.unitLabel.toLowerCase()}{" "}
-                                  {ex.unitLabel === "REPS" ? "" : "× "}
-                                  {reps}
-                                </Text>
-                              </View>
-                            </View>
-                          );
-                        })}
-                      </View>
-                    </View>
-                  );
-                })
-              ) : (
-                <Text style={styles.emptyText}>No completed sets yet.</Text>
-              )}
-            </View>
           </View>
 
           <Pressable
             onPress={onShare}
-            style={({ pressed }) => [styles.shareButton, pressed && { opacity: 0.8 }]}
+            style={({ pressed }) => [
+              styles.shareButton,
+              pressed && { opacity: 0.8 },
+            ]}
           >
             <Share2 size={16} color={colors.text} />
             <Text style={styles.shareButtonText}>Share workout</Text>
@@ -523,7 +269,10 @@ export default function FinishScreen() {
       <View style={styles.bottomBar}>
         <Pressable
           onPress={onViewProgress}
-          style={({ pressed }) => [styles.primaryCta, pressed && { opacity: 0.92 }]}
+          style={({ pressed }) => [
+            styles.primaryCta,
+            pressed && { opacity: 0.92 },
+          ]}
         >
           <Text style={styles.primaryCtaText}>View Progress</Text>
           <ChevronRight size={18} color={colors.surface} />
@@ -531,7 +280,10 @@ export default function FinishScreen() {
 
         <Pressable
           onPress={onBackHome}
-          style={({ pressed }) => [styles.secondaryCta, pressed && { opacity: 0.7 }]}
+          style={({ pressed }) => [
+            styles.secondaryCta,
+            pressed && { opacity: 0.7 },
+          ]}
         >
           <Text style={styles.secondaryCtaText}>Back Home</Text>
         </Pressable>
@@ -540,44 +292,17 @@ export default function FinishScreen() {
   );
 }
 
-function createStyles(
-  colors: {
-    background: string;
-    surface: string;
-    card: string;
-    text: string;
-    muted: string;
-    border: string;
-    borderSubtle: string;
-    premium: string;
-  },
-  isDark: boolean,
-) {
+function createStyles(colors: any, isDark: boolean) {
   const BORDER = colors.borderSubtle ?? colors.border;
-  const SOFT = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.025)";
-  const SOFT_2 = isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.04)";
 
   return StyleSheet.create({
-    safe: {
-      flex: 1,
-      backgroundColor: colors.background,
-    },
+    safe: { flex: 1, backgroundColor: colors.background },
 
-    scroll: {
-      flex: 1,
-      backgroundColor: colors.background,
-    },
+    scroll: { flex: 1 },
 
-    content: {
-      paddingHorizontal: 18,
-      paddingTop: 14,
-      paddingBottom: 180,
-    },
+    content: { paddingHorizontal: 18, paddingTop: 14, paddingBottom: 160 },
 
-    heroWrap: {
-      alignItems: "center",
-      marginTop: 6,
-    },
+    heroWrap: { alignItems: "center", marginTop: 6 },
 
     heroHalo: {
       width: 118,
@@ -593,11 +318,6 @@ function createStyles(
       borderRadius: 40,
       alignItems: "center",
       justifyContent: "center",
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 10 },
-      shadowOpacity: 0.1,
-      shadowRadius: 18,
-      elevation: 8,
     },
 
     heroKickerRow: {
@@ -635,13 +355,11 @@ function createStyles(
       paddingHorizontal: 12,
     },
 
-    cardsWrap: {
-      marginTop: 22,
-    },
+    cardsWrap: { marginTop: 22 },
 
     summaryCard: {
       borderRadius: 22,
-      backgroundColor: SOFT,
+      backgroundColor: colors.surface,
       borderWidth: 1,
       borderColor: BORDER,
       padding: 16,
@@ -651,20 +369,11 @@ function createStyles(
       fontSize: 18,
       fontWeight: "900",
       color: colors.text,
-      letterSpacing: -0.3,
     },
 
     statsRow: {
       marginTop: 16,
       flexDirection: "row",
-      alignItems: "stretch",
-      gap: 10,
-    },
-
-    statsRowBottom: {
-      marginTop: 10,
-      flexDirection: "row",
-      alignItems: "stretch",
       gap: 10,
     },
 
@@ -673,7 +382,7 @@ function createStyles(
       borderRadius: 18,
       paddingVertical: 14,
       paddingHorizontal: 12,
-      backgroundColor: colors.surface,
+      backgroundColor: colors.background,
       borderWidth: 1,
       borderColor: BORDER,
     },
@@ -691,280 +400,6 @@ function createStyles(
       fontSize: 20,
       fontWeight: "900",
       color: colors.text,
-      letterSpacing: -0.4,
-    },
-
-    secondaryCard: {
-      marginTop: 14,
-      borderRadius: 22,
-      backgroundColor: colors.surface,
-      borderWidth: 1,
-      borderColor: BORDER,
-      padding: 16,
-    },
-
-    infoRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 10,
-    },
-
-    infoIconWrapPremium: {
-      width: 38,
-      height: 38,
-      borderRadius: 19,
-      backgroundColor: "rgba(244,200,74,0.16)",
-      alignItems: "center",
-      justifyContent: "center",
-    },
-
-    infoIconWrapNeutral: {
-      width: 38,
-      height: 38,
-      borderRadius: 19,
-      backgroundColor: SOFT_2,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-
-    infoTextCol: {
-      flex: 1,
-    },
-
-    infoTitle: {
-      fontSize: 15,
-      fontWeight: "900",
-      color: colors.text,
-      letterSpacing: -0.2,
-    },
-
-    infoSub: {
-      marginTop: 2,
-      fontSize: 13,
-      fontWeight: "700",
-      color: colors.muted,
-    },
-
-    softDivider: {
-      marginTop: 14,
-      marginBottom: 14,
-      height: 1,
-      backgroundColor: BORDER,
-    },
-
-    prBlock: {
-      gap: 10,
-    },
-
-    blockTitle: {
-      fontSize: 13,
-      fontWeight: "900",
-      color: colors.text,
-      letterSpacing: -0.1,
-      marginBottom: 10,
-    },
-
-    prRow: {
-      borderRadius: 14,
-      backgroundColor: "rgba(244,200,74,0.12)",
-      paddingVertical: 12,
-      paddingHorizontal: 12,
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      gap: 12,
-    },
-
-    prExercise: {
-      flex: 1,
-      fontSize: 14,
-      fontWeight: "900",
-      color: colors.text,
-    },
-
-    prValue: {
-      fontSize: 13,
-      fontWeight: "900",
-      color: colors.text,
-    },
-
-    winList: {
-      gap: 10,
-    },
-
-    winRow: {
-      borderRadius: 14,
-      backgroundColor: SOFT,
-      paddingVertical: 12,
-      paddingHorizontal: 12,
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 10,
-    },
-
-    winIconWrap: {
-      width: 28,
-      height: 28,
-      borderRadius: 14,
-      backgroundColor: "rgba(244,200,74,0.16)",
-      alignItems: "center",
-      justifyContent: "center",
-    },
-
-    winTextCol: {
-      flex: 1,
-    },
-
-    winTitle: {
-      fontSize: 14,
-      fontWeight: "900",
-      color: colors.text,
-      letterSpacing: -0.1,
-    },
-
-    winSub: {
-      marginTop: 2,
-      fontSize: 13,
-      fontWeight: "700",
-      color: colors.muted,
-    },
-
-    completedBlock: {
-      marginTop: 20,
-    },
-
-    completedList: {
-      gap: 12,
-    },
-
-    exerciseCard: {
-      borderRadius: 18,
-      borderWidth: 1,
-      borderColor: BORDER,
-      backgroundColor: colors.surface,
-      padding: 14,
-    },
-
-    exerciseHeader: {
-      flexDirection: "row",
-      alignItems: "flex-start",
-      justifyContent: "space-between",
-      gap: 12,
-    },
-
-    exerciseHeaderLeft: {
-      flex: 1,
-    },
-
-    exerciseName: {
-      fontSize: 15,
-      fontWeight: "900",
-      color: colors.text,
-      letterSpacing: -0.2,
-    },
-
-    exerciseBadgesRow: {
-      marginTop: 8,
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 8,
-      flexWrap: "wrap",
-    },
-
-    badgeNeutral: {
-      minWidth: 62,
-      height: 28,
-      borderRadius: 999,
-      backgroundColor: SOFT_2,
-      alignItems: "center",
-      justifyContent: "center",
-      paddingHorizontal: 10,
-    },
-
-    badgeNeutralText: {
-      fontSize: 11,
-      fontWeight: "900",
-      color: colors.muted,
-      letterSpacing: 0.2,
-    },
-
-    badgePremiumSoft: {
-      minWidth: 72,
-      height: 28,
-      borderRadius: 999,
-      backgroundColor: "rgba(244,200,74,0.12)",
-      alignItems: "center",
-      justifyContent: "center",
-      paddingHorizontal: 10,
-    },
-
-    badgePremiumSoftText: {
-      fontSize: 11,
-      fontWeight: "900",
-      color: colors.text,
-      letterSpacing: 0.2,
-    },
-
-    dynamicBadge: {
-      minWidth: 74,
-      height: 28,
-      borderRadius: 999,
-      alignItems: "center",
-      justifyContent: "center",
-      paddingHorizontal: 10,
-    },
-
-    dynamicBadgeText: {
-      fontSize: 11,
-      fontWeight: "900",
-      letterSpacing: 0.2,
-    },
-
-    setList: {
-      marginTop: 12,
-      gap: 10,
-    },
-
-    setRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      gap: 10,
-    },
-
-    setLabel: {
-      fontSize: 13,
-      fontWeight: "800",
-      color: colors.muted,
-    },
-
-    setRight: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 10,
-    },
-
-    setDoneDot: {
-      width: 18,
-      height: 18,
-      borderRadius: 9,
-      backgroundColor: "rgb(34,197,94)",
-      alignItems: "center",
-      justifyContent: "center",
-    },
-
-    setValue: {
-      fontSize: 13,
-      fontWeight: "900",
-      color: colors.text,
-      letterSpacing: -0.1,
-    },
-
-    emptyText: {
-      marginTop: 4,
-      fontSize: 13,
-      fontWeight: "700",
-      color: colors.muted,
     },
 
     shareButton: {
@@ -984,7 +419,6 @@ function createStyles(
       fontSize: 14,
       fontWeight: "900",
       color: colors.text,
-      letterSpacing: -0.1,
     },
 
     bottomBar: {
@@ -1014,7 +448,6 @@ function createStyles(
       color: colors.surface,
       fontWeight: "900",
       fontSize: 16,
-      letterSpacing: -0.2,
     },
 
     secondaryCta: {
@@ -1039,7 +472,6 @@ function createStyles(
       fontSize: 24,
       fontWeight: "900",
       color: colors.text,
-      letterSpacing: -0.5,
     },
 
     fallbackSub: {
@@ -1047,22 +479,6 @@ function createStyles(
       fontSize: 13,
       fontWeight: "700",
       color: colors.muted,
-    },
-
-    fallbackButton: {
-      marginTop: 16,
-      height: 56,
-      borderRadius: 999,
-      backgroundColor: colors.text,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-
-    fallbackButtonText: {
-      color: colors.surface,
-      fontWeight: "900",
-      fontSize: 16,
-      letterSpacing: -0.2,
     },
   });
 }

@@ -1,72 +1,93 @@
-// app/_providers/theme.tsx
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import React, { createContext, useContext, useEffect, useState } from "react";
 
-import { DarkColors, LightColors, type AppColors } from "@/styles/colors";
-import React, { createContext, useContext, useMemo, useState } from "react";
+type ThemeMode = "light" | "dark";
 
-export type ThemeMode = "light" | "dark";
-
-export type AppThemeColors = {
-  background: string;
-  surface: string;
-  card: string;
-  text: string;
-  muted: string;
-  border: string;
-  borderSubtle: string;
-  premium: string;
-};
-
-const lightColors: AppThemeColors = {
-  background: "#FFFFFF",
-  surface: "#FFFFFF",
-  card: "#FFFFFF",
-  text: "#111111",
-  muted: "rgba(17,17,17,0.55)",
-  border: "rgba(17,17,17,0.10)",
-  borderSubtle: "rgba(17,17,17,0.08)",
-  premium: "#F4C84A",
-};
-
-const darkColors: AppThemeColors = {
-  background: "#0B0B0C",
-  surface: "#111214",
-  card: "#17181A",
-  text: "#FFFFFF",
-  muted: "rgba(255,255,255,0.62)",
-  border: "rgba(255,255,255,0.14)",
-  borderSubtle: "rgba(255,255,255,0.10)",
-  premium: "#F4C84A",
-};
-
-type ThemeContextValue = {
+type ThemeContextType = {
   mode: ThemeMode;
   isDark: boolean;
-  colors: AppColors;
+  colors: any;
   toggleTheme: () => void;
-  setMode: (mode: ThemeMode) => void;
+  setTheme: (mode: ThemeMode) => void;
 };
 
-const ThemeContext = createContext<ThemeContextValue | null>(null);
+const ThemeContext = createContext<ThemeContextType | null>(null);
 
-export function ThemeProvider({ children }: { children: React.ReactNode }) {
+const STORAGE_KEY = "APP_THEME";
+
+export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
   const [mode, setMode] = useState<ThemeMode>("light");
+  const [loaded, setLoaded] = useState(false);
 
-  const value = useMemo<ThemeContextValue>(() => {
-    const isDark = mode === "dark";
+  useEffect(() => {
+    const loadTheme = async () => {
+      try {
+        const saved = await AsyncStorage.getItem(STORAGE_KEY);
 
-    return {
-      mode,
-      isDark,
-      colors: isDark ? DarkColors : LightColors,
-      toggleTheme: () => setMode((prev) => (prev === "dark" ? "light" : "dark")),
-      setMode,
+        if (saved === "dark" || saved === "light") {
+          setMode(saved);
+        }
+      } catch {}
+
+      setLoaded(true);
     };
-  }, [mode]);
 
-  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
-}
+    loadTheme();
+  }, []);
 
-export function useAppTheme() {
+  const setTheme = async (newMode: ThemeMode) => {
+    setMode(newMode);
+
+    try {
+      await AsyncStorage.setItem(STORAGE_KEY, newMode);
+    } catch {}
+  };
+
+  const toggleTheme = () => {
+    setTheme(mode === "dark" ? "light" : "dark");
+  };
+
+  const colors =
+    mode === "dark"
+      ? {
+          background: "#0F0F10",
+          surface: "#151517",
+          card: "#1B1B1E",
+          text: "#FFFFFF",
+          muted: "#9A9AA1",
+          border: "#2B2B2F",
+          borderSubtle: "#222225",
+          premium: "#F4C84A",
+        }
+      : {
+          background: "#FFFFFF",
+          surface: "#FFFFFF",
+          card: "#FFFFFF",
+          text: "#111111",
+          muted: "#6E6E73",
+          border: "#E5E5EA",
+          borderSubtle: "#EFEFF2",
+          premium: "#F4C84A",
+        };
+
+  if (!loaded) return null;
+
+  return (
+    <ThemeContext.Provider
+      value={{
+        mode,
+        isDark: mode === "dark",
+        colors,
+        toggleTheme,
+        setTheme,
+      }}
+    >
+      {children}
+    </ThemeContext.Provider>
+  );
+};
+
+export const useAppTheme = () => {
   const ctx = useContext(ThemeContext);
 
   if (!ctx) {
@@ -74,4 +95,4 @@ export function useAppTheme() {
   }
 
   return ctx;
-}
+};

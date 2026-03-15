@@ -2,15 +2,16 @@
 
 import React from "react";
 import {
-    Image,
-    Pressable,
-    StyleSheet,
-    Text,
-    View,
+  Image,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
 } from "react-native";
 
 import { Colors } from "@/styles/colors";
 import { BorderWidth } from "@/styles/hairline";
+import { LinearGradient } from "expo-linear-gradient";
 
 type Props = {
   title: string;
@@ -31,8 +32,8 @@ export function EditorialCard({
   imageUrl,
   active = false,
   badgeLabel,
-  width = 284,
-  mediaHeight = 180,
+  width = 332,
+  mediaHeight = 214,
   onPress,
 }: Props) {
   const resolvedBadge = badgeLabel ?? (active ? "Active" : undefined);
@@ -51,7 +52,11 @@ export function EditorialCard({
       <View style={[styles.media, { height: mediaHeight }]}>
         <Image source={{ uri: imageUrl }} style={styles.image} resizeMode="cover" />
 
-        <View style={styles.bottomScrim} pointerEvents="none" />
+        <LinearGradient
+          colors={["transparent", "rgba(0,0,0,0.55)"]}
+          locations={[0.45, 1]}
+          style={styles.bottomScrim}
+        />
 
         {resolvedBadge ? (
           <View style={styles.badgeWrap}>
@@ -87,13 +92,20 @@ const styles = StyleSheet.create({
   card: {},
 
   cardPressed: {
-    opacity: 0.93,
+    transform: [{ scale: 0.98 }],
+    opacity: 0.92,
   },
 
   media: {
     borderRadius: 18,
-    overflow: "hidden",
-    backgroundColor: Colors.card,
+  overflow: "hidden",
+  backgroundColor: Colors.card,
+
+  shadowColor: "#000",
+  shadowOpacity: 0.12,
+  shadowRadius: 16,
+  shadowOffset: { width: 0, height: 6 },
+  elevation: 4,
   },
 
   image: {
@@ -104,7 +116,7 @@ const styles = StyleSheet.create({
 
   bottomScrim: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.22)",
+    backgroundColor: "rgba(0,0,0,0.32)",
   },
 
   badgeWrap: {
@@ -137,28 +149,29 @@ const styles = StyleSheet.create({
   },
 
   titleOnImage: {
-    color: "#fff",
-    fontSize: 18,
-    lineHeight: 22,
-    fontWeight: "900",
-    letterSpacing: -0.2,
+      color: "#fff",
+      fontSize: 16,
+      lineHeight: 20,
+      fontWeight: "900",
+      letterSpacing: -0.2,
   },
 
   below: {
-    paddingTop: 12,
-  },
+  paddingTop: 10,
+    },
 
-  belowBold: {
-    color: Colors.text,
-    fontSize: 15,
-    fontWeight: "900",
-    letterSpacing: -0.2,
-  },
+    belowBold: {
+      color: Colors.text,
+      fontSize: 15,
+      fontWeight: "700",
+      letterSpacing: -0.1,
+    },
 
-  belowMuted: {
-    marginTop: 4,
-    color: Colors.muted,
-    fontSize: 13,
-    fontWeight: "600",
-  },
+    belowMuted: {
+      marginTop: 4,
+      color: Colors.muted,
+      fontSize: 13,
+      lineHeight: 16,
+      fontWeight: "600",
+    },
 });

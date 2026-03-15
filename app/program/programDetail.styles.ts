@@ -17,9 +17,7 @@ export function createProgramDetailStyles(
   isDark: boolean,
 ) {
   const BORDER = colors.borderSubtle ?? colors.border;
-  const CARD_BG = colors.card;
   const SOFT_FILL = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)";
-  const SOFT_FILL_2 = isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)";
 
   return StyleSheet.create({
     safe: {
@@ -32,99 +30,127 @@ export function createProgramDetailStyles(
       backgroundColor: colors.background,
     },
 
-    scroll: {
-      flex: 1,
+    heroBackdrop: {
+      position: "absolute",
+      top: 0,
+      left: 0,
+      right: 0,
+      overflow: "hidden",
       backgroundColor: colors.background,
     },
 
-    scrollContent: {
-      paddingBottom: 0,
+    heroBackdropImage: {
+      ...StyleSheet.absoluteFillObject,
+      width: "100%",
+      height: "100%",
     },
 
-    hero: {
-      height: 420,
-      justifyContent: "space-between",
-      backgroundColor: "#000000",
-    },
-
-    heroGradient: {
+    heroBackdropGradient: {
       ...StyleSheet.absoluteFillObject,
     },
+    heroSpace: {
+      position: "relative",
+    },
+    heroIconSpacer: {
+  width: 42,
+  height: 42,
+},
 
-    heroTopBar: {
-      paddingHorizontal: 16,
+    scroll: {
+      flex: 1,
+      backgroundColor: "transparent",
+    },
+
+    scrollContent: {
+      flexGrow: 1,
+    },
+
+    overlayActions: {
+      position: "absolute",
+      top: 0,
+      left: 0,
+      right: 0,
+      zIndex: 10,
+      paddingHorizontal: Spacing.md,
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
+      paddingTop: 50,
     },
 
     heroIconBtn: {
+      width: 44,
+  height: 44,
+  borderRadius: 22,
+  alignItems: "center",
+  justifyContent: "center",
+  backgroundColor: "rgba(255,255,255,0.08)",
+  borderWidth: 1,
+  borderColor: "rgba(255,255,255,0.20)",
+    },
+
+    heroInfoBtn: {
       width: 42,
       height: 42,
       borderRadius: 21,
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: "rgba(0,0,0,0.28)",
+      backgroundColor: "rgba(255,255,255,0.08)",
       borderWidth: 1,
-      borderColor: "rgba(255,255,255,0.24)",
+      borderColor: "rgba(255,255,255,0.22)",
     },
 
-    heroInfoBtn: {
-      width: 38,
-      height: 38,
-      borderRadius: 19,
-      alignItems: "center",
-      justifyContent: "center",
-      backgroundColor: "rgba(0,0,0,0.22)",
-      borderWidth: 1,
-      borderColor: "rgba(255,255,255,0.24)",
-    },
-
-    heroContent: {
-      paddingHorizontal: 18,
-      paddingBottom: 22,
+    heroOverlayContent: {
+      position: "absolute",
+      left: 0,
+      right: 0,
+      bottom: 22,
+      zIndex: 9,
+      paddingHorizontal: Spacing.md,
     },
 
     heroTitle: {
       color: "#FFFFFF",
-      fontSize: 34,
-      lineHeight: 38,
+      fontSize: 32,
+      lineHeight: 36,
       fontWeight: "900",
       letterSpacing: -0.5,
     },
 
     heroSubtitle: {
-      marginTop: 8,
-      color: "rgba(255,255,255,0.90)",
-      fontSize: 15,
+      marginTop: 10,
+      color: "rgba(255,255,255,0.92)",
+      fontSize: 14,
       lineHeight: 20,
       fontWeight: "700",
+      letterSpacing: -0.08,
     },
 
     heroMeta: {
-      marginTop: 8,
+      marginTop: 10,
       color: "rgba(255,255,255,0.76)",
       fontSize: 13,
       lineHeight: 18,
       fontWeight: "700",
+      letterSpacing: -0.05,
     },
 
     heroProgressTrack: {
       marginTop: 16,
-      height: 10,
-      backgroundColor: "rgba(255,255,255,0.18)",
+      height: 8,
+      backgroundColor: "rgba(255,255,255,0.20)",
       borderRadius: 999,
       overflow: "hidden",
     },
 
     heroProgressFill: {
-      height: 10,
+      height: 8,
       backgroundColor: "#FFFFFF",
       borderRadius: 999,
     },
 
     heroStatsRow: {
-      marginTop: 12,
+      marginTop: 10,
       flexDirection: "row",
       alignItems: "center",
       flexWrap: "wrap",
@@ -145,40 +171,88 @@ export function createProgramDetailStyles(
       backgroundColor: "rgba(255,255,255,0.42)",
     },
 
-    content: {
-      paddingTop: 18,
-      paddingHorizontal: Spacing.md,
-      paddingBottom: 24,
-      backgroundColor: colors.background,
+    floatingHeader: {
+      position: "absolute",
+      top: 0,
+      left: Spacing.md,
+      right: Spacing.md,
+      zIndex: 12,
     },
 
-    sectionHeader: {
-      marginBottom: 12,
+    floatingHeaderBlur: {
+      borderRadius: 18,
+      overflow: "hidden",
+      borderWidth: BorderWidth.default,
+      borderColor: isDark
+        ? "rgba(255,255,255,0.08)"
+        : "rgba(255,255,255,0.34)",
+      backgroundColor: isDark
+        ? "rgba(16,16,16,0.72)"
+        : "rgba(255,255,255,0.72)",
     },
 
-    sectionTitle: {
-      fontSize: 22,
-      lineHeight: 26,
+    floatingHeaderContent: {
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+    },
+
+    floatingHeaderTitle: {
+      fontSize: 16,
+      lineHeight: 20,
       fontWeight: "900",
       color: colors.text,
       letterSpacing: -0.2,
     },
+
+    floatingHeaderMetaRow: {
+      marginTop: 4,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+    },
+
+    floatingHeaderMetaText: {
+      fontSize: 12,
+      fontWeight: "700",
+      color: colors.muted,
+      letterSpacing: -0.04,
+    },
+
+    floatingHeaderDot: {
+      width: 4,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: colors.muted,
+      opacity: 0.45,
+    },
+
+    content: {
+      backgroundColor: colors.background,
+      paddingTop: 24,
+      paddingHorizontal: Spacing.md,
+      
+      marginTop: -10,
+    },
+
 
     weeksScroll: {
       marginHorizontal: -Spacing.md,
     },
 
     weeksRail: {
-      paddingHorizontal: WEEK_RAIL_SIDE_PADDING,
-      paddingBottom: 2,
-      gap: WEEK_PILL_GAP,
+      paddingHorizontal: Spacing.md,
+      paddingBottom: 6,
+      gap: 10,
+      flexDirection: "row",
+      alignItems: "center",
     },
 
     weekPill: {
-      width: WEEK_PILL_WIDTH,
+      minWidth: 98,
       height: 42,
+      paddingHorizontal: 16,
       borderRadius: 999,
-      backgroundColor: CARD_BG,
+      backgroundColor: colors.card,
       borderWidth: BorderWidth.default,
       borderColor: BORDER,
       alignItems: "center",
@@ -186,23 +260,23 @@ export function createProgramDetailStyles(
     },
 
     weekPillActive: {
-      backgroundColor: isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.06)",
-      borderColor: isDark ? "rgba(255,255,255,0.16)" : colors.border,
+      backgroundColor: colors.text,
+      borderColor: colors.text,
     },
 
     weekPillText: {
       fontSize: 14,
       fontWeight: "800",
       color: colors.muted,
-      letterSpacing: -0.1,
+      letterSpacing: -0.12,
     },
 
     weekPillTextActive: {
-      color: colors.text,
+      color: colors.surface,
     },
 
     activeWeekHeader: {
-      marginTop: 20,
+      marginTop: 22,
       marginBottom: 14,
       flexDirection: "row",
       alignItems: "center",
@@ -243,43 +317,47 @@ export function createProgramDetailStyles(
     },
 
     workoutsInline: {
-      borderRadius: 24,
-      backgroundColor: CARD_BG,
-      borderWidth: BorderWidth.default,
-      borderColor: BORDER,
-      overflow: "hidden",
+      backgroundColor: "transparent",
     },
 
-    nextWorkoutWrap: {},
+    nextWorkoutWrap: {
+      marginBottom: 18,
+    },
 
     workoutRow: {
       minHeight: 106,
       paddingVertical: 14,
-      paddingHorizontal: 14,
+      paddingHorizontal: 0,
       flexDirection: "row",
       alignItems: "center",
-      backgroundColor: CARD_BG,
+      backgroundColor: "transparent",
     },
 
-    workoutRowNext: {
-      backgroundColor: isDark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.015)",
+     workoutRowNext: {
+      minHeight: 118,
+      paddingVertical: 16,
+      paddingHorizontal: 14,
+      borderRadius: 24,
+      backgroundColor: isDark ? "rgba(244,200,74,0.14)" : "rgba(244,200,74,0.10)",
+      borderWidth: BorderWidth.default,
+      borderColor: isDark ? "rgba(244,200,74,0.42)" : "rgba(244,200,74,0.55)",
     },
 
-    nextWorkoutAccent: {
-      position: "absolute",
-      left: 0,
-      top: 14,
-      bottom: 14,
-      width: 4,
-      borderTopRightRadius: 4,
-      borderBottomRightRadius: 4,
-      backgroundColor: colors.premium,
-    },
+     nextWorkoutAccent: {
+        position: "absolute",
+        left: 0,
+        top: 16,
+        bottom: 16,
+        width: 4,
+        borderTopRightRadius: 4,
+        borderBottomRightRadius: 4,
+        backgroundColor: colors.premium,
+      },
 
     workoutThumb: {
-      width: 74,
-      height: 74,
-      borderRadius: 18,
+      width: 82,
+      height: 82,
+      borderRadius: 20,
       backgroundColor: SOFT_FILL,
     },
 
@@ -293,7 +371,7 @@ export function createProgramDetailStyles(
       fontSize: 12,
       fontWeight: "900",
       color: colors.muted,
-      letterSpacing: 0.4,
+      letterSpacing: 0.45,
       textTransform: "uppercase",
     },
 
@@ -311,8 +389,9 @@ export function createProgramDetailStyles(
     },
 
     workoutMeta: {
-      marginTop: 5,
+      marginTop: 6,
       fontSize: 13,
+      lineHeight: 16,
       fontWeight: "700",
       color: colors.muted,
     },
@@ -325,7 +404,23 @@ export function createProgramDetailStyles(
     workoutRight: {
       alignItems: "flex-end",
       justifyContent: "space-between",
-      minHeight: 74,
+      minHeight: 82,
+    },
+
+    statusNext: {
+      minWidth: 58,
+      height: 30,
+      paddingHorizontal: 12,
+      borderRadius: 999,
+      backgroundColor: colors.text,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+
+    statusNextText: {
+      fontSize: 12,
+      fontWeight: "900",
+      color: colors.surface,
     },
 
     statusDone: {
@@ -346,61 +441,133 @@ export function createProgramDetailStyles(
       color: "#111111",
     },
 
-    statusNext: {
-      minWidth: 58,
-      height: 30,
-      paddingHorizontal: 12,
-      borderRadius: 999,
-      backgroundColor: colors.text,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-
-    statusNextText: {
-      fontSize: 12,
-      fontWeight: "900",
-      color: colors.surface,
-    },
-
-    statusAvailable: {
-      minWidth: 82,
-      height: 30,
-      paddingHorizontal: 12,
-      borderRadius: 999,
-      backgroundColor: SOFT_FILL,
-      borderWidth: BorderWidth.default,
-      borderColor: BORDER,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-
-    statusAvailableText: {
-      fontSize: 12,
-      fontWeight: "800",
-      color: colors.text,
-    },
-
     statusLocked: {
-      width: 30,
-      height: 30,
-      borderRadius: 15,
+      width: 32,
+      height: 32,
+      borderRadius: 16,
       backgroundColor: SOFT_FILL,
       borderWidth: BorderWidth.default,
       borderColor: BORDER,
       alignItems: "center",
       justifyContent: "center",
+    },
+
+    statusLockedGhost: {
+      width: 58,
+      height: 30,
+      opacity: 0,
     },
 
     inlineDivider: {
       height: BorderWidth.default,
       backgroundColor: BORDER,
-      marginLeft: 102,
-      marginRight: 14,
+      marginLeft: 96,
+      marginRight: 0,
     },
 
-    bottomSpacer: {
-      height: 18,
+    coachRow: {
+      marginTop: 22,
+      flexDirection: "row",
+      alignItems: "center",
     },
+
+    coachAvatarWrap: {
+      width: 72,
+      height: 72,
+      borderRadius: 36,
+      overflow: "hidden",
+      backgroundColor: colors.card,
+    },
+
+    coachAvatar: {
+      width: "100%",
+      height: "100%",
+    },
+
+    coachTextWrap: {
+      flex: 1,
+      paddingLeft: 16,
+    },
+
+    coachEyebrow: {
+      fontSize: 13,
+      lineHeight: 17,
+      fontWeight: "500",
+      color: colors.muted,
+      letterSpacing: -0.08,
+    },
+
+    coachName: {
+      marginTop: 4,
+      fontSize: 18,
+      lineHeight: 22,
+      fontWeight: "800",
+      color: colors.text,
+      letterSpacing: -0.2,
+    },
+descriptionBlock: {
+  marginTop: 28,
+},
+
+descriptionEyebrow: {
+  fontSize: 12,
+  fontWeight: "900",
+  color: colors.muted,
+  letterSpacing: 0.5,
+  textTransform: "uppercase",
+},
+
+descriptionTitle: {
+  marginTop: 6,
+  fontSize: 24,
+  lineHeight: 28,
+  fontWeight: "900",
+  color: colors.text,
+  letterSpacing: -0.25,
+},
+
+descriptionText: {
+  marginTop: 14,
+  fontSize: 15,
+  lineHeight: 22,
+  fontWeight: "600",
+  color: colors.muted,
+},
+
+bulletsBlock: {
+  marginTop: 16,
+  marginBottom: 56,
+  backgroundColor: colors.card,
+  borderRadius: 18,
+  borderWidth: BorderWidth.default,
+  borderColor: BORDER,
+  padding: 14,
+},
+
+bulletRow: {
+  flexDirection: "row",
+  alignItems: "center",
+},
+
+bulletRowGap: {
+  marginBottom: 12,
+},
+
+bulletDot: {
+  width: 8,
+  height: 8,
+  borderRadius: 4,
+  backgroundColor: colors.premium,
+},
+
+bulletText: {
+  flex: 1,
+  paddingLeft: 12,
+  fontSize: 14,
+  fontWeight: "700",
+  color: colors.text,
+  letterSpacing: -0.1,
+},
 
     modalRoot: {
       flex: 1,
@@ -493,7 +660,7 @@ export function createProgramDetailStyles(
 
     infoBulletsCard: {
       marginTop: 16,
-      backgroundColor: CARD_BG,
+      backgroundColor: colors.card,
       borderRadius: 18,
       borderWidth: BorderWidth.default,
       borderColor: BORDER,
@@ -561,7 +728,3 @@ export function createProgramDetailStyles(
     },
   });
 }
-
-const WEEK_RAIL_SIDE_PADDING = 16;
-const WEEK_PILL_GAP = 10;
-const WEEK_PILL_WIDTH = 104;

@@ -289,14 +289,7 @@ export default function HomeScreen() {
                 {programTitle} · {programMeta}
               </Text>
 
-              <View style={styles.heroProgressBg}>
-                <View
-                  style={[
-                    styles.heroProgressFill,
-                    { width: `${Math.max(0, Math.min(1, programProgress)) * 100}%` },
-                  ]}
-                />
-              </View>
+             
 
               <View style={styles.metricsRow}>
                 {draftProgress ? (
@@ -421,17 +414,17 @@ function createStyles(colors: {
     },
 
     weekMetaLeft: {
-      fontSize: 14,
+      fontSize: 13,
       fontWeight: "700",
       color: colors.muted,
-      letterSpacing: -0.1,
+      letterSpacing: -0.05,
     },
 
     weekMetaRight: {
-      fontSize: 14,
-      fontWeight: "900",
+      fontSize: 13,
+      fontWeight: "800",
       color: colors.text,
-      letterSpacing: -0.1,
+      letterSpacing: -0.05,
     },
 
     weekProgressBg: {
@@ -570,10 +563,10 @@ function createStyles(colors: {
     heroTitle: {
       marginTop: 8,
       color: "#FFF",
-      fontSize: 34,
-      lineHeight: 38,
+      fontSize: 28,
+      lineHeight: 31,
       fontWeight: "900",
-      letterSpacing: -0.5,
+      letterSpacing: -0.35,
     },
 
     heroMeta: {
@@ -584,26 +577,14 @@ function createStyles(colors: {
       letterSpacing: -0.1,
     },
 
-    heroProgressBg: {
-      marginTop: 14,
-      height: 10,
-      backgroundColor: "rgba(255,255,255,0.22)",
-      borderRadius: 999,
-      overflow: "hidden",
-    },
-
-    heroProgressFill: {
-      height: 10,
-      backgroundColor: "#FFF",
-      borderRadius: 999,
-    },
+   
 
     metricsRow: {
-      marginTop: 10,
-      minHeight: 0,
-      flexDirection: "row",
-      flexWrap: "wrap",
-      gap: 10,
+        marginTop: 14,
+        minHeight: 0,
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: 10,
     },
 
     metricPill: {
@@ -659,18 +640,18 @@ function createStyles(colors: {
     },
 
     sectionHeaderRow: {
-      marginTop: 30,
-      marginBottom: 14,
+      marginTop: 55,
+      marginBottom: 16,
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
     },
 
     sectionTitle: {
-      fontSize: 22,
-      fontWeight: "900",
+      fontSize: 18,
+      fontWeight: "800",
       color: colors.text,
-      letterSpacing: -0.25,
+      letterSpacing: -0.2,
     },
 
     sectionLink: {
@@ -687,7 +668,8 @@ function createStyles(colors: {
     },
 
     prepRail: {
-      paddingBottom: 6,
+        paddingBottom: 8,
+        paddingRight: Spacing.md,
     },
 
     prepCardGap: {
