@@ -1,6 +1,5 @@
-// app/workout/workout.styles.ts
-
 import { BorderWidth } from "@/styles/hairline";
+import { Spacing } from "@/styles/spacing";
 import { StyleSheet } from "react-native";
 
 export function createWorkoutStyles(
@@ -20,14 +19,13 @@ export function createWorkoutStyles(
   const SOFT = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)";
   const SOFT_2 = isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)";
   const SOFT_3 = isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.08)";
+  const CTA_BG = isDark ? "rgba(21,21,23,0.92)" : "rgba(255,255,255,0.92)";
 
   return StyleSheet.create({
     safe: {
       flex: 1,
       backgroundColor: colors.background,
     },
-
-    /* ───────────────────────── Shared scroll / page ───────────────────────── */
 
     page: {
       flex: 1,
@@ -36,7 +34,7 @@ export function createWorkoutStyles(
 
     scroll: {
       flex: 1,
-      backgroundColor: colors.background,
+      backgroundColor: "transparent",
     },
 
     scrollContent: {
@@ -44,21 +42,113 @@ export function createWorkoutStyles(
       paddingBottom: 24,
     },
 
-    /* ───────────────────────── Preview screen ───────────────────────── */
+    /* ───────────────────────── Workout preview hero ───────────────────────── */
 
     previewPage: {
       flex: 1,
       backgroundColor: colors.background,
     },
 
+    previewHeroBackdrop: {
+      position: "absolute",
+      top: 0,
+      left: 0,
+      right: 0,
+      overflow: "hidden",
+      backgroundColor: colors.background,
+    },
+
+    previewHeroBackdropImage: {
+      ...StyleSheet.absoluteFillObject,
+      width: "100%",
+      height: "100%",
+    },
+
+    previewHeroBackdropGradient: {
+      ...StyleSheet.absoluteFillObject,
+    },
+
     previewContent: {
-      paddingHorizontal: 16,
-      paddingTop: 8,
-      paddingBottom: 24,
+      flexGrow: 1,
+    },
+
+    previewHeroSpace: {
+      position: "relative",
+    },
+
+    previewOverlayActions: {
+      position: "absolute",
+      top: 0,
+      left: 0,
+      right: 0,
+      zIndex: 10,
+      paddingHorizontal: Spacing.md,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingTop: 50,
+    },
+
+    previewHeroBackBtn: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: "rgba(255,255,255,0.08)",
+      borderWidth: 1,
+      borderColor: "rgba(255,255,255,0.20)",
+    },
+
+    previewHeroSpacer: {
+      width: 42,
+      height: 42,
+    },
+
+    previewHeroContent: {
+      position: "absolute",
+      left: 0,
+      right: 0,
+      bottom: 14,
+      zIndex: 9,
+      paddingHorizontal: Spacing.md,
+    },
+
+    previewHeroTitle: {
+      color: "#FFFFFF",
+      fontSize: 30,
+      lineHeight: 34,
+      fontWeight: "900",
+      letterSpacing: -0.4,
+    },
+
+    previewHeroSubtitle: {
+      marginTop: 6,
+      color: "rgba(255,255,255,0.92)",
+      fontSize: 13,
+      lineHeight: 18,
+      fontWeight: "700",
+      letterSpacing: -0.08,
+    },
+
+    previewHeroMeta: {
+      marginTop: 6,
+      color: "rgba(255,255,255,0.75)",
+      fontSize: 12,
+      lineHeight: 16,
+      fontWeight: "800",
+      letterSpacing: 0.2,
+    },
+
+    previewBody: {
+      backgroundColor: colors.background,
+      paddingTop: 22,
+      paddingHorizontal: Spacing.md,
+      marginTop: 0,
     },
 
     previewList: {
-      marginTop: 18,
+      marginTop: 2,
     },
 
     previewGroupWrap: {
@@ -68,16 +158,17 @@ export function createWorkoutStyles(
 
     previewGroupRail: {
       position: "absolute",
-      top: 0,
-      bottom: 0,
+      top: 2,
+      bottom: 2,
       left: 0,
       width: 4,
       borderRadius: 999,
       backgroundColor: SOFT_3,
+      opacity: 0.9,
     },
 
     previewBlockHeader: {
-      marginBottom: 12,
+      marginBottom: 14,
     },
 
     previewBlockKicker: {
@@ -100,22 +191,30 @@ export function createWorkoutStyles(
     previewBlockMeta: {
       marginTop: 4,
       fontSize: 14,
+      lineHeight: 18,
       fontWeight: "700",
       color: colors.muted,
     },
 
-    previewCard: {
+    previewRows: {
+      backgroundColor: "transparent",
+    },
+
+    previewRow: {
+      minHeight: 96,
       flexDirection: "row",
       alignItems: "center",
       gap: 12,
-      backgroundColor: colors.card,
-      borderWidth: BorderWidth.default,
-      borderColor: BORDER,
-      borderRadius: 20,
-      padding: 12,
+      paddingVertical: 12,
+      paddingRight: 2,
+      backgroundColor: "transparent",
     },
 
-    previewCardLeft: {
+    previewRowPressed: {
+      opacity: 0.92,
+    },
+
+    previewRowLeft: {
       flexDirection: "row",
       alignItems: "center",
       gap: 10,
@@ -131,8 +230,6 @@ export function createWorkoutStyles(
       height: 28,
       borderRadius: 14,
       backgroundColor: SOFT,
-      borderWidth: BorderWidth.default,
-      borderColor: BORDER,
       alignItems: "center",
       justifyContent: "center",
     },
@@ -149,8 +246,6 @@ export function createWorkoutStyles(
       height: 28,
       borderRadius: 14,
       backgroundColor: SOFT,
-      borderWidth: BorderWidth.default,
-      borderColor: BORDER,
       alignItems: "center",
       justifyContent: "center",
     },
@@ -163,47 +258,65 @@ export function createWorkoutStyles(
     },
 
     previewImage: {
-      width: 64,
-      height: 64,
-      borderRadius: 16,
+      width: 68,
+      height: 68,
+      borderRadius: 18,
       backgroundColor: SOFT_2,
     },
 
     previewExName: {
-      fontSize: 16,
-      lineHeight: 20,
+      fontSize: 17,
+      lineHeight: 21,
       fontWeight: "900",
       color: colors.text,
       letterSpacing: -0.15,
     },
 
     previewExMeta: {
-      marginTop: 4,
+      marginTop: 5,
       fontSize: 13,
       lineHeight: 17,
       fontWeight: "700",
       color: colors.muted,
     },
 
-    previewSeparator: {
-      height: 10,
+    previewInlineDivider: {
+      height: BorderWidth.default,
+      backgroundColor: BORDER,
+      marginLeft: 106,
     },
 
     previewBlockSpacer: {
-      height: 18,
+      height: 24,
     },
 
-    previewBottom: {
+    previewBottomWrap: {
       position: "absolute",
       left: 0,
       right: 0,
       bottom: 0,
+    },
+
+    previewBottomFade: {
+      height: 34,
+    },
+
+    previewBottom: {
       paddingHorizontal: 16,
-      paddingTop: 12,
+      paddingTop: 10,
       paddingBottom: 18,
-      backgroundColor: colors.surface,
-      borderTopWidth: BorderWidth.default,
-      borderTopColor: BORDER,
+      backgroundColor: colors.background,
+    },
+
+    previewBottomCard: {
+      borderRadius: 0,
+      paddingTop: 0,
+      paddingBottom: 0,
+      backgroundColor: "transparent",
+    },
+
+    previewBottomHelper: {
+      display: "none",
     },
 
     startBtn: {
@@ -230,7 +343,7 @@ export function createWorkoutStyles(
     groupWrap: {
       position: "relative",
       paddingLeft: 14,
-      marginBottom: 2,
+      marginBottom: 8,
     },
 
     groupRail: {
@@ -275,10 +388,10 @@ export function createWorkoutStyles(
     },
 
     card: {
-      borderRadius: 22,
+      borderRadius: 24,
       backgroundColor: colors.card,
-      borderWidth: BorderWidth.default,
-      borderColor: BORDER,
+      borderWidth: 0,
+      borderColor: "transparent",
       overflow: "hidden",
       paddingTop: 14,
       paddingBottom: 12,
@@ -294,7 +407,7 @@ export function createWorkoutStyles(
     thumb: {
       width: 72,
       height: 72,
-      borderRadius: 16,
+      borderRadius: 18,
       backgroundColor: SOFT_2,
     },
 
@@ -332,20 +445,29 @@ export function createWorkoutStyles(
       borderRadius: 999,
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: colors.surface,
+      backgroundColor: SOFT,
       borderWidth: BorderWidth.default,
       borderColor: BORDER,
     },
 
     cols: {
-      flexDirection: "row",
-      alignItems: "center",
-      paddingHorizontal: 12,
-      paddingBottom: 10,
-      borderBottomWidth: BorderWidth.default,
-      borderBottomColor: BORDER,
-      marginTop: 14,
-    },
+  flexDirection: "row",
+  alignItems: "center",
+  paddingHorizontal: 12,
+  paddingBottom: 8,
+  borderBottomWidth: BorderWidth.default,
+  borderBottomColor: isDark ? "rgba(255,255,255,0.05)" : "rgba(17,17,17,0.05)",
+  marginTop: 12,
+},
+
+colLabel: {
+  fontSize: 10,
+  fontWeight: "800",
+  color: colors.muted,
+  letterSpacing: 0.5,
+  textTransform: "uppercase",
+  opacity: 0.88,
+},
 
     colSetWrap: {
       width: 44,
@@ -365,19 +487,14 @@ export function createWorkoutStyles(
       justifyContent: "center",
     },
 
-    colLabel: {
-      fontSize: 10,
-      fontWeight: "900",
-      color: colors.muted,
-      letterSpacing: 0.7,
-      textTransform: "uppercase",
-    },
+   
 
     row: {
       position: "relative",
       flexDirection: "row",
       alignItems: "center",
       paddingHorizontal: 12,
+      minHeight: 76,
     },
 
     rowBottomBorder: {
@@ -404,10 +521,13 @@ export function createWorkoutStyles(
     },
 
     cell: {
-      borderRadius: 14,
+      borderRadius: 16,
       alignItems: "center",
       justifyContent: "center",
       paddingHorizontal: 10,
+      backgroundColor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.015)",
+      borderWidth: 1,
+      borderColor: isDark ? "rgba(255,255,255,0.07)" : "rgba(17,17,17,0.06)",
     },
 
     input: {
@@ -439,25 +559,26 @@ export function createWorkoutStyles(
       borderRadius: 999,
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: colors.surface,
+      backgroundColor: "transparent",
       borderWidth: BorderWidth.default,
       borderColor: BORDER,
       paddingHorizontal: 18,
     },
-      ghostText: {
-        fontSize: 14,
-        fontWeight: "900",
-        color: colors.text,
-        letterSpacing: -0.15,
-      },
+
+    ghostText: {
+      fontSize: 14,
+      fontWeight: "900",
+      color: colors.text,
+      letterSpacing: -0.15,
+    },
 
     addSetButton: {
       margin: 14,
       height: 46,
-      borderRadius: 14,
+      borderRadius: 999,
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: SOFT,
+      backgroundColor: "transparent",
       borderWidth: BorderWidth.default,
       borderColor: BORDER,
     },
@@ -470,11 +591,11 @@ export function createWorkoutStyles(
     },
 
     exerciseSeparator: {
-      height: 12,
+      height: 14,
     },
 
     exerciseGap: {
-      height: 12,
+      height: 14,
     },
 
     finishSectionWrap: {
@@ -838,8 +959,6 @@ export function createWorkoutStyles(
       backgroundColor: "rgb(34,197,94)",
       borderColor: "rgb(34,197,94)",
     },
-
-    /* ───────────────────────── Group accents ───────────────────────── */
 
     groupRailSuperset: {
       backgroundColor: colors.premium,

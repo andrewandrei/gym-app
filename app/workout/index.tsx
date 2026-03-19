@@ -1,5 +1,4 @@
-// app/workout/index.tsx
-
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ResizeMode, Video } from "expo-av";
 import * as Haptics from "expo-haptics";
 import * as Notifications from "expo-notifications";
@@ -15,18 +14,19 @@ import {
   Modal,
   Platform,
   Pressable,
-  SafeAreaView,
   ScrollView,
   Text,
   TextInput,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useAppTheme } from "@/app/_providers/theme";
 import type { SetRow as SetRowLocal } from "./SetRowItem";
 import { getWorkoutConfig } from "./workout.data";
 import { createWorkoutStyles } from "./workout.styles";
 import {
+  clearWorkoutDraft,
   hasMeaningfulProgress,
   loadWorkoutDraft,
   saveWorkoutDraft,
@@ -41,13 +41,11 @@ import {
   type StrengthBlock,
 } from "./WorkoutPreview";
 
-/* ───────────────────────── iOS Done accessory ───────────────────────── */
-
 const IOS_ACCESSORY_ID = "workoutAccessoryDone";
+const FINISH_SUMMARY_STORAGE_KEY = "aa_fit_finish_summary";
+
 const iosAccessoryProps: { inputAccessoryViewID: string } | {} =
   Platform.OS === "ios" ? { inputAccessoryViewID: IOS_ACCESSORY_ID } : {};
-
-/* ───────────────────────── Types ───────────────────────── */
 
 type UndoAction = {
   type: "delete";
@@ -93,6 +91,7 @@ type FinishSummary = {
     id: string;
     name: string;
     completedSets: number;
+    totalSetsPlanned: number;
     unitLabel: string;
     sessionVolume: number;
     comparedToLast?: {
@@ -141,9 +140,12 @@ export default function WorkoutLogScreen() {
   const [isPreview, setIsPreview] = useState(true);
   const [isHydratingDraft, setIsHydratingDraft] = useState(resumeDraftFlag === "1");
   const [exitConfirmOpen, setExitConfirmOpen] = useState(false);
+  const [partialFinishConfirmOpen, setPartialFinishConfirmOpen] = useState(false);
+  const [completeFinishConfirmOpen, setCompleteFinishConfirmOpen] = useState(false);
+  const [resumeDraftPromptOpen, setResumeDraftPromptOpen] = useState(false);
+  const [availableDraft, setAvailableDraft] = useState<WorkoutDraft | null>(null);
 
-  const [currentStreak, setCurrentStreak] = useState(7);
-  const [totalWorkouts, setTotalWorkouts] = useState(42);
+  const [currentStreak] = useState(7);
 
   const initialExercises: Exercise[] = useMemo(
     () => workoutConfig.exercises,
@@ -243,11 +245,11 @@ export default function WorkoutLogScreen() {
   const timeToSeconds = (time: string): number => {
     const parts = time.split(":");
     if (parts.length === 2) {
-      const mins = parseInt(parts[0]) || 0;
-      const secs = parseInt(parts[1]) || 0;
+      const mins = parseInt(parts[0], 10) || 0;
+      const secs = parseInt(parts[1], 10) || 0;
       return mins * 60 + secs;
     }
-    return parseInt(time) || 0;
+    return parseInt(time, 10) || 0;
   };
 
   const formatTime = (seconds: number) => {
@@ -402,6 +404,35 @@ export default function WorkoutLogScreen() {
     };
   }, [resumeDraftFlag, initialExerciseMap]);
 
+  useEffect(() => {
+    let mounted = true;
+
+    const checkExistingDraft = async () => {
+      if (resumeDraftFlag === "1") return;
+      if (!isPreview) return;
+
+      try {
+        const draft = await loadWorkoutDraft();
+
+        if (!mounted) return;
+
+        if (draft && hasMeaningfulProgress(draft.exercises)) {
+          setAvailableDraft(draft);
+        } else {
+          setAvailableDraft(null);
+        }
+      } catch {
+        if (mounted) setAvailableDraft(null);
+      }
+    };
+
+    checkExistingDraft();
+
+    return () => {
+      mounted = false;
+    };
+  }, [resumeDraftFlag, isPreview]);
+
   const isGroupedBlock = (blockId: string) => {
     const block = blocks.find((b) => b.id === blockId);
     return !!block && (block.type === "superset" || block.type === "giant" || block.type === "circuit");
@@ -417,7 +448,7 @@ export default function WorkoutLogScreen() {
 
     const currentExIndex = block.exerciseIds.indexOf(exId);
 
-    for (let i = 1; i < block.exerciseIds.length; i++) {
+    for (let i = 1; i < block.exerciseIds.length; i += 1) {
       const nextExIndex = (currentExIndex + i) % block.exerciseIds.length;
       const nextExId = block.exerciseIds[nextExIndex];
       const nextEx = exercises.find((e) => e.id === nextExId);
@@ -448,12 +479,12 @@ export default function WorkoutLogScreen() {
     const ex = exercises.find((e) => e.id === exId);
     if (!ex) return null;
 
-    for (let i = currentSetIndex + 1; i < ex.sets.length; i++) {
+    for (let i = currentSetIndex + 1; i < ex.sets.length; i += 1) {
       if (!ex.sets[i].done) return { exId, setIndex: i };
     }
 
     const currentBlockIndex = blocks.findIndex((b) => b.exerciseIds.includes(exId));
-    for (let i = currentBlockIndex + 1; i < blocks.length; i++) {
+    for (let i = currentBlockIndex + 1; i < blocks.length; i += 1) {
       for (const nextExId of blocks[i].exerciseIds) {
         const nextEx = exercises.find((e) => e.id === nextExId);
         if (nextEx && nextEx.sets[0] && !nextEx.sets[0].done) {
@@ -492,40 +523,6 @@ export default function WorkoutLogScreen() {
     );
   };
 
-  const startRestTimer = async (restTime: string) => {
-    const seconds = timeToSeconds(restTime);
-    if (seconds <= 0) return;
-
-    if (restIntervalRef.current) clearInterval(restIntervalRef.current);
-    setRestTimer({ seconds, total: seconds });
-
-    if (Platform.OS !== "web") {
-      try {
-        await Notifications.scheduleNotificationAsync({
-          content: {
-            title: "Rest Complete! 💪",
-            body: "Time for your next set",
-            sound: true,
-          },
-          trigger: { seconds },
-        });
-      } catch {}
-    }
-
-    restIntervalRef.current = setInterval(() => {
-      setRestTimer((prev) => {
-        if (!prev || prev.seconds <= 1) {
-          if (restIntervalRef.current) clearInterval(restIntervalRef.current);
-          if (Platform.OS !== "web") {
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          }
-          return null;
-        }
-        return { ...prev, seconds: prev.seconds - 1 };
-      });
-    }, 1000);
-  };
-
   const skipRestTimer = async () => {
     if (restIntervalRef.current) clearInterval(restIntervalRef.current);
     setRestTimer(null);
@@ -545,8 +542,8 @@ export default function WorkoutLogScreen() {
   };
 
   const startCustomTimer = async () => {
-    const mins = parseInt(customMinutes) || 0;
-    const secs = parseInt(customSeconds) || 0;
+    const mins = parseInt(customMinutes, 10) || 0;
+    const secs = parseInt(customSeconds, 10) || 0;
     const totalSeconds = mins * 60 + secs;
 
     if (totalSeconds <= 0) return;
@@ -636,7 +633,7 @@ export default function WorkoutLogScreen() {
     });
   }, []);
 
-  const startWorkout = async () => {
+  const beginFreshWorkout = useCallback(async () => {
     if (Platform.OS !== "web") {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
@@ -648,7 +645,37 @@ export default function WorkoutLogScreen() {
     if (firstIncomplete) {
       setActiveSetKey(`${firstIncomplete.exId}:${firstIncomplete.setIndex}`);
     }
-  };
+  }, [exercises]);
+
+  const startWorkout = useCallback(async () => {
+    if (availableDraft) {
+      setResumeDraftPromptOpen(true);
+      return;
+    }
+
+    await beginFreshWorkout();
+  }, [availableDraft, beginFreshWorkout]);
+
+  const continueExistingWorkout = useCallback(() => {
+    if (!availableDraft) return;
+
+    setResumeDraftPromptOpen(false);
+
+    router.replace({
+      pathname: "/workout",
+      params: {
+        workoutId: availableDraft.workoutId,
+        resumeDraft: "1",
+      },
+    });
+  }, [availableDraft]);
+
+  const startNewSession = useCallback(async () => {
+    setResumeDraftPromptOpen(false);
+    await clearWorkoutDraft();
+    setAvailableDraft(null);
+    await beginFreshWorkout();
+  }, [beginFreshWorkout]);
 
   const handleBack = async () => {
     if (Platform.OS !== "web") {
@@ -863,6 +890,7 @@ export default function WorkoutLogScreen() {
     0,
   );
   const pct = totalSets ? Math.round((completedSets / totalSets) * 100) : 0;
+  const isWorkoutComplete = totalSets > 0 && completedSets === totalSets;
 
   const openHistory = async (exId: string) => {
     if (Platform.OS !== "web") {
@@ -904,7 +932,7 @@ export default function WorkoutLogScreen() {
     setMenuExerciseId(null);
   };
 
-  const getPersonalBest = (exId: string) => {
+  const getPersonalBest = useCallback((exId: string) => {
     const sessions = historyByExerciseId[exId] ?? [];
     if (!sessions.length) return null;
 
@@ -925,11 +953,11 @@ export default function WorkoutLogScreen() {
     });
 
     return maxWeight > 0 ? { weight: maxWeight, reps: maxReps, date: prDate } : null;
-  };
+  }, [historyByExerciseId]);
 
   const pr = useMemo(
     () => (historyExerciseId ? getPersonalBest(historyExerciseId) : null),
-    [historyExerciseId, historyByExerciseId],
+    [historyExerciseId, getPersonalBest],
   );
 
   const currentExercise = exercises.find((ex) => ex.id === menuExerciseId);
@@ -1026,10 +1054,10 @@ export default function WorkoutLogScreen() {
     return `${count} exercise`;
   };
 
-  const letter = (i: number) => String.fromCharCode("A".charCodeAt(0) + i);
-
   const tagFor = (block: StrengthBlock, idx: number) => {
-    if (block.type === "superset" || block.type === "giant") return letter(idx);
+    if (block.type === "superset" || block.type === "giant") {
+      return String.fromCharCode("A".charCodeAt(0) + idx);
+    }
     if (block.type === "circuit") return String(idx + 1);
     return undefined;
   };
@@ -1042,7 +1070,7 @@ export default function WorkoutLogScreen() {
   };
 
   const buildFinishSummary = useCallback((): FinishSummary => {
-    const completedExercises = exercises
+    const completedExercisesOnly = exercises
       .map((ex) => {
         const completedSetsOnly = ex.sets
           .map((s, idx) => ({
@@ -1127,6 +1155,7 @@ export default function WorkoutLogScreen() {
           id: ex.id,
           name: ex.name,
           completedSets: completedSetsOnly.length,
+          totalSetsPlanned: ex.sets.length,
           unitLabel: ex.unitLabel,
           sessionVolume,
           comparedToLast,
@@ -1135,9 +1164,9 @@ export default function WorkoutLogScreen() {
       })
       .filter(Boolean) as FinishSummary["exercises"];
 
-    const totalCompletedSets = completedExercises.reduce((sum, ex) => sum + ex.completedSets, 0);
+    const totalCompletedSets = completedExercisesOnly.reduce((sum, ex) => sum + ex.completedSets, 0);
     const totalExercisesCount = exercises.length;
-    const completedExercisesCount = completedExercises.length;
+    const completedExercisesCount = completedExercisesOnly.length;
     const completionRate = totalSets > 0 ? totalCompletedSets / totalSets : 0;
 
     let strengthSetCount = 0;
@@ -1202,14 +1231,14 @@ export default function WorkoutLogScreen() {
             exerciseId: ex.id,
             exerciseName: ex.name,
             type: "heavier",
-            label: `Heavier than last session`,
+            label: "Heavier than last session",
           });
         } else if (currentBestReps > prevBestReps) {
           wins.push({
             exerciseId: ex.id,
             exerciseName: ex.name,
             type: "more_reps",
-            label: `More reps than last session`,
+            label: "More reps than last session",
           });
         } else if (
           currentBestWeight === prevBestWeight &&
@@ -1220,14 +1249,14 @@ export default function WorkoutLogScreen() {
             exerciseId: ex.id,
             exerciseName: ex.name,
             type: "matched",
-            label: `Matched last session`,
+            label: "Matched last session",
           });
         } else if (currentVolume > prevVolume && currentVolume > 0) {
           wins.push({
             exerciseId: ex.id,
             exerciseName: ex.name,
             type: "volume_up",
-            label: `Higher session volume`,
+            label: "Higher session volume",
           });
         }
       }
@@ -1277,12 +1306,12 @@ export default function WorkoutLogScreen() {
       });
     });
 
-    const totalVolume = completedExercises.reduce((sum, ex) => sum + ex.sessionVolume, 0);
+    const totalVolume = completedExercisesOnly.reduce((sum, ex) => sum + ex.sessionVolume, 0);
     const avgTrackedLoad = trackedLoadCount > 0 ? totalTrackedLoad / trackedLoadCount : 0;
-    const improvedExerciseCount = completedExercises.filter(
+    const improvedExerciseCount = completedExercisesOnly.filter(
       (ex) => ex.comparedToLast?.result === "better",
     ).length;
-    const matchedExerciseCount = completedExercises.filter(
+    const matchedExerciseCount = completedExercisesOnly.filter(
       (ex) => ex.comparedToLast?.result === "same",
     ).length;
 
@@ -1308,26 +1337,49 @@ export default function WorkoutLogScreen() {
       },
       prs,
       wins,
-      exercises: completedExercises,
+      exercises: completedExercisesOnly,
     };
-  }, [exercises, historyByExerciseId, totalSets, workoutDuration, workoutTitle]);
+  }, [exercises, historyByExerciseId, totalSets, workoutDuration, workoutTitle, getPersonalBest]);
 
-  const openFinish = useCallback(async () => {
+  const goToFinish = useCallback(
+    async (sessionStatus: "partial" | "completed") => {
+      Keyboard.dismiss();
+
+      if (Platform.OS !== "web") {
+        await Haptics.selectionAsync();
+      }
+
+      const summary = buildFinishSummary();
+
+      await AsyncStorage.setItem(FINISH_SUMMARY_STORAGE_KEY, JSON.stringify(summary));
+      await clearWorkoutDraft();
+      setAvailableDraft(null);
+
+      setPartialFinishConfirmOpen(false);
+      setCompleteFinishConfirmOpen(false);
+
+      router.replace({
+        pathname: "/workout/finish",
+        params: { sessionStatus },
+      });
+    },
+    [buildFinishSummary],
+  );
+
+  const handleFinishPress = useCallback(async () => {
     Keyboard.dismiss();
 
     if (Platform.OS !== "web") {
       await Haptics.selectionAsync();
     }
 
-    const summary = buildFinishSummary();
+    if (isWorkoutComplete) {
+      setCompleteFinishConfirmOpen(true);
+      return;
+    }
 
-    router.push({
-      pathname: "/workout/finish",
-      params: {
-        summary: JSON.stringify(summary),
-      },
-    });
-  }, [buildFinishSummary]);
+    setPartialFinishConfirmOpen(true);
+  }, [isWorkoutComplete]);
 
   const onPressThumbnail = useCallback(
     (exId: string) => {
@@ -1341,7 +1393,10 @@ export default function WorkoutLogScreen() {
 
   if (isHydratingDraft) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+      <SafeAreaView
+        style={{ flex: 1, backgroundColor: colors.background }}
+        edges={["left", "right"]}
+      >
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
           <Text style={{ fontSize: 15, fontWeight: "800", color: colors.muted }}>
             Restoring workout…
@@ -1352,7 +1407,10 @@ export default function WorkoutLogScreen() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+    <SafeAreaView
+      style={{ flex: 1, backgroundColor: colors.background }}
+      edges={isPreview ? ["left", "right"] : ["top", "left", "right", "bottom"]}
+    >
       {isPreview ? (
         <WorkoutPreview
           workoutTitle={workoutTitle}
@@ -1387,7 +1445,7 @@ export default function WorkoutLogScreen() {
           openMenu={openMenu}
           openHistory={openHistory}
           addSet={addSet}
-          openFinish={openFinish}
+          openFinish={handleFinishPress}
           setCustomTimeOpen={setCustomTimeOpen}
           updateSet={updateSet}
           deleteSet={deleteSet}
@@ -1406,7 +1464,12 @@ export default function WorkoutLogScreen() {
 
       {Platform.OS === "ios" && (
         <InputAccessoryView nativeID={IOS_ACCESSORY_ID}>
-          <View style={[S.accessory, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
+          <View
+            style={[
+              S.accessory,
+              { backgroundColor: colors.surface, borderTopColor: colors.border },
+            ]}
+          >
             <Pressable
               onPress={async () => {
                 try {
@@ -1422,202 +1485,174 @@ export default function WorkoutLogScreen() {
         </InputAccessoryView>
       )}
 
-      {restTimer && (
+      <Modal
+        visible={resumeDraftPromptOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setResumeDraftPromptOpen(false)}
+      >
+        <Pressable style={S.modalOverlay} onPress={() => setResumeDraftPromptOpen(false)} />
         <View
-          style={{
-            position: "absolute",
-            bottom: 0,
-            left: 0,
-            right: 0,
-            zIndex: 200,
-            backgroundColor: colors.text,
-            paddingTop: 20,
-            paddingBottom: 30,
-            paddingHorizontal: 20,
-            borderTopLeftRadius: 24,
-            borderTopRightRadius: 24,
-            shadowColor: "#000",
-            shadowOffset: { width: 0, height: -4 },
-            shadowOpacity: 0.3,
-            shadowRadius: 12,
-            elevation: 20,
-          }}
+          style={[
+            S.modalSheet,
+            { backgroundColor: colors.surface, borderColor: colors.border },
+          ]}
         >
-          <Text
-            style={{
-              fontSize: 13,
-              fontWeight: "900",
-              color: "rgba(255,255,255,0.6)",
-              letterSpacing: 1.5,
-              textAlign: "center",
-              marginBottom: 8,
-            }}
-          >
-            REST TIMER
-          </Text>
-
-          <Text
-            style={{
-              fontSize: 72,
-              fontWeight: "900",
-              color: colors.surface,
-              letterSpacing: -2,
-              textAlign: "center",
-              marginBottom: 16,
-            }}
-          >
-            {formatTime(restTimer.seconds)}
-          </Text>
-
-          <View
-            style={{
-              height: 8,
-              backgroundColor: "rgba(255,255,255,0.2)",
-              borderRadius: 4,
-              overflow: "hidden",
-              marginBottom: 20,
-            }}
-          >
-            <View
-              style={{
-                width: `${(restTimer.seconds / restTimer.total) * 100}%`,
-                height: "100%",
-                backgroundColor: colors.premium,
-                borderRadius: 4,
-              }}
-            />
-          </View>
-
-          <View style={{ flexDirection: "row", gap: 10 }}>
-            <Pressable
-              onPress={add15Seconds}
-              style={({ pressed }) => [
-                {
-                  flex: 1,
-                  height: 54,
-                  backgroundColor: "rgba(255,255,255,0.15)",
-                  borderRadius: 14,
-                  alignItems: "center",
-                  justifyContent: "center",
-                },
-                pressed && { opacity: 0.7 },
-              ]}
-            >
-              <Text style={{ fontSize: 16, fontWeight: "900", color: colors.surface }}>
-                + 15 seconds
-              </Text>
-            </Pressable>
-
-            <Pressable
-              onPress={skipRestTimer}
-              style={({ pressed }) => [
-                {
-                  flex: 1,
-                  height: 54,
-                  backgroundColor: colors.premium,
-                  borderRadius: 14,
-                  alignItems: "center",
-                  justifyContent: "center",
-                },
-                pressed && { opacity: 0.9 },
-              ]}
-            >
-              <Text style={{ fontSize: 16, fontWeight: "900", color: colors.text }}>
-                Skip Rest
-              </Text>
-            </Pressable>
-          </View>
-        </View>
-      )}
-
-      {undoAction && !restTimer && !appliedHistoryToast && (
-        <View
-          style={{
-            position: "absolute",
-            bottom: 20,
-            left: 16,
-            right: 16,
-            zIndex: 199,
-            backgroundColor: colors.text,
-            borderRadius: 16,
-            padding: 16,
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-            shadowColor: "#000",
-            shadowOffset: { width: 0, height: 6 },
-            shadowOpacity: 0.3,
-            shadowRadius: 12,
-            elevation: 12,
-          }}
-        >
-          <Text style={{ color: colors.surface, fontWeight: "800", fontSize: 15 }}>
-            Set deleted
-          </Text>
-          <Pressable
-            onPress={undoDelete}
-            style={{
-              paddingHorizontal: 16,
-              paddingVertical: 10,
-              backgroundColor: colors.premium,
-              borderRadius: 10,
-            }}
-          >
-            <Text style={{ color: colors.text, fontWeight: "900", fontSize: 14 }}>
-              UNDO
+          <View style={S.modalHeader}>
+            <Text style={[S.modalTitle, { color: colors.text }]}>
+              Resume your workout?
             </Text>
-          </Pressable>
-        </View>
-      )}
-
-      {appliedHistoryToast && !restTimer && (
-        <View
-          style={{
-            position: "absolute",
-            bottom: 20,
-            left: 16,
-            right: 16,
-            zIndex: 199,
-            backgroundColor: colors.text,
-            borderRadius: 16,
-            paddingVertical: 15,
-            paddingHorizontal: 16,
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 10,
-            shadowColor: "#000",
-            shadowOffset: { width: 0, height: 6 },
-            shadowOpacity: 0.3,
-            shadowRadius: 12,
-            elevation: 12,
-          }}
-        >
-          <View
-            style={{
-              width: 26,
-              height: 26,
-              borderRadius: 13,
-              backgroundColor: colors.premium,
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <Check size={14} color={colors.text} strokeWidth={3} />
+            <Pressable onPress={() => setResumeDraftPromptOpen(false)} style={S.modalX}>
+              <X size={18} color={colors.text} />
+            </Pressable>
           </View>
 
-          <Text
+          <View
             style={{
-              flex: 1,
-              color: colors.surface,
-              fontWeight: "800",
-              fontSize: 15,
-              letterSpacing: -0.1,
+              marginTop: 14,
+              borderRadius: 18,
+              backgroundColor: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)",
+              padding: 14,
             }}
           >
-            {appliedHistoryToast}
+            <Text
+              style={{
+                fontSize: 12,
+                fontWeight: "900",
+                letterSpacing: 0.5,
+                textTransform: "uppercase",
+                color: colors.muted,
+              }}
+            >
+              Unfinished session
+            </Text>
+
+            <Text
+              style={{
+                marginTop: 6,
+                fontSize: 18,
+                lineHeight: 22,
+                fontWeight: "900",
+                color: colors.text,
+                letterSpacing: -0.15,
+              }}
+            >
+              {availableDraft?.workoutTitle ?? "Workout"}
+            </Text>
+
+            <Text
+              style={{
+                marginTop: 8,
+                fontSize: 14,
+                lineHeight: 20,
+                fontWeight: "700",
+                color: colors.muted,
+              }}
+            >
+              {availableDraft
+                ? `${availableDraft.exercises.reduce(
+                    (sum, ex) => sum + ex.sets.filter((s) => s.done).length,
+                    0,
+                  )}/${availableDraft.exercises.reduce((sum, ex) => sum + ex.sets.length, 0)} sets · ${formatDuration(
+                    availableDraft.elapsedSeconds ?? 0,
+                  )}`
+                : "Continue where you left off"}
+            </Text>
+          </View>
+
+          <Text style={[S.modalBody, { color: colors.muted, marginTop: 14 }]}>
+            Starting a new session will discard your current progress.
           </Text>
+
+          <View style={S.modalActions}>
+            <Pressable onPress={continueExistingWorkout} style={S.modalPrimary}>
+              <Text style={S.modalPrimaryText}>Continue workout</Text>
+            </Pressable>
+
+            <Pressable onPress={startNewSession} style={S.modalGhost}>
+              <Text style={[S.modalGhostText, { color: colors.text }]}>Start new session</Text>
+            </Pressable>
+          </View>
         </View>
-      )}
+      </Modal>
+
+      <Modal
+        visible={partialFinishConfirmOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPartialFinishConfirmOpen(false)}
+      >
+        <Pressable style={S.modalOverlay} onPress={() => setPartialFinishConfirmOpen(false)} />
+        <View
+          style={[
+            S.modalSheet,
+            { backgroundColor: colors.surface, borderColor: colors.border },
+          ]}
+        >
+          <View style={S.modalHeader}>
+            <Text style={[S.modalTitle, { color: colors.text }]}>Finish workout early?</Text>
+            <Pressable onPress={() => setPartialFinishConfirmOpen(false)} style={S.modalX}>
+              <X size={18} color={colors.text} />
+            </Pressable>
+          </View>
+
+          <Text style={[S.modalBody, { color: colors.muted }]}>
+            You still have unfinished sets. Completed sets will be saved as this session.
+          </Text>
+
+          <View style={S.modalActions}>
+            <Pressable
+              onPress={() => setPartialFinishConfirmOpen(false)}
+              style={S.modalGhost}
+            >
+              <Text style={[S.modalGhostText, { color: colors.text }]}>Resume workout</Text>
+            </Pressable>
+
+            <Pressable onPress={() => goToFinish("partial")} style={S.modalPrimary}>
+              <Text style={S.modalPrimaryText}>Finish anyway</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={completeFinishConfirmOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setCompleteFinishConfirmOpen(false)}
+      >
+        <Pressable style={S.modalOverlay} onPress={() => setCompleteFinishConfirmOpen(false)} />
+        <View
+          style={[
+            S.modalSheet,
+            { backgroundColor: colors.surface, borderColor: colors.border },
+          ]}
+        >
+          <View style={S.modalHeader}>
+            <Text style={[S.modalTitle, { color: colors.text }]}>Complete workout?</Text>
+            <Pressable onPress={() => setCompleteFinishConfirmOpen(false)} style={S.modalX}>
+              <X size={18} color={colors.text} />
+            </Pressable>
+          </View>
+
+          <Text style={[S.modalBody, { color: colors.muted }]}>
+            All sets are done. You can go back to review or complete the session now.
+          </Text>
+
+          <View style={S.modalActions}>
+            <Pressable
+              onPress={() => setCompleteFinishConfirmOpen(false)}
+              style={S.modalGhost}
+            >
+              <Text style={[S.modalGhostText, { color: colors.text }]}>Go back</Text>
+            </Pressable>
+
+            <Pressable onPress={() => goToFinish("completed")} style={S.modalPrimary}>
+              <Text style={S.modalPrimaryText}>Complete workout</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
 
       <Modal
         visible={exitConfirmOpen}
@@ -1626,7 +1661,12 @@ export default function WorkoutLogScreen() {
         onRequestClose={() => setExitConfirmOpen(false)}
       >
         <Pressable style={S.modalOverlay} onPress={() => setExitConfirmOpen(false)} />
-        <View style={[S.modalSheet, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View
+          style={[
+            S.modalSheet,
+            { backgroundColor: colors.surface, borderColor: colors.border },
+          ]}
+        >
           <View style={S.modalHeader}>
             <Text style={[S.modalTitle, { color: colors.text }]}>Exit Workout?</Text>
             <Pressable onPress={() => setExitConfirmOpen(false)} style={S.modalX}>
@@ -1649,7 +1689,12 @@ export default function WorkoutLogScreen() {
 
       <Modal visible={menuOpen} transparent animationType="fade" onRequestClose={() => setMenuOpen(false)}>
         <Pressable style={S.modalOverlay} onPress={() => setMenuOpen(false)} />
-        <View style={[S.modalSheet, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View
+          style={[
+            S.modalSheet,
+            { backgroundColor: colors.surface, borderColor: colors.border },
+          ]}
+        >
           <View style={S.modalHeader}>
             <Text style={[S.modalTitle, { color: colors.text }]} numberOfLines={2}>
               {currentExercise?.name}
@@ -1675,7 +1720,12 @@ export default function WorkoutLogScreen() {
 
       <Modal visible={swapOpen} transparent animationType="fade" onRequestClose={() => setSwapOpen(false)}>
         <Pressable style={S.modalOverlay} onPress={() => setSwapOpen(false)} />
-        <View style={[S.modalSheetLarge, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View
+          style={[
+            S.modalSheetLarge,
+            { backgroundColor: colors.surface, borderColor: colors.border },
+          ]}
+        >
           <View style={S.modalHeader}>
             <Text style={[S.modalTitle, { color: colors.text }]}>Swap Exercise</Text>
             <Pressable onPress={() => setSwapOpen(false)} style={S.modalX}>
@@ -1705,7 +1755,12 @@ export default function WorkoutLogScreen() {
 
       <Modal visible={historyOpen} transparent animationType="fade" onRequestClose={() => setHistoryOpen(false)}>
         <Pressable style={S.modalOverlay} onPress={() => setHistoryOpen(false)} />
-        <View style={[S.modalSheetLarge, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View
+          style={[
+            S.modalSheetLarge,
+            { backgroundColor: colors.surface, borderColor: colors.border },
+          ]}
+        >
           <View style={S.modalHeader}>
             <Text style={[S.modalTitle, { color: colors.text }]} numberOfLines={2}>
               {historyExercise?.name ?? "Exercise History"}
@@ -1716,7 +1771,16 @@ export default function WorkoutLogScreen() {
           </View>
 
           {historyExerciseId && pr && (
-            <View style={[S.prBanner, { backgroundColor: isDark ? "rgba(244,200,74,0.12)" : "rgba(244,200,74,0.18)" }]}>
+            <View
+              style={[
+                S.prBanner,
+                {
+                  backgroundColor: isDark
+                    ? "rgba(244,200,74,0.12)"
+                    : "rgba(244,200,74,0.18)",
+                },
+              ]}
+            >
               <Trophy size={16} color={colors.premium} />
               <Text style={[S.prText, { color: colors.text }]}>
                 PR: {pr.weight}{" "}
@@ -1776,7 +1840,14 @@ export default function WorkoutLogScreen() {
                     </Text>
                     <Text style={[S.historyHead, { color: colors.muted }]}>REPS</Text>
                     <Text style={[S.historyHead, { color: colors.muted }]}>REST</Text>
-                    <Text style={[S.historyHead, { width: 42, textAlign: "center", color: colors.muted }]}>✓</Text>
+                    <Text
+                      style={[
+                        S.historyHead,
+                        { width: 42, textAlign: "center", color: colors.muted },
+                      ]}
+                    >
+                      ✓
+                    </Text>
                   </View>
 
                   {session.sets.map((hs) => {
@@ -1787,7 +1858,9 @@ export default function WorkoutLogScreen() {
 
                     return (
                       <View key={`${session.id}-${hs.set}`} style={S.historyRow}>
-                        <Text style={[S.historyCellText, { width: 40, color: colors.text }]}>{hs.set}</Text>
+                        <Text style={[S.historyCellText, { width: 40, color: colors.text }]}>
+                          {hs.set}
+                        </Text>
                         <Text style={[S.historyCellText, { color: colors.text }]}>{hs.weight}</Text>
                         <Text style={[S.historyCellText, { color: colors.text }]}>{hs.reps}</Text>
                         <Text style={[S.historyCellText, { color: colors.text }]}>{hs.rest}</Text>
@@ -1856,7 +1929,12 @@ export default function WorkoutLogScreen() {
         onRequestClose={() => setCustomTimeOpen(false)}
       >
         <Pressable style={S.modalOverlay} onPress={() => setCustomTimeOpen(false)} />
-        <View style={[S.modalSheet, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View
+          style={[
+            S.modalSheet,
+            { backgroundColor: colors.surface, borderColor: colors.border },
+          ]}
+        >
           <View style={S.modalHeader}>
             <Text style={[S.modalTitle, { color: colors.text }]}>Rest Timer</Text>
             <Pressable onPress={() => setCustomTimeOpen(false)} style={S.modalX}>
@@ -2056,9 +2134,19 @@ export default function WorkoutLogScreen() {
         </View>
       </Modal>
 
-      <Modal visible={noteModalOpen} transparent animationType="fade" onRequestClose={() => setNoteModalOpen(false)}>
+      <Modal
+        visible={noteModalOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setNoteModalOpen(false)}
+      >
         <Pressable style={S.modalOverlay} onPress={() => setNoteModalOpen(false)} />
-        <View style={[S.modalSheet, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View
+          style={[
+            S.modalSheet,
+            { backgroundColor: colors.surface, borderColor: colors.border },
+          ]}
+        >
           <View style={S.modalHeader}>
             <Text style={[S.modalTitle, { color: colors.text }]}>Set Note</Text>
             <Pressable onPress={() => setNoteModalOpen(false)} style={S.modalX}>

@@ -1,3 +1,5 @@
+//app/program/[id]/index.tsx
+
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";

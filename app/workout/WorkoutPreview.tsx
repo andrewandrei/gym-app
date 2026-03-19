@@ -1,9 +1,17 @@
-// app/workout/WorkoutPreview.tsx
-
-import React, { useMemo } from "react";
-import { Image, Pressable, ScrollView, Text, View } from "react-native";
-
 import { useAppTheme } from "@/app/_providers/theme";
+import { PressableScale } from "@/components/ui/PressableScale";
+import { LinearGradient } from "expo-linear-gradient";
+import { ChevronLeft } from "lucide-react-native";
+import React, { useMemo } from "react";
+import {
+  Image,
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+  useWindowDimensions,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { createWorkoutStyles } from "./workout.styles";
 
 /* ───────────────────────── Types (shared) ───────────────────────── */
@@ -40,14 +48,11 @@ export type StrengthBlock = {
 
 type Props = {
   workoutTitle: string;
-
   exercises: Exercise[];
   blocks: StrengthBlock[];
   exerciseById: Record<string, Exercise>;
-
   estimatedTime: number;
   totalSets: number;
-
   onStartWorkout: () => void;
   onBack: () => void;
 };
@@ -62,8 +67,25 @@ export function WorkoutPreview({
   onStartWorkout,
   onBack,
 }: Props) {
+  const insets = useSafeAreaInsets();
+  const { height: screenHeight } = useWindowDimensions();
   const { colors, isDark } = useAppTheme();
   const S = useMemo(() => createWorkoutStyles(colors, isDark), [colors, isDark]);
+
+  const heroHeight = Math.max(160, Math.round(screenHeight * 0.31));
+  const sessionMeta = `${exercises.length} exercises • ~${estimatedTime} min • ${totalSets} sets`;
+
+  const heroImage = useMemo(() => {
+    for (const block of blocks) {
+      const firstId = block.exerciseIds[0];
+      const firstExercise = exerciseById[firstId];
+      if (firstExercise?.image) return firstExercise.image;
+    }
+    return (
+      exercises[0]?.image ??
+      "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=1200&auto=format&fit=crop"
+    );
+  }, [blocks, exerciseById, exercises]);
 
   const blockKickerFor = (block: StrengthBlock) => {
     if (block.type === "superset") return "SUPERSET";
@@ -74,8 +96,15 @@ export function WorkoutPreview({
 
   const blockMetaFor = (block: StrengthBlock) => {
     const count = block.exerciseIds.length;
-    if (block.type === "circuit") return `${count} exercises • ${block.rounds ?? 3} rounds • Move across`;
-    if (block.type === "superset" || block.type === "giant") return `${count} exercises • Move across`;
+
+    if (block.type === "circuit") {
+      return `${count} exercises • ${block.rounds ?? 3} rounds • Move across`;
+    }
+
+    if (block.type === "superset" || block.type === "giant") {
+      return `${count} exercises • Move across`;
+    }
+
     return `${count} exercise`;
   };
 
@@ -96,94 +125,166 @@ export function WorkoutPreview({
 
   return (
     <View style={S.previewPage}>
-      <ScrollView style={S.scroll} contentContainerStyle={S.previewContent} showsVerticalScrollIndicator={false}>
-        {/* Header (keep minimal & premium) */}
-        <View style={{ paddingTop: 4 }}>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-            <Pressable
+      <View pointerEvents="none" style={[S.previewHeroBackdrop, { height: heroHeight + 120 }]}>
+        <Image source={{ uri: heroImage }} style={S.previewHeroBackdropImage} resizeMode="cover" />
+         {/* 🔼 TOP VIGNETTE (NEW) */}
+  <LinearGradient
+    colors={[
+      "rgba(0,0,0,0.35)",
+      "rgba(0,0,0,0.15)",
+      "rgba(0,0,0,0)",
+    ]}
+    locations={[0, 0.4, 1]}
+    style={{
+      position: "absolute",
+      top: 0,
+      left: 0,
+      right: 0,
+      height: "35%",
+    }}
+  />
+         
+         
+         <LinearGradient
+            colors={[
+              "rgba(0,0,0,0)",
+              "rgba(0,0,0,0.25)",
+              "rgba(0,0,0,0.55)",
+            ]}
+            locations={[0.4, 0.7, 1]}
+            style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              bottom: 0,
+              height: "55%",
+            }}
+          />
+      </View>
+
+      <ScrollView
+        style={S.scroll}
+        contentContainerStyle={[
+          S.previewContent,
+          { paddingBottom: Math.max(insets.bottom, 18) + 132 },
+        ]}
+        showsVerticalScrollIndicator={false}
+        bounces
+        contentInsetAdjustmentBehavior="never"
+        automaticallyAdjustContentInsets={false}
+      >
+        <View style={[S.previewHeroSpace, { height: heroHeight }]}>
+          <View style={S.previewOverlayActions}>
+            <PressableScale
               onPress={onBack}
-              hitSlop={12}
-              style={({ pressed }) => [{ paddingVertical: 6, paddingHorizontal: 8, borderRadius: 10 }, pressed && { opacity: 0.7 }]}
+              style={S.previewHeroBackBtn}
+              accessibilityRole="button"
+              accessibilityLabel="Back"
             >
-              <Text style={{ fontSize: 13, fontWeight: "900", color: colors.text }}>Back</Text>
-            </Pressable>
+              <ChevronLeft size={22} color="#FFFFFF" />
+            </PressableScale>
 
-            <View style={{ flex: 1 }} />
-
-            <Text style={{ fontSize: 12, fontWeight: "800", color: colors.muted }}>
-              {exercises.length} exercises • ~{estimatedTime} min • {totalSets} sets
-            </Text>
+            <View style={S.previewHeroSpacer} />
           </View>
 
-          <Text style={{ marginTop: 10, fontSize: 24, fontWeight: "900", color: colors.text, letterSpacing: -0.6 }}>
-            {workoutTitle}
-          </Text>
+          <View style={S.previewHeroContent}>
+            <Text style={S.previewHeroTitle}>{workoutTitle}</Text>
+
+            <Text style={S.previewHeroSubtitle}>
+              Preview the full session before you begin.
+            </Text>
+
+            <Text style={S.previewHeroMeta}>{sessionMeta}</Text>
+          </View>
         </View>
 
-        {/* List */}
-        <View style={S.previewList}>
-          {blocks.map((block, blockIndex) => (
-            <View key={block.id} style={S.previewGroupWrap}>
-              <View style={[S.previewGroupRail, groupAccentStyle(block)]} />
+        <View style={S.previewBody}>
+          <View style={S.previewList}>
+            {blocks.map((block, blockIndex) => {
+              const isLastBlock = blockIndex === blocks.length - 1;
 
-              <View style={S.previewBlockHeader}>
-                <Text style={S.previewBlockKicker}>{blockKickerFor(block)}</Text>
-                <Text style={S.previewBlockTitle}>{block.title ?? blockKickerFor(block)}</Text>
-                <Text style={S.previewBlockMeta}>{blockMetaFor(block)}</Text>
-              </View>
+              return (
+                <View key={block.id} style={S.previewGroupWrap}>
+                  <View style={[S.previewGroupRail, groupAccentStyle(block)]} />
 
-              {block.exerciseIds.map((exId, idx) => {
-                const ex = exerciseById[exId];
-                if (!ex) return null;
-
-                const blockTag = tagFor(block, idx);
-                const isLastExerciseInBlock = idx === block.exerciseIds.length - 1;
-                const isLastBlock = blockIndex === blocks.length - 1;
-
-                return (
-                  <View key={ex.id}>
-                    <View style={S.previewCard}>
-                      <View style={S.previewCardLeft}>
-                        {blockTag ? (
-                          <View style={S.previewBlockTag}>
-                            <Text style={S.previewBlockTagText}>{blockTag}</Text>
-                          </View>
-                        ) : (
-                          <View style={S.previewNumber}>
-                            <Text style={S.previewNumberText}>{idx + 1}</Text>
-                          </View>
-                        )}
-
-                        <Image source={{ uri: ex.image }} style={S.previewImage} />
-                      </View>
-
-                      <View style={S.previewCardRight}>
-                        <Text style={S.previewExName} numberOfLines={2}>
-                          {ex.name}
-                        </Text>
-                        <Text style={S.previewExMeta}>
-                          {ex.sets.length} sets • {ex.sets[0]?.reps || "—"} reps • {ex.sets[0]?.rest || "—"} rest
-                        </Text>
-                      </View>
-                    </View>
-
-                    {!isLastExerciseInBlock ? <View style={S.previewSeparator} /> : null}
-                    {isLastExerciseInBlock && !isLastBlock ? <View style={S.previewBlockSpacer} /> : null}
+                  <View style={S.previewBlockHeader}>
+                    <Text style={S.previewBlockKicker}>{blockKickerFor(block)}</Text>
+                    <Text style={S.previewBlockTitle}>
+                      {block.title ?? blockKickerFor(block)}
+                    </Text>
+                    <Text style={S.previewBlockMeta}>{blockMetaFor(block)}</Text>
                   </View>
-                );
-              })}
-            </View>
-          ))}
-        </View>
 
-        <View style={{ height: 110 }} />
+                  <View style={S.previewRows}>
+                    {block.exerciseIds.map((exId, idx) => {
+                      const ex = exerciseById[exId];
+                      if (!ex) return null;
+
+                      const blockTag = tagFor(block, idx);
+                      const isLastExerciseInBlock =
+                        idx === block.exerciseIds.length - 1;
+
+                      return (
+                        <View key={ex.id}>
+                          <Pressable
+                            style={({ pressed }) => [
+                              S.previewRow,
+                              pressed && S.previewRowPressed,
+                            ]}
+                          >
+                            <View style={S.previewRowLeft}>
+                              {blockTag ? (
+                                <View style={S.previewBlockTag}>
+                                  <Text style={S.previewBlockTagText}>{blockTag}</Text>
+                                </View>
+                              ) : (
+                                <View style={S.previewNumber}>
+                                  <Text style={S.previewNumberText}>{idx + 1}</Text>
+                                </View>
+                              )}
+
+                              <Image source={{ uri: ex.image }} style={S.previewImage} />
+                            </View>
+
+                            <View style={S.previewCardRight}>
+                              <Text style={S.previewExName} numberOfLines={2}>
+                                {ex.name}
+                              </Text>
+                              <Text style={S.previewExMeta}>
+                                {ex.sets.length} sets • {ex.sets[0]?.reps || "—"} reps •{" "}
+                                {ex.sets[0]?.rest || "—"} rest
+                              </Text>
+                            </View>
+                          </Pressable>
+
+                          {!isLastExerciseInBlock ? (
+                            <View style={S.previewInlineDivider} />
+                          ) : null}
+                        </View>
+                      );
+                    })}
+                  </View>
+
+                  {!isLastBlock ? <View style={S.previewBlockSpacer} /> : null}
+                </View>
+              );
+            })}
+          </View>
+        </View>
       </ScrollView>
 
-      {/* Bottom Start Button (IMPORTANT: calls onStartWorkout) */}
-      <View style={S.previewBottom}>
-        <Pressable onPress={onStartWorkout} style={S.startBtn}>
-          <Text style={S.startBtnText}>Start Workout</Text>
-        </Pressable>
+      <View style={S.previewBottomWrap}>
+        
+
+        <View style={[S.previewBottom, { paddingBottom: Math.max(insets.bottom, 18) }]}>
+          <View style={S.previewBottomCard}>
+            <Text style={S.previewBottomHelper}>Everything is ready</Text>
+
+            <PressableScale onPress={onStartWorkout} style={S.startBtn}>
+              <Text style={S.startBtnText}>Start Workout</Text>
+            </PressableScale>
+          </View>
+        </View>
       </View>
     </View>
   );
