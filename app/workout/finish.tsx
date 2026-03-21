@@ -1,3 +1,5 @@
+
+//workout/finish.tsx
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
@@ -9,14 +11,99 @@ import { getFinishFeedback, type FinishSummary } from "./finishFeedback";
 
 const FINISH_SUMMARY_STORAGE_KEY = "aa_fit_finish_summary";
 
-function getSetDelta(
+type LegacyComparedToLast = {
+  previousWeight?: number;
+  previousReps?: number;
+  previousVolume?: number;
+  result: "better" | "same" | "mixed" | "no_data";
+};
+
+type SetComparison = {
+  previous?: {
+    weight?: number;
+    reps?: number;
+    volume?: number;
+  };
+  deltaVsPrevious?: {
+    weight?: number;
+    reps?: number;
+    volume?: number;
+  };
+  best?: {
+    weight?: number;
+    reps?: number;
+    volume?: number;
+  };
+  deltaVsBest?: {
+    weight?: number;
+    reps?: number;
+    volume?: number;
+  };
+  state: "no_data" | "same" | "better" | "mixed" | "pr";
+  isWeightPR: boolean;
+  isRepPR: boolean;
+  isVolumePR: boolean;
+};
+
+type RichFinishSummary = FinishSummary & {
+  status?: "partial" | "completed";
+  sessionId?: string;
+  workoutId?: string;
+  programId?: string;
+  insights: FinishSummary["insights"] & {
+    belowExerciseCount?: number;
+    improvedSetCount?: number;
+    matchedSetCount?: number;
+    belowSetCount?: number;
+    previousSessionFound?: boolean;
+  };
+  prs: Array<
+    FinishSummary["prs"][number] & {
+      set?: number;
+      type?: "weight" | "reps" | "volume";
+      previousBestValue?: number;
+      currentValue?: number;
+      delta?: number;
+    }
+  >;
+  exercises: Array<
+    FinishSummary["exercises"][number] & {
+      comparedToBest?: {
+        bestWeight?: number;
+        bestReps?: number;
+        bestVolume?: number;
+        result: "better" | "same" | "mixed" | "no_data";
+      };
+      insights?: {
+        improvedSets: number;
+        matchedSets: number;
+        belowSets: number;
+        prCount: number;
+      };
+      sets: Array<
+        FinishSummary["exercises"][number]["sets"][number] & {
+          comparison?: SetComparison;
+        }
+      >;
+    }
+  >;
+};
+
+function formatNumber(value?: number | null) {
+  if (value == null || Number.isNaN(value)) return null;
+  if (Number.isInteger(value)) return String(value);
+  return value.toFixed(1);
+}
+
+function formatSigned(value?: number | null, suffix = "") {
+  if (value == null || Number.isNaN(value) || value === 0) return null;
+  const abs = Number.isInteger(value) ? String(Math.abs(value)) : Math.abs(value).toFixed(1);
+  return `${value > 0 ? "+" : "-"}${abs}${suffix}`;
+}
+
+function getLegacySetDelta(
   set: { weight: string; reps: string; done: boolean },
-  comparedToLast?: {
-    previousWeight?: number;
-    previousReps?: number;
-    previousVolume?: number;
-    result: "better" | "same" | "mixed" | "no_data";
-  },
+  comparedToLast?: LegacyComparedToLast,
 ) {
   if (!comparedToLast || comparedToLast.result === "no_data") return null;
 
@@ -38,6 +125,91 @@ function getSetDelta(
   return null;
 }
 
+function getRichSetDelta(
+  comparison?: SetComparison,
+): {
+  label: string | null;
+  positive: boolean;
+  pr: boolean;
+} {
+  if (!comparison) {
+    return { label: null, positive: false, pr: false };
+  }
+
+  if (comparison.isWeightPR && comparison.deltaVsBest?.weight) {
+    return {
+      label: `PR +${formatNumber(comparison.deltaVsBest.weight)} kg`,
+      positive: true,
+      pr: true,
+    };
+  }
+
+  if (comparison.isRepPR && comparison.deltaVsBest?.reps) {
+    return {
+      label: `PR +${formatNumber(comparison.deltaVsBest.reps)} reps`,
+      positive: true,
+      pr: true,
+    };
+  }
+
+  if (comparison.isVolumePR && comparison.deltaVsBest?.volume) {
+    return {
+      label: `PR +${formatNumber(comparison.deltaVsBest.volume)} vol`,
+      positive: true,
+      pr: true,
+    };
+  }
+
+  const weightText = formatSigned(comparison.deltaVsPrevious?.weight, " kg");
+  const repsText = formatSigned(comparison.deltaVsPrevious?.reps, " reps");
+  const volumeText = formatSigned(comparison.deltaVsPrevious?.volume, " vol");
+
+  if (weightText) return { label: weightText, positive: weightText.startsWith("+"), pr: false };
+  if (repsText) return { label: repsText, positive: repsText.startsWith("+"), pr: false };
+  if (volumeText) return { label: volumeText, positive: volumeText.startsWith("+"), pr: false };
+
+  if (comparison.state === "same") {
+    return { label: "—", positive: false, pr: false };
+  }
+
+  return { label: null, positive: false, pr: false };
+}
+
+function getExerciseFooterText(ex: RichFinishSummary["exercises"][number], isNewPrExercise: boolean) {
+  if (isNewPrExercise) return "New all-time best in this session";
+
+  if (ex.insights) {
+    if (ex.insights.improvedSets > 0 && ex.insights.belowSets === 0) {
+      return "Improved vs last session";
+    }
+    if (ex.insights.matchedSets > 0 && ex.insights.improvedSets === 0 && ex.insights.belowSets === 0) {
+      return "Matched last session";
+    }
+    if (ex.insights.belowSets > 0 || (ex.insights.improvedSets > 0 && ex.insights.belowSets > 0)) {
+      return "Mixed compared with last session";
+    }
+  }
+
+  if (ex.comparedToLast && ex.comparedToLast.result !== "no_data") {
+    return ex.comparedToLast.result === "better"
+      ? "Improved vs last session"
+      : ex.comparedToLast.result === "same"
+        ? "Matched last session"
+        : "Mixed compared with last session";
+  }
+
+  return null;
+}
+
+function getExerciseStatus(completedSets: number, totalSets: number) {
+  const isCompleted = completedSets === totalSets;
+  const isPartial = completedSets > 0 && completedSets < totalSets;
+
+  if (isCompleted) return "Completed";
+  if (isPartial) return "Partial";
+  return "Skipped";
+}
+
 export default function FinishScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{
@@ -45,11 +217,11 @@ export default function FinishScreen() {
   }>();
   const { colors, isDark } = useAppTheme();
 
-  const sessionStatus = Array.isArray(params.sessionStatus)
+  const sessionStatusParam = Array.isArray(params.sessionStatus)
     ? params.sessionStatus[0]
     : params.sessionStatus;
 
-  const [summary, setSummary] = useState<FinishSummary | null>(null);
+  const [summary, setSummary] = useState<RichFinishSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -68,7 +240,7 @@ export default function FinishScreen() {
         }
 
         try {
-          const parsed = JSON.parse(raw) as FinishSummary;
+          const parsed = JSON.parse(raw) as RichFinishSummary;
           setSummary(parsed);
         } catch {
           setSummary(null);
@@ -123,7 +295,8 @@ export default function FinishScreen() {
   }
 
   const durationMin = Math.max(1, Math.round(summary.durationSec / 60));
-  const isPartialSession = sessionStatus === "partial";
+  const isPartialSession =
+    sessionStatusParam === "partial" || summary.status === "partial";
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -180,11 +353,13 @@ export default function FinishScreen() {
                 {summary.prs.length > 1 ? "New PRs" : "New PR"}
               </Text>
 
-              {summary.prs.map((pr) => (
-                <View key={pr.exerciseId} style={styles.prRow}>
+              {summary.prs.map((pr, index) => (
+                <View key={`${pr.exerciseId}-${pr.type ?? "legacy"}-${pr.set ?? index}`} style={styles.prRow}>
                   <Text style={styles.prExercise}>{pr.exerciseName}</Text>
                   <Text style={styles.prValue}>
                     {pr.weight} × {pr.reps}
+                    {typeof pr.set === "number" ? ` • Set ${pr.set}` : ""}
+                    {pr.type ? ` • ${pr.type.toUpperCase()}` : ""}
                   </Text>
                 </View>
               ))}
@@ -202,10 +377,7 @@ export default function FinishScreen() {
           {summary.exercises.map((ex) => {
             const totalSets = ex.totalSetsPlanned;
             const completedSets = ex.completedSets;
-
-            const isCompleted = completedSets === totalSets;
-            const isPartial = completedSets > 0 && completedSets < totalSets;
-
+            const statusLabel = getExerciseStatus(completedSets, totalSets);
             const isNewPrExercise = summary.prs.some((pr) => pr.exerciseId === ex.id);
 
             return (
@@ -230,14 +402,14 @@ export default function FinishScreen() {
                   <Text
                     style={[
                       styles.exerciseBadge,
-                      isCompleted
+                      statusLabel === "Completed"
                         ? styles.exerciseBadgeCompleted
-                        : isPartial
+                        : statusLabel === "Partial"
                           ? styles.exerciseBadgePartial
                           : styles.exerciseBadgeSkipped,
                     ]}
                   >
-                    {isCompleted ? "Completed" : isPartial ? "Partial" : "Skipped"}
+                    {statusLabel}
                   </Text>
                 </View>
 
@@ -249,8 +421,19 @@ export default function FinishScreen() {
                 </View>
 
                 {ex.sets.map((set) => {
-                  const delta = getSetDelta(set, ex.comparedToLast);
-                  const isPositive = !!delta && delta !== "same" && delta.startsWith("+");
+                  const richDelta = getRichSetDelta(set.comparison);
+                  const legacyDelta = getLegacySetDelta(set, ex.comparedToLast);
+
+                  const label =
+                    richDelta.label ??
+                    (!set.done || !legacyDelta ? null : legacyDelta === "same" ? "—" : legacyDelta);
+
+                  const isPositive =
+                    richDelta.label != null
+                      ? richDelta.positive
+                      : !!label && label.startsWith("+");
+
+                  const isPr = richDelta.pr;
 
                   return (
                     <View key={set.set} style={styles.setRow}>
@@ -269,26 +452,26 @@ export default function FinishScreen() {
                           styles.deltaText,
                           styles.colDelta,
                           isPositive && styles.deltaPositive,
+                          isPr && styles.deltaPr,
                         ]}
+                        numberOfLines={1}
                       >
-                        {!set.done || !delta ? "" : delta === "same" ? "—" : delta}
+                        {!set.done || !label ? "" : label}
                       </Text>
                     </View>
                   );
                 })}
 
                 <View style={styles.exerciseFooter}>
-                  {isNewPrExercise ? (
-                    <Text style={styles.exerciseFooterPrText}>
-                      New all-time best in this session
-                    </Text>
-                  ) : ex.comparedToLast && ex.comparedToLast.result !== "no_data" ? (
-                    <Text style={styles.exerciseFooterText}>
-                      {ex.comparedToLast.result === "better"
-                        ? "Improved vs last session"
-                        : ex.comparedToLast.result === "same"
-                          ? "Matched last session"
-                          : "Mixed compared with last session"}
+                  {getExerciseFooterText(ex, isNewPrExercise) ? (
+                    <Text
+                      style={
+                        isNewPrExercise
+                          ? styles.exerciseFooterPrText
+                          : styles.exerciseFooterText
+                      }
+                    >
+                      {getExerciseFooterText(ex, isNewPrExercise)}
                     </Text>
                   ) : null}
                 </View>
@@ -583,7 +766,7 @@ function createStyles(
     },
 
     colDelta: {
-      width: 78,
+      width: 96,
       textAlign: "right",
     },
 
@@ -595,6 +778,10 @@ function createStyles(
 
     deltaPositive: {
       color: "#22c55e",
+    },
+
+    deltaPr: {
+      color: colors.premium,
     },
 
     exerciseFooter: {

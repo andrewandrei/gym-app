@@ -1,3 +1,4 @@
+//workout/workout.styles.ts
 import { BorderWidth } from "@/styles/hairline";
 import { Spacing } from "@/styles/spacing";
 import { StyleSheet } from "react-native";

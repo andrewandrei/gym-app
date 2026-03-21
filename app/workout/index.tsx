@@ -27,11 +27,27 @@ import { getWorkoutConfig } from "./workout.data";
 import { createWorkoutStyles } from "./workout.styles";
 import {
   clearWorkoutDraft,
+  discardWorkoutDraft,
   hasMeaningfulProgress,
   loadWorkoutDraft,
+  markDraftCompleted,
+  markDraftInterrupted,
+  markDraftResumed,
   saveWorkoutDraft,
+  shouldShowResumeModal,
   type WorkoutDraft,
 } from "./workoutDraft";
+import {
+  buildFinishSummary,
+  makeSessionId,
+  type FinishSummary,
+} from "./workoutEngine";
+import {
+  appendWorkoutHistoryEntry,
+  buildExerciseHistorySessions,
+  getWorkoutHistoryByWorkoutId,
+  type WorkoutHistoryEntry,
+} from "./workoutHistory";
 import { WorkoutPlayer } from "./WorkoutPlayer";
 import {
   WorkoutPreview,
@@ -55,61 +71,6 @@ type UndoAction = {
   index: number;
 };
 
-type FinishSummary = {
-  workoutTitle: string;
-  durationSec: number;
-  totals: {
-    completedSets: number;
-    totalSets: number;
-    completedExercises: number;
-    totalExercises: number;
-    totalVolume: number;
-    trackedStrengthVolume: number;
-  };
-  insights: {
-    completionRate: number;
-    prCount: number;
-    missingLoadCount: number;
-    strengthSetCount: number;
-    avgTrackedLoad: number;
-    improvedExerciseCount: number;
-    matchedExerciseCount: number;
-  };
-  prs: Array<{
-    exerciseId: string;
-    exerciseName: string;
-    weight: string;
-    reps: string;
-  }>;
-  wins: Array<{
-    exerciseId: string;
-    exerciseName: string;
-    type: "heavier" | "more_reps" | "matched" | "volume_up";
-    label: string;
-  }>;
-  exercises: Array<{
-    id: string;
-    name: string;
-    completedSets: number;
-    totalSetsPlanned: number;
-    unitLabel: string;
-    sessionVolume: number;
-    comparedToLast?: {
-      previousWeight?: number;
-      previousReps?: number;
-      previousVolume?: number;
-      result: "better" | "same" | "mixed" | "no_data";
-    };
-    sets: Array<{
-      set: number;
-      weight: string;
-      reps: string;
-      rest: string;
-      done: boolean;
-    }>;
-  }>;
-};
-
 export default function WorkoutLogScreen() {
   const { colors, isDark } = useAppTheme();
   const S = useMemo(() => createWorkoutStyles(colors, isDark), [colors, isDark]);
@@ -124,6 +85,10 @@ export default function WorkoutLogScreen() {
   const selectedWorkoutId = Array.isArray(params.workoutId)
     ? params.workoutId[0]
     : params.workoutId;
+
+  const selectedProgramId = Array.isArray(params.programId)
+    ? params.programId[0]
+    : params.programId;
 
   const resumeDraftFlag = Array.isArray(params.resumeDraft)
     ? params.resumeDraft[0]
@@ -161,11 +126,29 @@ export default function WorkoutLogScreen() {
   }, [initialExercises]);
 
   const [exercises, setExercises] = useState<Exercise[]>(initialExercises);
+  const [realWorkoutHistory, setRealWorkoutHistory] = useState<WorkoutHistoryEntry[]>([]);
 
   useEffect(() => {
     if (resumeDraftFlag === "1") return;
     setExercises(initialExercises);
   }, [initialExercises, resumeDraftFlag]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadRealHistory = async () => {
+      const workoutId = selectedWorkoutId ?? "full-body-foundation";
+      const history = await getWorkoutHistoryByWorkoutId(workoutId);
+      if (!mounted) return;
+      setRealWorkoutHistory(history);
+    };
+
+    loadRealHistory();
+
+    return () => {
+      mounted = false;
+    };
+  }, [selectedWorkoutId]);
 
   const exerciseById = useMemo(() => {
     const map: Record<string, Exercise> = {};
@@ -185,10 +168,32 @@ export default function WorkoutLogScreen() {
     [workoutConfig],
   );
 
-  const historyByExerciseId: Record<string, ExerciseHistorySession[]> = useMemo(
+  const fallbackHistoryByExerciseId: Record<string, ExerciseHistorySession[]> = useMemo(
     () => workoutConfig.historyByExerciseId ?? {},
     [workoutConfig],
   );
+
+  const historyByExerciseId: Record<string, ExerciseHistorySession[]> = useMemo(() => {
+    const derivedFromRealHistory: Record<string, ExerciseHistorySession[]> = {};
+
+    exercises.forEach((ex) => {
+      const sessions = buildExerciseHistorySessions(
+        realWorkoutHistory,
+        ex.id,
+        ex.name,
+      ) as ExerciseHistorySession[];
+
+      if (sessions.length > 0) {
+        derivedFromRealHistory[ex.id] = sessions;
+      } else if (fallbackHistoryByExerciseId[ex.id]) {
+        derivedFromRealHistory[ex.id] = fallbackHistoryByExerciseId[ex.id];
+      } else {
+        derivedFromRealHistory[ex.id] = [];
+      }
+    });
+
+    return derivedFromRealHistory;
+  }, [exercises, fallbackHistoryByExerciseId, realWorkoutHistory]);
 
   const scrollRef = useRef<ScrollView | null>(null);
   const exerciseRefs = useRef<Record<string, View | null>>({});
@@ -242,22 +247,6 @@ export default function WorkoutLogScreen() {
     };
   }, []);
 
-  const timeToSeconds = (time: string): number => {
-    const parts = time.split(":");
-    if (parts.length === 2) {
-      const mins = parseInt(parts[0], 10) || 0;
-      const secs = parseInt(parts[1], 10) || 0;
-      return mins * 60 + secs;
-    }
-    return parseInt(time, 10) || 0;
-  };
-
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, "0")}`;
-  };
-
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -297,14 +286,22 @@ export default function WorkoutLogScreen() {
   }, []);
 
   const buildWorkoutDraft = useCallback((): WorkoutDraft => {
+    const existingSessionId = availableDraft?.sessionId;
+
     return {
       id: "full-body-foundation-draft",
+      sessionId:
+        existingSessionId ??
+        `${selectedWorkoutId ?? "full-body-foundation"}-${workoutStartTime.current}`,
       workoutId: selectedWorkoutId ?? "full-body-foundation",
       workoutTitle,
+      programId: selectedProgramId ?? undefined,
       startedAt: workoutStartTime.current,
       updatedAt: Date.now(),
       elapsedSeconds: workoutDuration,
       activeSetKey,
+      status: "active",
+      source: "in_progress",
       exercises: exercises.map((ex) => ({
         id: ex.id,
         name: ex.name,
@@ -318,8 +315,19 @@ export default function WorkoutLogScreen() {
           note: s.note ?? "",
         })),
       })),
+      ui: {
+        lastOpenedAt: Date.now(),
+      },
     };
-  }, [activeSetKey, exercises, selectedWorkoutId, workoutDuration, workoutTitle]);
+  }, [
+    activeSetKey,
+    availableDraft?.sessionId,
+    exercises,
+    selectedProgramId,
+    selectedWorkoutId,
+    workoutDuration,
+    workoutTitle,
+  ]);
 
   useEffect(() => {
     if (isPreview) return;
@@ -335,15 +343,11 @@ export default function WorkoutLogScreen() {
 
     const sub = AppState.addEventListener("change", (state) => {
       if (state !== "background" && state !== "inactive") return;
-
-      const draft = buildWorkoutDraft();
-      if (!hasMeaningfulProgress(draft.exercises)) return;
-
-      saveWorkoutDraft(draft).catch(() => {});
+      markDraftInterrupted().catch(() => {});
     });
 
     return () => sub.remove();
-  }, [isPreview, buildWorkoutDraft]);
+  }, [isPreview]);
 
   useEffect(() => {
     let mounted = true;
@@ -361,6 +365,8 @@ export default function WorkoutLogScreen() {
           if (mounted) setIsHydratingDraft(false);
           return;
         }
+
+        await markDraftResumed();
 
         const restoredExercises: Exercise[] = draft.exercises.map((draftEx) => {
           const base = initialExerciseMap[draftEx.id];
@@ -386,6 +392,7 @@ export default function WorkoutLogScreen() {
           };
         });
 
+        setAvailableDraft(draft);
         setExercises(restoredExercises);
         setActiveSetKey(draft.activeSetKey ?? null);
         setWorkoutDuration(draft.elapsedSeconds ?? 0);
@@ -416,7 +423,7 @@ export default function WorkoutLogScreen() {
 
         if (!mounted) return;
 
-        if (draft && hasMeaningfulProgress(draft.exercises)) {
+        if (shouldShowResumeModal(draft)) {
           setAvailableDraft(draft);
         } else {
           setAvailableDraft(null);
@@ -523,24 +530,6 @@ export default function WorkoutLogScreen() {
     );
   };
 
-  const skipRestTimer = async () => {
-    if (restIntervalRef.current) clearInterval(restIntervalRef.current);
-    setRestTimer(null);
-
-    if (Platform.OS !== "web") {
-      try {
-        await Notifications.cancelAllScheduledNotificationsAsync();
-      } catch {}
-    }
-  };
-
-  const add15Seconds = () => {
-    setRestTimer((prev) => {
-      if (!prev) return null;
-      return { ...prev, seconds: prev.seconds + 15, total: prev.total + 15 };
-    });
-  };
-
   const startCustomTimer = async () => {
     const mins = parseInt(customMinutes, 10) || 0;
     const secs = parseInt(customSeconds, 10) || 0;
@@ -639,6 +628,8 @@ export default function WorkoutLogScreen() {
     }
 
     workoutStartTime.current = Date.now();
+    setWorkoutDuration(0);
+    setAvailableDraft(null);
     setIsPreview(false);
 
     const firstIncomplete = getNextIncompleteSet(exercises[0]?.id ?? "", -1);
@@ -648,7 +639,7 @@ export default function WorkoutLogScreen() {
   }, [exercises]);
 
   const startWorkout = useCallback(async () => {
-    if (availableDraft) {
+    if (availableDraft && shouldShowResumeModal(availableDraft)) {
       setResumeDraftPromptOpen(true);
       return;
     }
@@ -656,9 +647,10 @@ export default function WorkoutLogScreen() {
     await beginFreshWorkout();
   }, [availableDraft, beginFreshWorkout]);
 
-  const continueExistingWorkout = useCallback(() => {
+  const continueExistingWorkout = useCallback(async () => {
     if (!availableDraft) return;
 
+    await markDraftResumed();
     setResumeDraftPromptOpen(false);
 
     router.replace({
@@ -672,7 +664,7 @@ export default function WorkoutLogScreen() {
 
   const startNewSession = useCallback(async () => {
     setResumeDraftPromptOpen(false);
-    await clearWorkoutDraft();
+    await discardWorkoutDraft();
     setAvailableDraft(null);
     await beginFreshWorkout();
   }, [beginFreshWorkout]);
@@ -932,28 +924,31 @@ export default function WorkoutLogScreen() {
     setMenuExerciseId(null);
   };
 
-  const getPersonalBest = useCallback((exId: string) => {
-    const sessions = historyByExerciseId[exId] ?? [];
-    if (!sessions.length) return null;
+  const getPersonalBest = useCallback(
+    (exId: string) => {
+      const sessions = historyByExerciseId[exId] ?? [];
+      if (!sessions.length) return null;
 
-    let maxWeight = 0;
-    let maxReps = 0;
-    let prDate = "";
+      let maxWeight = 0;
+      let maxReps = 0;
+      let prDate = "";
 
-    sessions.forEach((session) => {
-      session.sets.forEach((set) => {
-        const w = parseFloat(set.weight);
-        const r = parseFloat(set.reps);
-        if (w > maxWeight || (w === maxWeight && r > maxReps)) {
-          maxWeight = w;
-          maxReps = r;
-          prDate = session.dateLabel;
-        }
+      sessions.forEach((session) => {
+        session.sets.forEach((set) => {
+          const w = parseFloat(set.weight);
+          const r = parseFloat(set.reps);
+          if (w > maxWeight || (w === maxWeight && r > maxReps)) {
+            maxWeight = w;
+            maxReps = r;
+            prDate = session.dateLabel;
+          }
+        });
       });
-    });
 
-    return maxWeight > 0 ? { weight: maxWeight, reps: maxReps, date: prDate } : null;
-  }, [historyByExerciseId]);
+      return maxWeight > 0 ? { weight: maxWeight, reps: maxReps, date: prDate } : null;
+    },
+    [historyByExerciseId],
+  );
 
   const pr = useMemo(
     () => (historyExerciseId ? getPersonalBest(historyExerciseId) : null),
@@ -1069,278 +1064,6 @@ export default function WorkoutLogScreen() {
     return null;
   };
 
-  const buildFinishSummary = useCallback((): FinishSummary => {
-    const completedExercisesOnly = exercises
-      .map((ex) => {
-        const completedSetsOnly = ex.sets
-          .map((s, idx) => ({
-            set: idx + 1,
-            weight: s.weight ?? "",
-            reps: s.reps ?? "",
-            rest: s.rest ?? "",
-            done: !!s.done,
-          }))
-          .filter((x) => x.done);
-
-        if (completedSetsOnly.length === 0) return null;
-
-        const sessionVolume = completedSetsOnly.reduce((sum, set) => {
-          const weight = parseFloat(set.weight ?? "");
-          const reps = parseFloat(set.reps ?? "");
-          if (Number.isNaN(weight) || Number.isNaN(reps)) return sum;
-          if (weight <= 0 || reps <= 0) return sum;
-          return sum + weight * reps;
-        }, 0);
-
-        const previousSession = (historyByExerciseId[ex.id] ?? [])[0];
-
-        let comparedToLast: FinishSummary["exercises"][number]["comparedToLast"] = {
-          result: "no_data",
-        };
-
-        if (previousSession) {
-          const previousBestWeight = previousSession.sets.reduce((max, set) => {
-            const w = parseFloat(set.weight ?? "");
-            return Number.isNaN(w) ? max : Math.max(max, w);
-          }, 0);
-
-          const previousBestReps = previousSession.sets.reduce((max, set) => {
-            const r = parseFloat(set.reps ?? "");
-            return Number.isNaN(r) ? max : Math.max(max, r);
-          }, 0);
-
-          const previousVolume = previousSession.sets.reduce((sum, set) => {
-            const w = parseFloat(set.weight ?? "");
-            const r = parseFloat(set.reps ?? "");
-            if (Number.isNaN(w) || Number.isNaN(r) || w <= 0 || r <= 0) return sum;
-            return sum + w * r;
-          }, 0);
-
-          const currentBestWeight = completedSetsOnly.reduce((max, set) => {
-            const w = parseFloat(set.weight ?? "");
-            return Number.isNaN(w) ? max : Math.max(max, w);
-          }, 0);
-
-          const currentBestReps = completedSetsOnly.reduce((max, set) => {
-            const r = parseFloat(set.reps ?? "");
-            return Number.isNaN(r) ? max : Math.max(max, r);
-          }, 0);
-
-          const improvedWeight = currentBestWeight > previousBestWeight;
-          const improvedReps = currentBestReps > previousBestReps;
-          const improvedVolume = sessionVolume > previousVolume;
-
-          let result: "better" | "same" | "mixed" | "no_data" = "same";
-
-          if (improvedWeight || improvedReps || improvedVolume) result = "better";
-          else if (
-            currentBestWeight === previousBestWeight &&
-            currentBestReps === previousBestReps &&
-            Math.round(sessionVolume) === Math.round(previousVolume)
-          ) {
-            result = "same";
-          } else {
-            result = "mixed";
-          }
-
-          comparedToLast = {
-            previousWeight: previousBestWeight || undefined,
-            previousReps: previousBestReps || undefined,
-            previousVolume: previousVolume || undefined,
-            result,
-          };
-        }
-
-        return {
-          id: ex.id,
-          name: ex.name,
-          completedSets: completedSetsOnly.length,
-          totalSetsPlanned: ex.sets.length,
-          unitLabel: ex.unitLabel,
-          sessionVolume,
-          comparedToLast,
-          sets: completedSetsOnly,
-        };
-      })
-      .filter(Boolean) as FinishSummary["exercises"];
-
-    const totalCompletedSets = completedExercisesOnly.reduce((sum, ex) => sum + ex.completedSets, 0);
-    const totalExercisesCount = exercises.length;
-    const completedExercisesCount = completedExercisesOnly.length;
-    const completionRate = totalSets > 0 ? totalCompletedSets / totalSets : 0;
-
-    let strengthSetCount = 0;
-    let missingLoadCount = 0;
-    let trackedStrengthVolume = 0;
-    let totalTrackedLoad = 0;
-    let trackedLoadCount = 0;
-
-    const prs: FinishSummary["prs"] = [];
-    const wins: FinishSummary["wins"] = [];
-
-    exercises.forEach((ex) => {
-      const personalBest = getPersonalBest(ex.id);
-      const previousSession = (historyByExerciseId[ex.id] ?? [])[0];
-      const isStrengthExercise = ex.unitLabel === "LBS" || ex.unitLabel === "KG";
-
-      const completedSetsOnly = ex.sets.filter((s) => s.done);
-
-      const currentBestWeight = completedSetsOnly.reduce((max, set) => {
-        const w = parseFloat(set.weight ?? "");
-        return Number.isNaN(w) ? max : Math.max(max, w);
-      }, 0);
-
-      const currentBestReps = completedSetsOnly.reduce((max, set) => {
-        const r = parseFloat(set.reps ?? "");
-        return Number.isNaN(r) ? max : Math.max(max, r);
-      }, 0);
-
-      const currentVolume = completedSetsOnly.reduce((sum, set) => {
-        const w = parseFloat(set.weight ?? "");
-        const r = parseFloat(set.reps ?? "");
-        if (Number.isNaN(w) || Number.isNaN(r) || w <= 0 || r <= 0) return sum;
-        return sum + w * r;
-      }, 0);
-
-      const prevBestWeight = previousSession
-        ? previousSession.sets.reduce((max, set) => {
-            const w = parseFloat(set.weight ?? "");
-            return Number.isNaN(w) ? max : Math.max(max, w);
-          }, 0)
-        : 0;
-
-      const prevBestReps = previousSession
-        ? previousSession.sets.reduce((max, set) => {
-            const r = parseFloat(set.reps ?? "");
-            return Number.isNaN(r) ? max : Math.max(max, r);
-          }, 0)
-        : 0;
-
-      const prevVolume = previousSession
-        ? previousSession.sets.reduce((sum, set) => {
-            const w = parseFloat(set.weight ?? "");
-            const r = parseFloat(set.reps ?? "");
-            if (Number.isNaN(w) || Number.isNaN(r) || w <= 0 || r <= 0) return sum;
-            return sum + w * r;
-          }, 0)
-        : 0;
-
-      if (previousSession && completedSetsOnly.length > 0) {
-        if (currentBestWeight > prevBestWeight) {
-          wins.push({
-            exerciseId: ex.id,
-            exerciseName: ex.name,
-            type: "heavier",
-            label: "Heavier than last session",
-          });
-        } else if (currentBestReps > prevBestReps) {
-          wins.push({
-            exerciseId: ex.id,
-            exerciseName: ex.name,
-            type: "more_reps",
-            label: "More reps than last session",
-          });
-        } else if (
-          currentBestWeight === prevBestWeight &&
-          currentBestReps === prevBestReps &&
-          currentBestWeight > 0
-        ) {
-          wins.push({
-            exerciseId: ex.id,
-            exerciseName: ex.name,
-            type: "matched",
-            label: "Matched last session",
-          });
-        } else if (currentVolume > prevVolume && currentVolume > 0) {
-          wins.push({
-            exerciseId: ex.id,
-            exerciseName: ex.name,
-            type: "volume_up",
-            label: "Higher session volume",
-          });
-        }
-      }
-
-      ex.sets.forEach((s) => {
-        if (!s.done) return;
-
-        if (isStrengthExercise) {
-          strengthSetCount += 1;
-
-          const rawWeight = (s.weight ?? "").trim();
-          const weightVal = parseFloat(rawWeight);
-
-          if (!rawWeight || Number.isNaN(weightVal) || weightVal <= 0) {
-            missingLoadCount += 1;
-          } else {
-            totalTrackedLoad += weightVal;
-            trackedLoadCount += 1;
-          }
-
-          const repsVal = parseFloat(s.reps ?? "");
-          if (!Number.isNaN(weightVal) && !Number.isNaN(repsVal) && weightVal > 0 && repsVal > 0) {
-            trackedStrengthVolume += weightVal * repsVal;
-          }
-        }
-
-        const setWeight = parseFloat(s.weight ?? "");
-        const setReps = parseFloat(s.reps ?? "");
-
-        if (
-          personalBest &&
-          !Number.isNaN(setWeight) &&
-          !Number.isNaN(setReps) &&
-          (setWeight > personalBest.weight ||
-            (setWeight === personalBest.weight && setReps > personalBest.reps))
-        ) {
-          const alreadyAdded = prs.some((item) => item.exerciseId === ex.id);
-          if (!alreadyAdded) {
-            prs.push({
-              exerciseId: ex.id,
-              exerciseName: ex.name,
-              weight: s.weight ?? "",
-              reps: s.reps ?? "",
-            });
-          }
-        }
-      });
-    });
-
-    const totalVolume = completedExercisesOnly.reduce((sum, ex) => sum + ex.sessionVolume, 0);
-    const avgTrackedLoad = trackedLoadCount > 0 ? totalTrackedLoad / trackedLoadCount : 0;
-    const improvedExerciseCount = completedExercisesOnly.filter(
-      (ex) => ex.comparedToLast?.result === "better",
-    ).length;
-    const matchedExerciseCount = completedExercisesOnly.filter(
-      (ex) => ex.comparedToLast?.result === "same",
-    ).length;
-
-    return {
-      workoutTitle,
-      durationSec: workoutDuration,
-      totals: {
-        completedSets: totalCompletedSets,
-        totalSets,
-        completedExercises: completedExercisesCount,
-        totalExercises: totalExercisesCount,
-        totalVolume,
-        trackedStrengthVolume,
-      },
-      insights: {
-        completionRate,
-        prCount: prs.length,
-        missingLoadCount,
-        strengthSetCount,
-        avgTrackedLoad,
-        improvedExerciseCount,
-        matchedExerciseCount,
-      },
-      prs,
-      wins,
-      exercises: completedExercisesOnly,
-    };
-  }, [exercises, historyByExerciseId, totalSets, workoutDuration, workoutTitle, getPersonalBest]);
-
   const goToFinish = useCallback(
     async (sessionStatus: "partial" | "completed") => {
       Keyboard.dismiss();
@@ -1349,9 +1072,40 @@ export default function WorkoutLogScreen() {
         await Haptics.selectionAsync();
       }
 
-      const summary = buildFinishSummary();
+      const sessionId = availableDraft?.sessionId ?? makeSessionId(selectedWorkoutId ?? "full-body-foundation");
 
-      await AsyncStorage.setItem(FINISH_SUMMARY_STORAGE_KEY, JSON.stringify(summary));
+      const { summary, historyEntry } = buildFinishSummary({
+        sessionId,
+        workoutId: selectedWorkoutId ?? "full-body-foundation",
+        workoutTitle,
+        programId: selectedProgramId ?? undefined,
+        status: sessionStatus,
+        durationSec: workoutDuration,
+        exercises: exercises.map((ex) => ({
+          id: ex.id,
+          name: ex.name,
+          unitLabel: ex.unitLabel,
+          sets: ex.sets.map((s) => ({
+            id: s.id,
+            weight: s.weight ?? "",
+            reps: s.reps ?? "",
+            rest: s.rest ?? "",
+            done: !!s.done,
+            note: s.note ?? "",
+          })),
+        })),
+        history: realWorkoutHistory,
+      });
+
+      await appendWorkoutHistoryEntry(historyEntry);
+      setRealWorkoutHistory((prev) => [historyEntry, ...prev]);
+
+      await AsyncStorage.setItem(
+        FINISH_SUMMARY_STORAGE_KEY,
+        JSON.stringify(summary satisfies FinishSummary),
+      );
+
+      await markDraftCompleted();
       await clearWorkoutDraft();
       setAvailableDraft(null);
 
@@ -1363,7 +1117,15 @@ export default function WorkoutLogScreen() {
         params: { sessionStatus },
       });
     },
-    [buildFinishSummary],
+    [
+      availableDraft?.sessionId,
+      exercises,
+      realWorkoutHistory,
+      selectedProgramId,
+      selectedWorkoutId,
+      workoutDuration,
+      workoutTitle,
+    ],
   );
 
   const handleFinishPress = useCallback(async () => {
@@ -1803,7 +1565,9 @@ export default function WorkoutLogScreen() {
                 <View key={session.id} style={[S.historyCard, index > 0 && S.historyCardSpaced]}>
                   <View style={S.historyCardHeader}>
                     <View style={{ flex: 1, paddingRight: 10 }}>
-                      <Text style={[S.historyDate, { color: colors.text }]}>{session.dateLabel}</Text>
+                      <Text style={[S.historyDate, { color: colors.text }]}>
+                        {session.dateLabel}
+                      </Text>
                     </View>
 
                     {sessionHasPR(session) ? (
@@ -1861,9 +1625,15 @@ export default function WorkoutLogScreen() {
                         <Text style={[S.historyCellText, { width: 40, color: colors.text }]}>
                           {hs.set}
                         </Text>
-                        <Text style={[S.historyCellText, { color: colors.text }]}>{hs.weight}</Text>
-                        <Text style={[S.historyCellText, { color: colors.text }]}>{hs.reps}</Text>
-                        <Text style={[S.historyCellText, { color: colors.text }]}>{hs.rest}</Text>
+                        <Text style={[S.historyCellText, { color: colors.text }]}>
+                          {hs.weight}
+                        </Text>
+                        <Text style={[S.historyCellText, { color: colors.text }]}>
+                          {hs.reps}
+                        </Text>
+                        <Text style={[S.historyCellText, { color: colors.text }]}>
+                          {hs.rest}
+                        </Text>
                         <View
                           style={[
                             S.historyDot,
