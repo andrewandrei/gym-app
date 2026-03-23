@@ -1,6 +1,8 @@
+// app/program/programDetail.styles.ts
 import { BorderWidth } from "@/styles/hairline";
 import { Radius } from "@/styles/radius";
 import { Spacing } from "@/styles/spacing";
+import { FontSize, FontWeight, Typography } from "@/styles/typography";
 import { StyleSheet } from "react-native";
 
 export function createProgramDetailStyles(
@@ -16,7 +18,7 @@ export function createProgramDetailStyles(
   },
   isDark: boolean,
 ) {
-  const BORDER = colors.borderSubtle ?? colors.border;
+  const BORDER    = colors.borderSubtle ?? colors.border;
   const SOFT_FILL = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)";
 
   return StyleSheet.create({
@@ -48,13 +50,15 @@ export function createProgramDetailStyles(
     heroBackdropGradient: {
       ...StyleSheet.absoluteFillObject,
     },
+
     heroSpace: {
       position: "relative",
     },
+
     heroIconSpacer: {
-  width: 42,
-  height: 42,
-},
+      width: 42,
+      height: 42,
+    },
 
     scroll: {
       flex: 1,
@@ -80,13 +84,13 @@ export function createProgramDetailStyles(
 
     heroIconBtn: {
       width: 44,
-  height: 44,
-  borderRadius: 22,
-  alignItems: "center",
-  justifyContent: "center",
-  backgroundColor: "rgba(255,255,255,0.08)",
-  borderWidth: 1,
-  borderColor: "rgba(255,255,255,0.20)",
+      height: 44,
+      borderRadius: 22,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: "rgba(255,255,255,0.08)",
+      borderWidth: 1,
+      borderColor: "rgba(255,255,255,0.20)",
     },
 
     heroInfoBtn: {
@@ -109,42 +113,41 @@ export function createProgramDetailStyles(
       paddingHorizontal: Spacing.md,
     },
 
+    // ↓ was 32px — reduced to 24px
     heroTitle: {
       color: "#FFFFFF",
-      fontSize: 32,
-      lineHeight: 36,
-      fontWeight: "900",
-      letterSpacing: -0.5,
+      fontSize: FontSize.title1,
+      lineHeight: 28,
+      fontWeight: FontWeight.black,
+      letterSpacing: -0.35,
     },
 
+    // ↓ was implicit large — now consistent subhead
     heroSubtitle: {
-      marginTop: 10,
-      color: "rgba(255,255,255,0.92)",
-      fontSize: 14,
-      lineHeight: 20,
-      fontWeight: "700",
-      letterSpacing: -0.08,
+      marginTop: 8,
+      color: "rgba(255,255,255,0.88)",
+      ...Typography.bodySmall,
+      fontWeight: FontWeight.bold,
     },
 
     heroMeta: {
-      marginTop: 10,
-      color: "rgba(255,255,255,0.76)",
-      fontSize: 13,
-      lineHeight: 18,
-      fontWeight: "700",
-      letterSpacing: -0.05,
+      marginTop: 8,
+      color: "rgba(255,255,255,0.70)",
+      ...Typography.caption,
+      fontWeight: FontWeight.heavy,
+      letterSpacing: 0.1,
     },
 
     heroProgressTrack: {
-      marginTop: 16,
-      height: 8,
+      marginTop: 14,
+      height: 6,
       backgroundColor: "rgba(255,255,255,0.20)",
       borderRadius: 999,
       overflow: "hidden",
     },
 
     heroProgressFill: {
-      height: 8,
+      height: 6,
       backgroundColor: "#FFFFFF",
       borderRadius: 999,
     },
@@ -158,17 +161,16 @@ export function createProgramDetailStyles(
     },
 
     heroStatText: {
-      color: "rgba(255,255,255,0.92)",
-      fontSize: 12,
-      fontWeight: "800",
-      letterSpacing: -0.05,
+      color: "rgba(255,255,255,0.88)",
+      ...Typography.caption,
+      fontWeight: FontWeight.heavy,
     },
 
     heroStatDot: {
-      width: 4,
-      height: 4,
+      width: 3,
+      height: 3,
       borderRadius: 2,
-      backgroundColor: "rgba(255,255,255,0.42)",
+      backgroundColor: "rgba(255,255,255,0.40)",
     },
 
     floatingHeader: {
@@ -196,31 +198,28 @@ export function createProgramDetailStyles(
       paddingVertical: 10,
     },
 
+    // ↓ was 16px — now 15px headline
     floatingHeaderTitle: {
-      fontSize: 16,
-      lineHeight: 20,
-      fontWeight: "900",
+      ...Typography.headline,
       color: colors.text,
-      letterSpacing: -0.2,
     },
 
     floatingHeaderMetaRow: {
-      marginTop: 4,
+      marginTop: 3,
       flexDirection: "row",
       alignItems: "center",
       gap: 6,
     },
 
     floatingHeaderMetaText: {
-      fontSize: 12,
-      fontWeight: "700",
+      ...Typography.caption,
+      fontWeight: FontWeight.bold,
       color: colors.muted,
-      letterSpacing: -0.04,
     },
 
     floatingHeaderDot: {
-      width: 4,
-      height: 4,
+      width: 3,
+      height: 3,
       borderRadius: 2,
       backgroundColor: colors.muted,
       opacity: 0.45,
@@ -228,12 +227,10 @@ export function createProgramDetailStyles(
 
     content: {
       backgroundColor: colors.background,
-      paddingTop: 24,
+      paddingTop: 22,
       paddingHorizontal: Spacing.md,
-      
       marginTop: -10,
     },
-
 
     weeksScroll: {
       marginHorizontal: -Spacing.md,
@@ -248,9 +245,9 @@ export function createProgramDetailStyles(
     },
 
     weekPill: {
-      minWidth: 98,
-      height: 42,
-      paddingHorizontal: 16,
+      minWidth: 90,
+      height: 38,
+      paddingHorizontal: 14,
       borderRadius: 999,
       backgroundColor: colors.card,
       borderWidth: BorderWidth.default,
@@ -264,44 +261,44 @@ export function createProgramDetailStyles(
       borderColor: colors.text,
     },
 
+    // ↓ was 14px — now 13px subhead
     weekPillText: {
-      fontSize: 14,
-      fontWeight: "800",
+      ...Typography.subhead,
       color: colors.muted,
-      letterSpacing: -0.12,
     },
 
     weekPillTextActive: {
       color: colors.surface,
+      fontWeight: FontWeight.heavy,
     },
 
     activeWeekHeader: {
-      marginTop: 22,
+      marginTop: 20,
       marginBottom: 14,
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
     },
 
+    // ↓ was 24px — now 20px title2ish
     activeWeekTitle: {
-      fontSize: 24,
-      lineHeight: 28,
-      fontWeight: "900",
+      fontSize: 20,
+      fontWeight: FontWeight.black,
       color: colors.text,
       letterSpacing: -0.25,
+      lineHeight: 24,
     },
 
     activeWeekSub: {
-      marginTop: 4,
-      fontSize: 14,
-      fontWeight: "700",
+      marginTop: 3,
+      ...Typography.subhead,
       color: colors.muted,
     },
 
     activeWeekMetaChip: {
-      minWidth: 58,
-      height: 32,
-      paddingHorizontal: 12,
+      minWidth: 52,
+      height: 30,
+      paddingHorizontal: 10,
       borderRadius: 999,
       backgroundColor: SOFT_FILL,
       borderWidth: BorderWidth.default,
@@ -311,9 +308,9 @@ export function createProgramDetailStyles(
     },
 
     activeWeekMetaText: {
-      fontSize: 13,
-      fontWeight: "800",
+      ...Typography.meta,
       color: colors.text,
+      fontWeight: FontWeight.heavy,
     },
 
     workoutsInline: {
@@ -321,96 +318,92 @@ export function createProgramDetailStyles(
     },
 
     nextWorkoutWrap: {
-      marginBottom: 18,
+      marginBottom: 16,
     },
 
     workoutRow: {
-      minHeight: 106,
-      paddingVertical: 14,
+      minHeight: 96,
+      paddingVertical: 12,
       paddingHorizontal: 0,
       flexDirection: "row",
       alignItems: "center",
       backgroundColor: "transparent",
     },
 
-     workoutRowNext: {
-      minHeight: 118,
-      paddingVertical: 16,
+    workoutRowNext: {
+      minHeight: 108,
+      paddingVertical: 14,
       paddingHorizontal: 14,
-      borderRadius: 24,
+      borderRadius: 22,
       backgroundColor: isDark ? "rgba(244,200,74,0.14)" : "rgba(244,200,74,0.10)",
       borderWidth: BorderWidth.default,
       borderColor: isDark ? "rgba(244,200,74,0.42)" : "rgba(244,200,74,0.55)",
     },
 
-     nextWorkoutAccent: {
-        position: "absolute",
-        left: 0,
-        top: 16,
-        bottom: 16,
-        width: 4,
-        borderTopRightRadius: 4,
-        borderBottomRightRadius: 4,
-        backgroundColor: colors.premium,
-      },
+    nextWorkoutAccent: {
+      position: "absolute",
+      left: 0,
+      top: 14,
+      bottom: 14,
+      width: 4,
+      borderTopRightRadius: 4,
+      borderBottomRightRadius: 4,
+      backgroundColor: colors.premium,
+    },
 
     workoutThumb: {
-      width: 82,
-      height: 82,
-      borderRadius: 20,
+      width: 76,
+      height: 76,
+      borderRadius: 18,
       backgroundColor: SOFT_FILL,
     },
 
     workoutContent: {
       flex: 1,
-      paddingLeft: 14,
-      paddingRight: 10,
+      paddingLeft: 12,
+      paddingRight: 8,
     },
 
+    // ↓ was 12px/900/0.45 — now micro
     workoutLabel: {
-      fontSize: 12,
-      fontWeight: "900",
+      ...Typography.micro,
       color: colors.muted,
-      letterSpacing: 0.45,
       textTransform: "uppercase",
     },
 
+    // ↓ was 18px — now title3 16px
     workoutTitle: {
-      marginTop: 4,
-      fontSize: 18,
-      lineHeight: 22,
-      fontWeight: "900",
+      marginTop: 3,
+      ...Typography.title3,
       color: colors.text,
-      letterSpacing: -0.2,
     },
 
     workoutTitleLocked: {
       color: colors.muted,
     },
 
+    // ↓ was 13px — now subhead 13px (same, just tokenised)
     workoutMeta: {
-      marginTop: 6,
-      fontSize: 13,
-      lineHeight: 16,
-      fontWeight: "700",
+      marginTop: 5,
+      ...Typography.subhead,
       color: colors.muted,
     },
 
     workoutMetaLocked: {
       color: colors.muted,
-      opacity: 0.9,
+      opacity: 0.85,
     },
 
     workoutRight: {
       alignItems: "flex-end",
       justifyContent: "space-between",
-      minHeight: 82,
+      minHeight: 76,
     },
 
     statusNext: {
-      minWidth: 58,
-      height: 30,
-      paddingHorizontal: 12,
+      minWidth: 52,
+      height: 28,
+      paddingHorizontal: 10,
       borderRadius: 999,
       backgroundColor: colors.text,
       alignItems: "center",
@@ -418,33 +411,33 @@ export function createProgramDetailStyles(
     },
 
     statusNextText: {
-      fontSize: 12,
-      fontWeight: "900",
+      ...Typography.meta,
+      fontWeight: FontWeight.black,
       color: colors.surface,
     },
 
     statusDone: {
-      minWidth: 68,
-      height: 30,
-      paddingHorizontal: 10,
+      minWidth: 62,
+      height: 28,
+      paddingHorizontal: 8,
       borderRadius: 999,
       backgroundColor: "rgba(244,200,74,0.95)",
       alignItems: "center",
       justifyContent: "center",
       flexDirection: "row",
-      gap: 6,
+      gap: 5,
     },
 
     statusDoneText: {
-      fontSize: 12,
-      fontWeight: "900",
+      ...Typography.meta,
+      fontWeight: FontWeight.black,
       color: "#111111",
     },
 
     statusLocked: {
-      width: 32,
-      height: 32,
-      borderRadius: 16,
+      width: 30,
+      height: 30,
+      borderRadius: 15,
       backgroundColor: SOFT_FILL,
       borderWidth: BorderWidth.default,
       borderColor: BORDER,
@@ -453,28 +446,28 @@ export function createProgramDetailStyles(
     },
 
     statusLockedGhost: {
-      width: 58,
-      height: 30,
+      width: 52,
+      height: 28,
       opacity: 0,
     },
 
     inlineDivider: {
       height: BorderWidth.default,
       backgroundColor: BORDER,
-      marginLeft: 96,
+      marginLeft: 88,
       marginRight: 0,
     },
 
     coachRow: {
-      marginTop: 22,
+      marginTop: 20,
       flexDirection: "row",
       alignItems: "center",
     },
 
     coachAvatarWrap: {
-      width: 72,
-      height: 72,
-      borderRadius: 36,
+      width: 64,
+      height: 64,
+      borderRadius: 32,
       overflow: "hidden",
       backgroundColor: colors.card,
     },
@@ -486,88 +479,76 @@ export function createProgramDetailStyles(
 
     coachTextWrap: {
       flex: 1,
-      paddingLeft: 16,
+      paddingLeft: 14,
     },
 
     coachEyebrow: {
-      fontSize: 13,
-      lineHeight: 17,
-      fontWeight: "500",
+      ...Typography.caption,
       color: colors.muted,
-      letterSpacing: -0.08,
     },
 
     coachName: {
-      marginTop: 4,
-      fontSize: 18,
-      lineHeight: 22,
-      fontWeight: "800",
+      marginTop: 3,
+      ...Typography.title2,
       color: colors.text,
-      letterSpacing: -0.2,
     },
-descriptionBlock: {
-  marginTop: 28,
-},
 
-descriptionEyebrow: {
-  fontSize: 12,
-  fontWeight: "900",
-  color: colors.muted,
-  letterSpacing: 0.5,
-  textTransform: "uppercase",
-},
+    descriptionBlock: {
+      marginTop: 26,
+    },
 
-descriptionTitle: {
-  marginTop: 6,
-  fontSize: 24,
-  lineHeight: 28,
-  fontWeight: "900",
-  color: colors.text,
-  letterSpacing: -0.25,
-},
+    descriptionEyebrow: {
+      ...Typography.micro,
+      color: colors.muted,
+      textTransform: "uppercase",
+    },
 
-descriptionText: {
-  marginTop: 14,
-  fontSize: 15,
-  lineHeight: 22,
-  fontWeight: "600",
-  color: colors.muted,
-},
+    // ↓ was 24px — now title2 18px
+    descriptionTitle: {
+      marginTop: 5,
+      ...Typography.title2,
+      color: colors.text,
+    },
 
-bulletsBlock: {
-  marginTop: 16,
-  marginBottom: 56,
-  backgroundColor: colors.card,
-  borderRadius: 18,
-  borderWidth: BorderWidth.default,
-  borderColor: BORDER,
-  padding: 14,
-},
+    descriptionText: {
+      marginTop: 12,
+      ...Typography.body,
+      color: colors.muted,
+    },
 
-bulletRow: {
-  flexDirection: "row",
-  alignItems: "center",
-},
+    bulletsBlock: {
+      marginTop: 14,
+      marginBottom: 48,
+      backgroundColor: colors.card,
+      borderRadius: 18,
+      borderWidth: BorderWidth.default,
+      borderColor: BORDER,
+      padding: 14,
+    },
 
-bulletRowGap: {
-  marginBottom: 12,
-},
+    bulletRow: {
+      flexDirection: "row",
+      alignItems: "center",
+    },
 
-bulletDot: {
-  width: 8,
-  height: 8,
-  borderRadius: 4,
-  backgroundColor: colors.premium,
-},
+    bulletRowGap: {
+      marginBottom: 12,
+    },
 
-bulletText: {
-  flex: 1,
-  paddingLeft: 12,
-  fontSize: 14,
-  fontWeight: "700",
-  color: colors.text,
-  letterSpacing: -0.1,
-},
+    bulletDot: {
+      width: 7,
+      height: 7,
+      borderRadius: 4,
+      backgroundColor: colors.premium,
+    },
+
+    bulletText: {
+      flex: 1,
+      paddingLeft: 12,
+      ...Typography.bodySmall,
+      fontWeight: FontWeight.bold,
+      color: colors.text,
+    },
 
     modalRoot: {
       flex: 1,
@@ -603,8 +584,8 @@ bulletText: {
 
     infoGrabber: {
       alignSelf: "center",
-      width: 42,
-      height: 5,
+      width: 40,
+      height: 4,
       borderRadius: 999,
       backgroundColor: isDark ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.12)",
       marginBottom: 14,
@@ -623,26 +604,22 @@ bulletText: {
     },
 
     infoModalEyebrow: {
-      fontSize: 12,
-      fontWeight: "900",
+      ...Typography.micro,
       color: colors.muted,
-      letterSpacing: 0.5,
       textTransform: "uppercase",
+      marginBottom: 4,
     },
 
+    // ↓ was 24px — now title2 18px
     infoModalTitle: {
-      marginTop: 6,
-      fontSize: 24,
-      lineHeight: 28,
-      fontWeight: "900",
+      ...Typography.title2,
       color: colors.text,
-      letterSpacing: -0.25,
     },
 
     infoCloseBtn: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
+      width: 34,
+      height: 34,
+      borderRadius: 17,
       backgroundColor: SOFT_FILL,
       borderWidth: BorderWidth.default,
       borderColor: BORDER,
@@ -651,17 +628,15 @@ bulletText: {
     },
 
     infoModalBody: {
-      marginTop: 14,
-      fontSize: 15,
-      lineHeight: 22,
-      fontWeight: "600",
+      marginTop: 12,
+      ...Typography.body,
       color: colors.muted,
     },
 
     infoBulletsCard: {
-      marginTop: 16,
+      marginTop: 14,
       backgroundColor: colors.card,
-      borderRadius: 18,
+      borderRadius: 16,
       borderWidth: BorderWidth.default,
       borderColor: BORDER,
       padding: 14,
@@ -673,17 +648,17 @@ bulletText: {
     },
 
     infoBulletRowSpaced: {
-      marginBottom: 12,
+      marginBottom: 11,
     },
 
     infoBulletDotWrap: {
-      width: 22,
+      width: 20,
       alignItems: "center",
     },
 
     infoBulletDot: {
-      width: 8,
-      height: 8,
+      width: 7,
+      height: 7,
       borderRadius: 4,
       backgroundColor: colors.premium,
     },
@@ -694,26 +669,24 @@ bulletText: {
     },
 
     infoBulletText: {
-      fontSize: 14,
-      fontWeight: "700",
+      ...Typography.bodySmall,
+      fontWeight: FontWeight.bold,
       color: colors.text,
-      letterSpacing: -0.1,
     },
 
     infoMetaRow: {
-      marginTop: 14,
+      marginTop: 12,
       paddingHorizontal: 2,
     },
 
     infoMetaText: {
-      fontSize: 13,
-      fontWeight: "700",
+      ...Typography.subhead,
       color: colors.muted,
     },
 
     infoModalButton: {
-      marginTop: 18,
-      height: 50,
+      marginTop: 16,
+      height: 48,
       borderRadius: 999,
       backgroundColor: colors.text,
       alignItems: "center",
@@ -721,10 +694,8 @@ bulletText: {
     },
 
     infoModalButtonText: {
-      fontSize: 15,
-      fontWeight: "900",
+      ...Typography.button,
       color: colors.surface,
-      letterSpacing: -0.15,
     },
   });
 }

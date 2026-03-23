@@ -16,6 +16,7 @@ function RootNavigator() {
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="paywall" options={{ presentation: "modal" }} />
       <Stack.Screen name="modal" options={{ presentation: "modal" }} />
+      <Stack.Screen name="workout-history" options={{ headerShown: false }} />
     </Stack>
   );
 

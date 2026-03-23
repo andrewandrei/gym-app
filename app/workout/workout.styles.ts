@@ -117,7 +117,7 @@ export function createWorkoutStyles(
 
     previewHeroTitle: {
       color: "#FFFFFF",
-      fontSize: 30,
+      fontSize: 22,
       lineHeight: 34,
       fontWeight: "900",
       letterSpacing: -0.4,
@@ -182,7 +182,7 @@ export function createWorkoutStyles(
 
     previewBlockTitle: {
       marginTop: 4,
-      fontSize: 22,
+      fontSize: 18,
       lineHeight: 26,
       fontWeight: "900",
       color: colors.text,
@@ -266,7 +266,7 @@ export function createWorkoutStyles(
     },
 
     previewExName: {
-      fontSize: 17,
+      fontSize: 16,
       lineHeight: 21,
       fontWeight: "900",
       color: colors.text,
@@ -375,7 +375,7 @@ export function createWorkoutStyles(
     },
 
     blockTitle: {
-      fontSize: 22,
+      fontSize: 18,
       lineHeight: 26,
       fontWeight: "900",
       color: colors.text,
@@ -715,7 +715,7 @@ colLabel: {
 
     modalTitle: {
       flex: 1,
-      fontSize: 20,
+      fontSize: 18,
       lineHeight: 24,
       fontWeight: "900",
       color: colors.text,
