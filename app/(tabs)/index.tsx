@@ -1,8 +1,8 @@
 // app/(tabs)/index.tsx
 
 import { useFocusEffect, useRouter } from "expo-router";
-import { ChevronRight, Moon, Sun } from "lucide-react-native";
-import React, { useMemo, useState } from "react";
+import { ChevronRight, Clock, Moon, Sun } from "lucide-react-native";
+import React, { useCallback, useMemo, useState } from "react";
 import {
   ImageBackground,
   ScrollView,
@@ -29,6 +29,10 @@ import {
   loadWorkoutDraft,
   type WorkoutDraft,
 } from "../workout/workoutDraft";
+import {
+  getWorkoutHistory,
+  type WorkoutHistoryEntry,
+} from "../workout/workoutHistory";
 
 type CtaState = "start" | "resume";
 
@@ -42,20 +46,221 @@ type PrepCard = {
 
 const HERO_PROGRAM_ID = "strength-foundations";
 const HERO_WORKOUT_ID = "strength-foundations-week-2-workout-1";
+const WEEKLY_TOTAL = 3;
+const PROGRAM_TOTAL = 21;
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+function calcStreak(history: WorkoutHistoryEntry[]): number {
+  if (!history.length) return 0;
+
+  const trainedDays = new Set(
+    history.map((e) => {
+      const d = new Date(e.completedAt);
+      d.setHours(0, 0, 0, 0);
+      return d.getTime();
+    }),
+  );
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  let checkDay = today.getTime();
+
+  if (!trainedDays.has(checkDay)) {
+    checkDay -= 86_400_000;
+  }
+
+  let streak = 0;
+  while (trainedDays.has(checkDay)) {
+    streak++;
+    checkDay -= 86_400_000;
+  }
+
+  return streak;
+}
+
+function calcWeeklyDone(history: WorkoutHistoryEntry[]): number {
+  const now = new Date();
+  const dayOfWeek = now.getDay();
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+  monday.setHours(0, 0, 0, 0);
+  return history.filter((e) => new Date(e.completedAt) >= monday).length;
+}
+
+function calcProgramCompleted(
+  history: WorkoutHistoryEntry[],
+  programId: string,
+): number {
+  return history.filter(
+    (e) => e.programId === programId || e.workoutId.startsWith(programId),
+  ).length;
+}
+
+function getSessionDateLabel(completedAt: string): string {
+  const d = new Date(completedAt);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  const sessionDay = new Date(d);
+  sessionDay.setHours(0, 0, 0, 0);
+
+  if (sessionDay.getTime() === today.getTime()) return "Today";
+  if (sessionDay.getTime() === yesterday.getTime()) return "Yesterday";
+
+  return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+}
+
+function formatMinutes(sec: number): string {
+  const min = Math.round(sec / 60);
+  return `${min} min`;
+}
+
+// ─── Recent session card ─────────────────────────────────────────────────────
+
+function RecentSessionCard({
+  entry,
+  onPress,
+  colors,
+}: {
+  entry: WorkoutHistoryEntry;
+  onPress: () => void;
+  colors: ReturnType<typeof useAppTheme>["colors"];
+}) {
+  const completionPct =
+    entry.totals.totalSets > 0
+      ? Math.round((entry.totals.completedSets / entry.totals.totalSets) * 100)
+      : 100;
+
+  const isDark = colors.background === "#0B0B0C" || colors.background === "#111214";
+  const cardBg = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)";
+  const borderCol = isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.08)";
+  const trackCol = isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.08)";
+
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.82}
+      style={[sessionCardStyles.card, { backgroundColor: cardBg, borderColor: borderCol }]}
+    >
+      <View style={sessionCardStyles.topRow}>
+        <View style={sessionCardStyles.titleBlock}>
+          <Text style={[sessionCardStyles.title, { color: colors.text }]} numberOfLines={1}>
+            {entry.workoutTitle}
+          </Text>
+          <View style={sessionCardStyles.metaRow}>
+            <Clock size={11} color={colors.muted} strokeWidth={2.5} />
+            <Text style={[sessionCardStyles.metaText, { color: colors.muted }]}>
+              {formatMinutes(entry.durationSec)}
+            </Text>
+            <Text style={[sessionCardStyles.metaDot, { color: colors.muted }]}>·</Text>
+            <Text style={[sessionCardStyles.metaText, { color: colors.muted }]}>
+              {entry.totals.completedSets}/{entry.totals.totalSets} sets
+            </Text>
+          </View>
+        </View>
+        <Text style={[sessionCardStyles.dateLabel, { color: colors.muted }]}>
+          {getSessionDateLabel(entry.completedAt)}
+        </Text>
+      </View>
+
+      <View style={[sessionCardStyles.barTrack, { backgroundColor: trackCol }]}>
+        <View
+          style={[
+            sessionCardStyles.barFill,
+            { width: `${completionPct}%` as any, backgroundColor: colors.text },
+          ]}
+        />
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+const sessionCardStyles = StyleSheet.create({
+  card: {
+    borderRadius: 20,
+    borderWidth: BorderWidth.default,
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 14,
+    gap: 10,
+  },
+  topRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  titleBlock: {
+    flex: 1,
+    gap: 4,
+  },
+  title: {
+    fontSize: 15,
+    fontWeight: "800",
+    letterSpacing: -0.2,
+    lineHeight: 20,
+  },
+  metaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+  metaText: {
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: -0.05,
+  },
+  metaDot: {
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  dateLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: -0.05,
+    flexShrink: 0,
+  },
+  barTrack: {
+    height: 3,
+    borderRadius: 999,
+    overflow: "hidden",
+  },
+  barFill: {
+    height: 3,
+    borderRadius: 999,
+  },
+});
+
+// ─── Main screen ─────────────────────────────────────────────────────────────
 
 export default function HomeScreen() {
   const router = useRouter();
   const { colors, isDark, toggleTheme } = useAppTheme();
 
   const [workoutDraft, setWorkoutDraft] = useState<WorkoutDraft | null>(null);
+  const [history, setHistory] = useState<WorkoutHistoryEntry[]>([]);
 
-  const weeklyDone = 0;
-  const weeklyTotal = 3;
+  const weeklyDone = useMemo(() => calcWeeklyDone(history), [history]);
+  const streakDays = useMemo(() => calcStreak(history), [history]);
+  const programCompleted = useMemo(
+    () => calcProgramCompleted(history, HERO_PROGRAM_ID),
+    [history],
+  );
 
-  const programCompleted = 3;
-  const programTotal = 21;
+  const recentSessions = useMemo(() => history.slice(0, 5), [history]);
+  const activeProgram = useMemo(() => getProgram(HERO_PROGRAM_ID), []);
 
-  const streakDays = 3;
+  const heroWorkoutParsed = useMemo(
+    () => parseProgramWorkoutId(HERO_WORKOUT_ID),
+    [],
+  );
+
+  const heroWorkoutTemplate = useMemo(() => {
+    if (!heroWorkoutParsed) return null;
+    return getProgramWorkoutTemplate(heroWorkoutParsed.workoutIndex);
+  }, [heroWorkoutParsed]);
 
   const prepCards = useMemo<PrepCard[]>(
     () => [
@@ -77,51 +282,40 @@ export default function HomeScreen() {
     [],
   );
 
-  const activeProgram = useMemo(() => getProgram(HERO_PROGRAM_ID), []);
-
-  const heroWorkoutParsed = useMemo(
-    () => parseProgramWorkoutId(HERO_WORKOUT_ID),
-    [],
-  );
-
-  const heroWorkoutTemplate = useMemo(() => {
-    if (!heroWorkoutParsed) return null;
-    return getProgramWorkoutTemplate(heroWorkoutParsed.workoutIndex);
-  }, [heroWorkoutParsed]);
-
-  const programTitle = activeProgram.title;
-  const programMeta = activeProgram.meta;
-  const heroImage = activeProgram.hero;
-
   useFocusEffect(
-    React.useCallback(() => {
+    useCallback(() => {
       const run = async () => {
         try {
-          const draft = await loadWorkoutDraft();
+          const [draft, hist] = await Promise.all([
+            loadWorkoutDraft(),
+            getWorkoutHistory(),
+          ]);
           setWorkoutDraft(draft);
+          setHistory(hist);
         } catch {
           setWorkoutDraft(null);
+          setHistory([]);
         }
       };
-
       run();
     }, []),
   );
 
   const draftProgress = useMemo(() => {
     if (!workoutDraft) return null;
-
     const totalSets = workoutDraft.exercises.reduce((sum, ex) => sum + ex.sets.length, 0);
-
     const completedSets = workoutDraft.exercises.reduce(
       (sum, ex) => sum + ex.sets.filter((s) => s.done).length,
       0,
     );
-
     return { totalSets, completedSets };
   }, [workoutDraft]);
 
   const ctaState: CtaState = workoutDraft ? "resume" : "start";
+
+  const programTitle = activeProgram.title;
+  const programMeta = activeProgram.meta;
+  const heroImage = activeProgram.hero;
 
   const defaultWorkoutLabel = heroWorkoutParsed
     ? `Workout ${((heroWorkoutParsed.weekNumber - 1) * 3) + heroWorkoutParsed.workoutNumber}`
@@ -137,8 +331,7 @@ export default function HomeScreen() {
       ? workoutDraft.workoutTitle
       : defaultWorkoutName;
 
-  const weeklyProgress = weeklyTotal > 0 ? weeklyDone / weeklyTotal : 0;
-  const programProgress = programTotal > 0 ? programCompleted / programTotal : 0;
+  const weeklyProgress = WEEKLY_TOTAL > 0 ? weeklyDone / WEEKLY_TOTAL : 0;
 
   const greetingTitle =
     ctaState === "resume" ? "Continue where you left off." : "Ready to train.";
@@ -146,30 +339,21 @@ export default function HomeScreen() {
   const greetingSub =
     ctaState === "resume" && draftProgress
       ? `${draftProgress.completedSets} of ${draftProgress.totalSets} sets completed`
-      : `${weeklyDone} of ${weeklyTotal} workouts completed this week`;
+      : `${weeklyDone} of ${WEEKLY_TOTAL} workouts completed this week`;
 
-  const weeklyLeft = Math.max(0, weeklyTotal - weeklyDone);
+  const weeklyLeft = Math.max(0, WEEKLY_TOTAL - weeklyDone);
 
   const startWorkout = () => {
     if (ctaState === "resume" && workoutDraft) {
       router.push({
         pathname: "/workout",
-        params: {
-          resumeDraft: "1",
-          workoutId: workoutDraft.workoutId,
-          source: "home",
-        },
+        params: { resumeDraft: "1", workoutId: workoutDraft.workoutId, source: "home" },
       });
       return;
     }
-
     router.push({
       pathname: "/workout",
-      params: {
-        workoutId: HERO_WORKOUT_ID,
-        programId: HERO_PROGRAM_ID,
-        source: "home",
-      },
+      params: { workoutId: HERO_WORKOUT_ID, programId: HERO_PROGRAM_ID, source: "home" },
     });
   };
 
@@ -178,26 +362,15 @@ export default function HomeScreen() {
     setWorkoutDraft(null);
   };
 
-  const openPlanOverview = () => {
-    router.push({
-      pathname: "/program/[id]",
-      params: { id: HERO_PROGRAM_ID },
-    });
-  };
+  const openPlanOverview = () =>
+    router.push({ pathname: "/program/[id]", params: { id: HERO_PROGRAM_ID } });
 
-  const openAllPrep = () => {
-    router.push("/workouts");
-  };
-
-  const openPrepCard = (id: string) => {
-    router.push({
-      pathname: "/workout",
-      params: {
-        workoutId: id,
-        source: "home",
-      },
-    });
-  };
+  const openAllPrep = () => router.push("/workouts");
+  const openAllHistory = () => router.push("/workout-history");
+  const openPrepCard = (id: string) =>
+    router.push({ pathname: "/workout", params: { workoutId: id, source: "home" } });
+  const openSession = (_entry: WorkoutHistoryEntry) =>
+    router.push("/workout-history");
 
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -245,12 +418,7 @@ export default function HomeScreen() {
 
         <View style={styles.todayRow}>
           <Text style={styles.todayTitle}>Today</Text>
-
-          <TouchableOpacity
-            style={styles.planLink}
-            activeOpacity={0.8}
-            onPress={openPlanOverview}
-          >
+          <TouchableOpacity style={styles.planLink} activeOpacity={0.8} onPress={openPlanOverview}>
             <Text style={styles.planLinkText}>Plan overview</Text>
             <ChevronRight size={16} color={colors.muted} />
           </TouchableOpacity>
@@ -270,26 +438,21 @@ export default function HomeScreen() {
               <View style={styles.leftChips}>
                 <View style={styles.chipLight}>
                   <Text style={styles.chipLightText}>
-                    {programCompleted}/{programTotal} complete
+                    {programCompleted}/{PROGRAM_TOTAL} complete
                   </Text>
                 </View>
               </View>
-
-              <View style={styles.chipOutline}>
-                <Text style={styles.chipOutlineText}>{streakDays}-day streak</Text>
-              </View>
+              {streakDays > 0 && (
+                <View style={styles.chipOutline}>
+                  <Text style={styles.chipOutlineText}>{streakDays}-day streak</Text>
+                </View>
+              )}
             </View>
 
             <View style={styles.heroBottom}>
               <Text style={styles.heroEyebrow}>{workoutLabel}</Text>
-
               <Text style={styles.heroTitle}>{workoutName}</Text>
-
-              <Text style={styles.heroMeta}>
-                {programTitle} · {programMeta}
-              </Text>
-
-             
+              <Text style={styles.heroMeta}>{programTitle} · {programMeta}</Text>
 
               <View style={styles.metricsRow}>
                 {draftProgress ? (
@@ -300,30 +463,20 @@ export default function HomeScreen() {
                   </View>
                 ) : (
                   <View style={styles.metricPill}>
-                    <Text style={styles.metricPillText}>Today’s main session</Text>
+                    <Text style={styles.metricPillText}>Today's main session</Text>
                   </View>
                 )}
               </View>
 
-              <TouchableOpacity
-                style={styles.heroCta}
-                onPress={startWorkout}
-                activeOpacity={0.9}
-              >
+              <TouchableOpacity style={styles.heroCta} onPress={startWorkout} activeOpacity={0.9}>
                 <Text style={styles.heroCtaIcon}>▶</Text>
                 <Text style={styles.heroCtaText}>
-                  {ctaState === "resume"
-                    ? "Resume workout"
-                    : `Start workout: ${defaultWorkoutLabel}`}
+                  {ctaState === "resume" ? "Resume workout" : `Start workout: ${defaultWorkoutLabel}`}
                 </Text>
               </TouchableOpacity>
 
               {ctaState === "resume" && (
-                <TouchableOpacity
-                  onPress={discardWorkout}
-                  style={styles.discardButton}
-                  activeOpacity={0.75}
-                >
+                <TouchableOpacity onPress={discardWorkout} style={styles.discardButton} activeOpacity={0.75}>
                   <Text style={styles.discardText}>Discard workout</Text>
                 </TouchableOpacity>
               )}
@@ -331,6 +484,7 @@ export default function HomeScreen() {
           </ImageBackground>
         </View>
 
+        {/* Prep for today */}
         <View style={styles.sectionHeaderRow}>
           <Text style={styles.sectionTitle}>Prep for today</Text>
           <TouchableOpacity style={styles.sectionLink} activeOpacity={0.8} onPress={openAllPrep}>
@@ -345,10 +499,7 @@ export default function HomeScreen() {
           contentContainerStyle={styles.prepRail}
         >
           {prepCards.map((card, index) => (
-            <View
-              key={card.id}
-              style={index !== prepCards.length - 1 ? styles.prepCardGap : undefined}
-            >
+            <View key={card.id} style={index !== prepCards.length - 1 ? styles.prepCardGap : undefined}>
               <EditorialCard
                 title={card.title}
                 metaBold={card.subtitle}
@@ -359,6 +510,34 @@ export default function HomeScreen() {
             </View>
           ))}
         </ScrollView>
+
+        {/* Recent sessions */}
+        {recentSessions.length > 0 && (
+          <>
+            <View style={[styles.sectionHeaderRow, styles.recentSectionHeader]}>
+              <Text style={styles.sectionTitle}>Recent sessions</Text>
+              <TouchableOpacity style={styles.sectionLink} activeOpacity={0.8} onPress={openAllHistory}>
+                <Text style={styles.sectionLinkText}>See all</Text>
+                <ChevronRight size={16} color={colors.muted} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.recentList}>
+              {recentSessions.map((entry, index) => (
+                <View
+                  key={entry.sessionId}
+                  style={index !== recentSessions.length - 1 ? styles.recentCardGap : undefined}
+                >
+                  <RecentSessionCard
+                    entry={entry}
+                    onPress={() => openSession(entry)}
+                    colors={colors}
+                  />
+                </View>
+              ))}
+            </View>
+          </>
+        )}
 
         <View style={styles.bottomSpacer} />
       </ScrollView>
@@ -379,306 +558,78 @@ function createStyles(colors: {
   const BORDER = colors.borderSubtle ?? colors.border ?? "rgba(0,0,0,0.10)";
 
   return StyleSheet.create({
-    safe: {
-      flex: 1,
-      backgroundColor: colors.background,
-    },
-
-    scroll: {
-      flex: 1,
-      backgroundColor: colors.background,
-    },
-
-    container: {
-      paddingTop: 4,
-      paddingBottom: Spacing.lg,
-      paddingHorizontal: Spacing.md,
-    },
+    safe: { flex: 1, backgroundColor: colors.background },
+    scroll: { flex: 1, backgroundColor: colors.background },
+    container: { paddingTop: 4, paddingBottom: Spacing.lg, paddingHorizontal: Spacing.md },
 
     iconButton: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
+      width: 40, height: 40, borderRadius: 20,
       backgroundColor: colors.card,
-      borderWidth: BorderWidth.default,
-      borderColor: BORDER,
-      alignItems: "center",
-      justifyContent: "center",
+      borderWidth: BorderWidth.default, borderColor: BORDER,
+      alignItems: "center", justifyContent: "center",
     },
 
-    weekMetaRow: {
-      marginTop: 8,
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-    },
-
-    weekMetaLeft: {
-      fontSize: 13,
-      fontWeight: "700",
-      color: colors.muted,
-      letterSpacing: -0.05,
-    },
-
-    weekMetaRight: {
-      fontSize: 13,
-      fontWeight: "800",
-      color: colors.text,
-      letterSpacing: -0.05,
-    },
+    weekMetaRow: { marginTop: 8, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+    weekMetaLeft: { fontSize: 13, fontWeight: "700", color: colors.muted, letterSpacing: -0.05 },
+    weekMetaRight: { fontSize: 13, fontWeight: "800", color: colors.text, letterSpacing: -0.05 },
 
     weekProgressBg: {
-      marginTop: 10,
-      height: 8,
-      backgroundColor: isDarkLike(colors.background)
-        ? "rgba(255,255,255,0.12)"
-        : "rgba(0,0,0,0.08)",
-      borderRadius: 999,
-      overflow: "hidden",
+      marginTop: 10, height: 8,
+      backgroundColor: isDarkLike(colors.background) ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.08)",
+      borderRadius: 999, overflow: "hidden",
     },
+    weekProgressFill: { height: 8, backgroundColor: colors.text, borderRadius: 999 },
 
-    weekProgressFill: {
-      height: 8,
-      backgroundColor: colors.text,
-      borderRadius: 999,
-    },
-
-    todayRow: {
-      marginTop: 20,
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "flex-end",
-    },
-
-    todayTitle: {
-      fontSize: 26,
-      fontWeight: "900",
-      color: colors.text,
-      letterSpacing: -0.25,
-    },
-
-    planLink: {
-      paddingVertical: 6,
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 4,
-    },
-
-    planLinkText: {
-      fontSize: 14,
-      color: colors.muted,
-      fontWeight: "800",
-      letterSpacing: -0.1,
-    },
-
-    todaySub: {
-      fontSize: 15,
-      color: colors.muted,
-      marginTop: 8,
-      marginBottom: 14,
-      fontWeight: "700",
-      letterSpacing: -0.1,
-    },
+    todayRow: { marginTop: 20, flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end" },
+    todayTitle: { fontSize: 26, fontWeight: "900", color: colors.text, letterSpacing: -0.25 },
+    planLink: { paddingVertical: 6, flexDirection: "row", alignItems: "center", gap: 4 },
+    planLinkText: { fontSize: 14, color: colors.muted, fontWeight: "800", letterSpacing: -0.1 },
+    todaySub: { fontSize: 15, color: colors.muted, marginTop: 8, marginBottom: 14, fontWeight: "700", letterSpacing: -0.1 },
 
     heroCard: {
-      borderRadius: 28,
-      overflow: "hidden",
-      backgroundColor: colors.card,
+      borderRadius: 28, overflow: "hidden", backgroundColor: colors.card,
       borderWidth: BorderWidth.default,
-      borderColor: isDarkLike(colors.background)
-        ? "rgba(255,255,255,0.08)"
-        : "rgba(0,0,0,0.06)",
+      borderColor: isDarkLike(colors.background) ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
     },
+    heroImage: { width: "100%", height: 470, justifyContent: "space-between" },
+    heroImageRadius: { borderRadius: 28 },
+    heroOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.30)" },
 
-    heroImage: {
-      width: "100%",
-      height: 470,
-      justifyContent: "space-between",
-    },
+    heroTop: { marginTop: 16, paddingHorizontal: 16, flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
+    leftChips: { gap: 10 },
+    chipLight: { backgroundColor: "rgba(255,255,255,0.84)", paddingVertical: 8, paddingHorizontal: 12, borderRadius: 999 },
+    chipLightText: { color: "#111", fontSize: 12, fontWeight: "900", letterSpacing: -0.05 },
+    chipOutline: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 999, borderWidth: BorderWidth.default, borderColor: "rgba(255,255,255,0.32)", backgroundColor: "rgba(0,0,0,0.22)" },
+    chipOutlineText: { color: "#FFF", fontSize: 12, fontWeight: "900", letterSpacing: -0.05 },
 
-    heroImageRadius: {
-      borderRadius: 28,
-    },
+    heroBottom: { paddingHorizontal: 18, paddingBottom: 18 },
+    heroEyebrow: { color: "rgba(255,255,255,0.76)", fontSize: 12, fontWeight: "900", letterSpacing: 1, textTransform: "uppercase" },
+    heroTitle: { marginTop: 8, color: "#FFF", fontSize: 28, lineHeight: 31, fontWeight: "900", letterSpacing: -0.35 },
+    heroMeta: { marginTop: 6, color: "rgba(255,255,255,0.88)", fontSize: 15, fontWeight: "700", letterSpacing: -0.1 },
 
-    heroOverlay: {
-      ...StyleSheet.absoluteFillObject,
-      backgroundColor: "rgba(0,0,0,0.30)",
-    },
+    metricsRow: { marginTop: 14, flexDirection: "row", flexWrap: "wrap", gap: 10 },
+    metricPill: { backgroundColor: "rgba(0,0,0,0.42)", borderRadius: 999, paddingVertical: 8, paddingHorizontal: 12, borderWidth: BorderWidth.default, borderColor: "rgba(255,255,255,0.18)" },
+    metricPillText: { color: "rgba(255,255,255,0.94)", fontSize: 12, fontWeight: "900", letterSpacing: -0.05 },
 
-    heroTop: {
-      marginTop: 16,
-      paddingHorizontal: 16,
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "flex-start",
-    },
+    heroCta: { marginTop: 12, backgroundColor: "#FFF", borderRadius: 999, paddingVertical: 16, paddingHorizontal: 18, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 10 },
+    heroCtaIcon: { fontSize: 16, color: "#000", fontWeight: "900" },
+    heroCtaText: { fontSize: 16, fontWeight: "900", color: "#000", letterSpacing: -0.15 },
+    discardButton: { alignSelf: "center", marginTop: 10 },
+    discardText: { fontSize: 13, fontWeight: "700", color: "rgba(255,255,255,0.62)" },
 
-    leftChips: {
-      gap: 10,
-    },
+    sectionHeaderRow: { marginTop: 36, marginBottom: 16, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+    recentSectionHeader: { marginTop: 32 },
+    sectionTitle: { fontSize: 18, fontWeight: "800", color: colors.text, letterSpacing: -0.2 },
+    sectionLink: { flexDirection: "row", alignItems: "center", gap: 4 },
+    sectionLinkText: { fontSize: 14, fontWeight: "800", color: colors.muted, letterSpacing: -0.1 },
 
-    chipLight: {
-      backgroundColor: "rgba(255,255,255,0.84)",
-      paddingVertical: 8,
-      paddingHorizontal: 12,
-      borderRadius: 999,
-    },
+    prepRail: { paddingBottom: 8, paddingRight: Spacing.md },
+    prepCardGap: { marginRight: Spacing.md },
 
-    chipLightText: {
-      color: "#111",
-      fontSize: 12,
-      fontWeight: "900",
-      letterSpacing: -0.05,
-    },
+    recentList: { gap: 10 },
+    recentCardGap: { marginBottom: 10 },
 
-    chipOutline: {
-      paddingVertical: 8,
-      paddingHorizontal: 12,
-      borderRadius: 999,
-      borderWidth: BorderWidth.default,
-      borderColor: "rgba(255,255,255,0.32)",
-      backgroundColor: "rgba(0,0,0,0.22)",
-    },
-
-    chipOutlineText: {
-      color: "#FFF",
-      fontSize: 12,
-      fontWeight: "900",
-      letterSpacing: -0.05,
-    },
-
-    heroBottom: {
-      paddingHorizontal: 18,
-      paddingBottom: 18,
-    },
-
-    heroEyebrow: {
-      color: "rgba(255,255,255,0.76)",
-      fontSize: 12,
-      fontWeight: "900",
-      letterSpacing: 1,
-      textTransform: "uppercase",
-    },
-
-    heroTitle: {
-      marginTop: 8,
-      color: "#FFF",
-      fontSize: 28,
-      lineHeight: 31,
-      fontWeight: "900",
-      letterSpacing: -0.35,
-    },
-
-    heroMeta: {
-      marginTop: 6,
-      color: "rgba(255,255,255,0.88)",
-      fontSize: 15,
-      fontWeight: "700",
-      letterSpacing: -0.1,
-    },
-
-   
-
-    metricsRow: {
-        marginTop: 14,
-        minHeight: 0,
-        flexDirection: "row",
-        flexWrap: "wrap",
-        gap: 10,
-    },
-
-    metricPill: {
-      backgroundColor: "rgba(0,0,0,0.42)",
-      borderRadius: 999,
-      paddingVertical: 8,
-      paddingHorizontal: 12,
-      borderWidth: BorderWidth.default,
-      borderColor: "rgba(255,255,255,0.18)",
-    },
-
-    metricPillText: {
-      color: "rgba(255,255,255,0.94)",
-      fontSize: 12,
-      fontWeight: "900",
-      letterSpacing: -0.05,
-    },
-
-    heroCta: {
-      marginTop: 12,
-      backgroundColor: "#FFF",
-      borderRadius: 999,
-      paddingVertical: 16,
-      paddingHorizontal: 18,
-      alignItems: "center",
-      justifyContent: "center",
-      flexDirection: "row",
-      gap: 10,
-    },
-
-    heroCtaIcon: {
-      fontSize: 16,
-      color: "#000",
-      fontWeight: "900",
-    },
-
-    heroCtaText: {
-      fontSize: 16,
-      fontWeight: "900",
-      color: "#000",
-      letterSpacing: -0.15,
-    },
-
-    discardButton: {
-      alignSelf: "center",
-      marginTop: 10,
-    },
-
-    discardText: {
-      fontSize: 13,
-      fontWeight: "700",
-      color: "rgba(255,255,255,0.62)",
-    },
-
-    sectionHeaderRow: {
-      marginTop: 55,
-      marginBottom: 16,
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-    },
-
-    sectionTitle: {
-      fontSize: 18,
-      fontWeight: "800",
-      color: colors.text,
-      letterSpacing: -0.2,
-    },
-
-    sectionLink: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 4,
-    },
-
-    sectionLinkText: {
-      fontSize: 14,
-      fontWeight: "800",
-      color: colors.muted,
-      letterSpacing: -0.1,
-    },
-
-    prepRail: {
-        paddingBottom: 8,
-        paddingRight: Spacing.md,
-    },
-
-    prepCardGap: {
-      marginRight: Spacing.md,
-    },
-
-    bottomSpacer: {
-      height: 32,
-    },
+    bottomSpacer: { height: 32 },
   });
 }
 
