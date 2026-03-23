@@ -1,8 +1,8 @@
 // app/(tabs)/index.tsx
 
 import { useFocusEffect, useRouter } from "expo-router";
-import { ChevronRight, Moon, Sun } from "lucide-react-native";
-import React, { useMemo, useState } from "react";
+import { ChevronRight, Clock, Moon, Sun } from "lucide-react-native";
+import React, { useCallback, useMemo, useState } from "react";
 import {
   ImageBackground,
   ScrollView,
@@ -29,6 +29,10 @@ import {
   loadWorkoutDraft,
   type WorkoutDraft,
 } from "../workout/workoutDraft";
+import {
+  getWorkoutHistory,
+  type WorkoutHistoryEntry,
+} from "../workout/workoutHistory";
 
 type CtaState = "start" | "resume";
 
@@ -42,20 +46,223 @@ type PrepCard = {
 
 const HERO_PROGRAM_ID = "strength-foundations";
 const HERO_WORKOUT_ID = "strength-foundations-week-2-workout-1";
+const WEEKLY_TOTAL = 3;
+const PROGRAM_TOTAL = 21;
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+function calcStreak(history: WorkoutHistoryEntry[]): number {
+  if (!history.length) return 0;
+
+  const trainedDays = new Set(
+    history.map((e) => {
+      const d = new Date(e.completedAt);
+      d.setHours(0, 0, 0, 0);
+      return d.getTime();
+    }),
+  );
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  let checkDay = today.getTime();
+
+  // If didn't train today, start checking from yesterday
+  if (!trainedDays.has(checkDay)) {
+    checkDay -= 86_400_000;
+  }
+
+  let streak = 0;
+  while (trainedDays.has(checkDay)) {
+    streak++;
+    checkDay -= 86_400_000;
+  }
+
+  return streak;
+}
+
+function calcWeeklyDone(history: WorkoutHistoryEntry[]): number {
+  const now = new Date();
+  const dayOfWeek = now.getDay(); // 0=Sun
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+  monday.setHours(0, 0, 0, 0);
+  return history.filter((e) => new Date(e.completedAt) >= monday).length;
+}
+
+function calcProgramCompleted(
+  history: WorkoutHistoryEntry[],
+  programId: string,
+): number {
+  return history.filter(
+    (e) =>
+      e.programId === programId || e.workoutId.startsWith(programId),
+  ).length;
+}
+
+function getSessionDateLabel(completedAt: string): string {
+  const d = new Date(completedAt);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  const sessionDay = new Date(d);
+  sessionDay.setHours(0, 0, 0, 0);
+
+  if (sessionDay.getTime() === today.getTime()) return "Today";
+  if (sessionDay.getTime() === yesterday.getTime()) return "Yesterday";
+
+  return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+}
+
+function formatMinutes(sec: number): string {
+  const min = Math.round(sec / 60);
+  return `${min} min`;
+}
+
+// ─── Recent session card ─────────────────────────────────────────────────────
+
+function RecentSessionCard({
+  entry,
+  onPress,
+  colors,
+}: {
+  entry: WorkoutHistoryEntry;
+  onPress: () => void;
+  colors: ReturnType<typeof useAppTheme>["colors"];
+}) {
+  const completionPct =
+    entry.totals.totalSets > 0
+      ? Math.round((entry.totals.completedSets / entry.totals.totalSets) * 100)
+      : 100;
+
+  const isDark = colors.background === "#0B0B0C" || colors.background === "#111214";
+
+  const cardBg = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)";
+  const borderCol = isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.08)";
+  const trackCol = isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.08)";
+
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.82}
+      style={[
+        sessionCardStyles.card,
+        { backgroundColor: cardBg, borderColor: borderCol },
+      ]}
+    >
+      <Text style={[sessionCardStyles.title, { color: colors.text }]} numberOfLines={2}>
+        {entry.workoutTitle}
+      </Text>
+
+      <View style={sessionCardStyles.metaRow}>
+        <Clock size={12} color={colors.muted} strokeWidth={2.5} />
+        <Text style={[sessionCardStyles.metaText, { color: colors.muted }]}>
+          {formatMinutes(entry.durationSec)}
+        </Text>
+      </View>
+
+      <Text style={[sessionCardStyles.dateLabel, { color: colors.muted }]}>
+        {getSessionDateLabel(entry.completedAt)}
+      </Text>
+
+      <View style={[sessionCardStyles.barTrack, { backgroundColor: trackCol }]}>
+        <View
+          style={[
+            sessionCardStyles.barFill,
+            {
+              width: `${completionPct}%` as any,
+              backgroundColor: colors.text,
+            },
+          ]}
+        />
+      </View>
+
+      <Text style={[sessionCardStyles.completionText, { color: colors.muted }]}>
+        {entry.totals.completedSets}/{entry.totals.totalSets} sets
+      </Text>
+    </TouchableOpacity>
+  );
+}
+
+const sessionCardStyles = StyleSheet.create({
+  card: {
+    width: 170,
+    borderRadius: 20,
+    borderWidth: BorderWidth.default,
+    padding: 16,
+    gap: 6,
+  },
+  title: {
+    fontSize: 15,
+    fontWeight: "800",
+    letterSpacing: -0.2,
+    lineHeight: 20,
+    marginBottom: 2,
+  },
+  metaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+  metaText: {
+    fontSize: 13,
+    fontWeight: "700",
+    letterSpacing: -0.05,
+  },
+  dateLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    letterSpacing: -0.05,
+    marginTop: 2,
+  },
+  barTrack: {
+    height: 4,
+    borderRadius: 999,
+    overflow: "hidden",
+    marginTop: 10,
+  },
+  barFill: {
+    height: 4,
+    borderRadius: 999,
+  },
+  completionText: {
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 0.1,
+    marginTop: 2,
+  },
+});
+
+// ─── Main screen ─────────────────────────────────────────────────────────────
 
 export default function HomeScreen() {
   const router = useRouter();
   const { colors, isDark, toggleTheme } = useAppTheme();
 
   const [workoutDraft, setWorkoutDraft] = useState<WorkoutDraft | null>(null);
+  const [history, setHistory] = useState<WorkoutHistoryEntry[]>([]);
 
-  const weeklyDone = 0;
-  const weeklyTotal = 3;
+  // Derived stats from real history
+  const weeklyDone = useMemo(() => calcWeeklyDone(history), [history]);
+  const streakDays = useMemo(() => calcStreak(history), [history]);
+  const programCompleted = useMemo(
+    () => calcProgramCompleted(history, HERO_PROGRAM_ID),
+    [history],
+  );
 
-  const programCompleted = 3;
-  const programTotal = 21;
+  const recentSessions = useMemo(() => history.slice(0, 5), [history]);
 
-  const streakDays = 3;
+  const activeProgram = useMemo(() => getProgram(HERO_PROGRAM_ID), []);
+
+  const heroWorkoutParsed = useMemo(
+    () => parseProgramWorkoutId(HERO_WORKOUT_ID),
+    [],
+  );
+
+  const heroWorkoutTemplate = useMemo(() => {
+    if (!heroWorkoutParsed) return null;
+    return getProgramWorkoutTemplate(heroWorkoutParsed.workoutIndex);
+  }, [heroWorkoutParsed]);
 
   const prepCards = useMemo<PrepCard[]>(
     () => [
@@ -77,51 +284,40 @@ export default function HomeScreen() {
     [],
   );
 
-  const activeProgram = useMemo(() => getProgram(HERO_PROGRAM_ID), []);
-
-  const heroWorkoutParsed = useMemo(
-    () => parseProgramWorkoutId(HERO_WORKOUT_ID),
-    [],
-  );
-
-  const heroWorkoutTemplate = useMemo(() => {
-    if (!heroWorkoutParsed) return null;
-    return getProgramWorkoutTemplate(heroWorkoutParsed.workoutIndex);
-  }, [heroWorkoutParsed]);
-
-  const programTitle = activeProgram.title;
-  const programMeta = activeProgram.meta;
-  const heroImage = activeProgram.hero;
-
   useFocusEffect(
-    React.useCallback(() => {
+    useCallback(() => {
       const run = async () => {
         try {
-          const draft = await loadWorkoutDraft();
+          const [draft, hist] = await Promise.all([
+            loadWorkoutDraft(),
+            getWorkoutHistory(),
+          ]);
           setWorkoutDraft(draft);
+          setHistory(hist);
         } catch {
           setWorkoutDraft(null);
+          setHistory([]);
         }
       };
-
       run();
     }, []),
   );
 
   const draftProgress = useMemo(() => {
     if (!workoutDraft) return null;
-
     const totalSets = workoutDraft.exercises.reduce((sum, ex) => sum + ex.sets.length, 0);
-
     const completedSets = workoutDraft.exercises.reduce(
       (sum, ex) => sum + ex.sets.filter((s) => s.done).length,
       0,
     );
-
     return { totalSets, completedSets };
   }, [workoutDraft]);
 
   const ctaState: CtaState = workoutDraft ? "resume" : "start";
+
+  const programTitle = activeProgram.title;
+  const programMeta = activeProgram.meta;
+  const heroImage = activeProgram.hero;
 
   const defaultWorkoutLabel = heroWorkoutParsed
     ? `Workout ${((heroWorkoutParsed.weekNumber - 1) * 3) + heroWorkoutParsed.workoutNumber}`
@@ -137,8 +333,8 @@ export default function HomeScreen() {
       ? workoutDraft.workoutTitle
       : defaultWorkoutName;
 
-  const weeklyProgress = weeklyTotal > 0 ? weeklyDone / weeklyTotal : 0;
-  const programProgress = programTotal > 0 ? programCompleted / programTotal : 0;
+  const weeklyProgress = WEEKLY_TOTAL > 0 ? weeklyDone / WEEKLY_TOTAL : 0;
+  const programProgress = PROGRAM_TOTAL > 0 ? programCompleted / PROGRAM_TOTAL : 0;
 
   const greetingTitle =
     ctaState === "resume" ? "Continue where you left off." : "Ready to train.";
@@ -146,9 +342,9 @@ export default function HomeScreen() {
   const greetingSub =
     ctaState === "resume" && draftProgress
       ? `${draftProgress.completedSets} of ${draftProgress.totalSets} sets completed`
-      : `${weeklyDone} of ${weeklyTotal} workouts completed this week`;
+      : `${weeklyDone} of ${WEEKLY_TOTAL} workouts completed this week`;
 
-  const weeklyLeft = Math.max(0, weeklyTotal - weeklyDone);
+  const weeklyLeft = Math.max(0, WEEKLY_TOTAL - weeklyDone);
 
   const startWorkout = () => {
     if (ctaState === "resume" && workoutDraft) {
@@ -162,7 +358,6 @@ export default function HomeScreen() {
       });
       return;
     }
-
     router.push({
       pathname: "/workout",
       params: {
@@ -179,24 +374,25 @@ export default function HomeScreen() {
   };
 
   const openPlanOverview = () => {
-    router.push({
-      pathname: "/program/[id]",
-      params: { id: HERO_PROGRAM_ID },
-    });
+    router.push({ pathname: "/program/[id]", params: { id: HERO_PROGRAM_ID } });
   };
 
   const openAllPrep = () => {
     router.push("/workouts");
   };
 
+  const openAllHistory = () => {
+    router.push("/workout-history");
+  };
+
   const openPrepCard = (id: string) => {
-    router.push({
-      pathname: "/workout",
-      params: {
-        workoutId: id,
-        source: "home",
-      },
-    });
+    router.push({ pathname: "/workout", params: { workoutId: id, source: "home" } });
+  };
+
+  const openSession = (entry: WorkoutHistoryEntry) => {
+    // Navigate to the finish/summary screen for that session if we have a summary stored,
+    // otherwise just go to workout history
+    router.push("/workout-history");
   };
 
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -227,6 +423,7 @@ export default function HomeScreen() {
           }
         />
 
+        {/* Weekly progress bar */}
         <View style={styles.weekMetaRow}>
           <Text style={styles.weekMetaLeft}>This week</Text>
           <Text style={styles.weekMetaRight}>
@@ -243,9 +440,9 @@ export default function HomeScreen() {
           />
         </View>
 
+        {/* Today's workout hero */}
         <View style={styles.todayRow}>
           <Text style={styles.todayTitle}>Today</Text>
-
           <TouchableOpacity
             style={styles.planLink}
             activeOpacity={0.8}
@@ -270,26 +467,24 @@ export default function HomeScreen() {
               <View style={styles.leftChips}>
                 <View style={styles.chipLight}>
                   <Text style={styles.chipLightText}>
-                    {programCompleted}/{programTotal} complete
+                    {programCompleted}/{PROGRAM_TOTAL} complete
                   </Text>
                 </View>
               </View>
 
-              <View style={styles.chipOutline}>
-                <Text style={styles.chipOutlineText}>{streakDays}-day streak</Text>
-              </View>
+              {streakDays > 0 && (
+                <View style={styles.chipOutline}>
+                  <Text style={styles.chipOutlineText}>{streakDays}-day streak</Text>
+                </View>
+              )}
             </View>
 
             <View style={styles.heroBottom}>
               <Text style={styles.heroEyebrow}>{workoutLabel}</Text>
-
               <Text style={styles.heroTitle}>{workoutName}</Text>
-
               <Text style={styles.heroMeta}>
                 {programTitle} · {programMeta}
               </Text>
-
-             
 
               <View style={styles.metricsRow}>
                 {draftProgress ? (
@@ -300,7 +495,7 @@ export default function HomeScreen() {
                   </View>
                 ) : (
                   <View style={styles.metricPill}>
-                    <Text style={styles.metricPillText}>Today’s main session</Text>
+                    <Text style={styles.metricPillText}>Today's main session</Text>
                   </View>
                 )}
               </View>
@@ -331,6 +526,7 @@ export default function HomeScreen() {
           </ImageBackground>
         </View>
 
+        {/* Prep for today */}
         <View style={styles.sectionHeaderRow}>
           <Text style={styles.sectionTitle}>Prep for today</Text>
           <TouchableOpacity style={styles.sectionLink} activeOpacity={0.8} onPress={openAllPrep}>
@@ -359,6 +555,42 @@ export default function HomeScreen() {
             </View>
           ))}
         </ScrollView>
+
+        {/* Recent sessions */}
+        {recentSessions.length > 0 && (
+          <>
+            <View style={[styles.sectionHeaderRow, styles.recentSectionHeader]}>
+              <Text style={styles.sectionTitle}>Recent sessions</Text>
+              <TouchableOpacity
+                style={styles.sectionLink}
+                activeOpacity={0.8}
+                onPress={openAllHistory}
+              >
+                <Text style={styles.sectionLinkText}>See all</Text>
+                <ChevronRight size={16} color={colors.muted} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.recentRail}
+            >
+              {recentSessions.map((entry, index) => (
+                <View
+                  key={entry.sessionId}
+                  style={index !== recentSessions.length - 1 ? styles.recentCardGap : undefined}
+                >
+                  <RecentSessionCard
+                    entry={entry}
+                    onPress={() => openSession(entry)}
+                    colors={colors}
+                  />
+                </View>
+              ))}
+            </ScrollView>
+          </>
+        )}
 
         <View style={styles.bottomSpacer} />
       </ScrollView>
@@ -577,14 +809,12 @@ function createStyles(colors: {
       letterSpacing: -0.1,
     },
 
-   
-
     metricsRow: {
-        marginTop: 14,
-        minHeight: 0,
-        flexDirection: "row",
-        flexWrap: "wrap",
-        gap: 10,
+      marginTop: 14,
+      minHeight: 0,
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 10,
     },
 
     metricPill: {
@@ -640,11 +870,15 @@ function createStyles(colors: {
     },
 
     sectionHeaderRow: {
-      marginTop: 55,
+      marginTop: 36,
       marginBottom: 16,
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
+    },
+
+    recentSectionHeader: {
+      marginTop: 32,
     },
 
     sectionTitle: {
@@ -668,12 +902,21 @@ function createStyles(colors: {
     },
 
     prepRail: {
-        paddingBottom: 8,
-        paddingRight: Spacing.md,
+      paddingBottom: 8,
+      paddingRight: Spacing.md,
     },
 
     prepCardGap: {
       marginRight: Spacing.md,
+    },
+
+    recentRail: {
+      paddingBottom: 8,
+      paddingRight: Spacing.md,
+    },
+
+    recentCardGap: {
+      marginRight: 12,
     },
 
     bottomSpacer: {
