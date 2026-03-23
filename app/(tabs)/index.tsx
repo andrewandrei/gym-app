@@ -136,68 +136,73 @@ function RecentSessionCard({
       : 100;
 
   const isDark = colors.background === "#0B0B0C" || colors.background === "#111214";
-
   const cardBg = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)";
   const borderCol = isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.08)";
-  const trackCol = isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.08)";
+  const trackCol = isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.08)";
 
   return (
     <TouchableOpacity
       onPress={onPress}
       activeOpacity={0.82}
-      style={[
-        sessionCardStyles.card,
-        { backgroundColor: cardBg, borderColor: borderCol },
-      ]}
+      style={[sessionCardStyles.card, { backgroundColor: cardBg, borderColor: borderCol }]}
     >
-      <Text style={[sessionCardStyles.title, { color: colors.text }]} numberOfLines={2}>
-        {entry.workoutTitle}
-      </Text>
-
-      <View style={sessionCardStyles.metaRow}>
-        <Clock size={12} color={colors.muted} strokeWidth={2.5} />
-        <Text style={[sessionCardStyles.metaText, { color: colors.muted }]}>
-          {formatMinutes(entry.durationSec)}
+      <View style={sessionCardStyles.topRow}>
+        <View style={sessionCardStyles.titleBlock}>
+          <Text style={[sessionCardStyles.title, { color: colors.text }]} numberOfLines={1}>
+            {entry.workoutTitle}
+          </Text>
+          <View style={sessionCardStyles.metaRow}>
+            <Clock size={11} color={colors.muted} strokeWidth={2.5} />
+            <Text style={[sessionCardStyles.metaText, { color: colors.muted }]}>
+              {formatMinutes(entry.durationSec)}
+            </Text>
+            <Text style={[sessionCardStyles.metaDot, { color: colors.muted }]}>·</Text>
+            <Text style={[sessionCardStyles.metaText, { color: colors.muted }]}>
+              {entry.totals.completedSets}/{entry.totals.totalSets} sets
+            </Text>
+          </View>
+        </View>
+        <Text style={[sessionCardStyles.dateLabel, { color: colors.muted }]}>
+          {getSessionDateLabel(entry.completedAt)}
         </Text>
       </View>
-
-      <Text style={[sessionCardStyles.dateLabel, { color: colors.muted }]}>
-        {getSessionDateLabel(entry.completedAt)}
-      </Text>
 
       <View style={[sessionCardStyles.barTrack, { backgroundColor: trackCol }]}>
         <View
           style={[
             sessionCardStyles.barFill,
-            {
-              width: `${completionPct}%` as any,
-              backgroundColor: colors.text,
-            },
+            { width: `${completionPct}%` as any, backgroundColor: colors.text },
           ]}
         />
       </View>
-
-      <Text style={[sessionCardStyles.completionText, { color: colors.muted }]}>
-        {entry.totals.completedSets}/{entry.totals.totalSets} sets
-      </Text>
     </TouchableOpacity>
   );
 }
 
 const sessionCardStyles = StyleSheet.create({
   card: {
-    width: 170,
     borderRadius: 20,
     borderWidth: BorderWidth.default,
-    padding: 16,
-    gap: 6,
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 14,
+    gap: 10,
+  },
+  topRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  titleBlock: {
+    flex: 1,
+    gap: 4,
   },
   title: {
     fontSize: 15,
     fontWeight: "800",
     letterSpacing: -0.2,
     lineHeight: 20,
-    marginBottom: 2,
   },
   metaRow: {
     flexDirection: "row",
@@ -205,31 +210,28 @@ const sessionCardStyles = StyleSheet.create({
     gap: 5,
   },
   metaText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "700",
     letterSpacing: -0.05,
+  },
+  metaDot: {
+    fontSize: 12,
+    fontWeight: "700",
   },
   dateLabel: {
     fontSize: 12,
-    fontWeight: "600",
+    fontWeight: "700",
     letterSpacing: -0.05,
-    marginTop: 2,
+    flexShrink: 0,
   },
   barTrack: {
-    height: 4,
+    height: 3,
     borderRadius: 999,
     overflow: "hidden",
-    marginTop: 10,
   },
   barFill: {
-    height: 4,
+    height: 3,
     borderRadius: 999,
-  },
-  completionText: {
-    fontSize: 11,
-    fontWeight: "700",
-    letterSpacing: 0.1,
-    marginTop: 2,
   },
 });
 
@@ -571,11 +573,7 @@ export default function HomeScreen() {
               </TouchableOpacity>
             </View>
 
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.recentRail}
-            >
+            <View style={styles.recentList}>
               {recentSessions.map((entry, index) => (
                 <View
                   key={entry.sessionId}
@@ -588,7 +586,7 @@ export default function HomeScreen() {
                   />
                 </View>
               ))}
-            </ScrollView>
+            </View>
           </>
         )}
 
@@ -910,13 +908,12 @@ function createStyles(colors: {
       marginRight: Spacing.md,
     },
 
-    recentRail: {
-      paddingBottom: 8,
-      paddingRight: Spacing.md,
+    recentList: {
+      gap: 10,
     },
 
     recentCardGap: {
-      marginRight: 12,
+      marginBottom: 10,
     },
 
     bottomSpacer: {
