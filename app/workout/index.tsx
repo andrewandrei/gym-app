@@ -21,7 +21,12 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { useAppSettings } from "@/app/_providers/appSettings";
 import { useAppTheme } from "@/app/_providers/theme";
+import {
+  convertInputWeightStringToStoredKgString,
+  formatStoredWeightStringForDisplay,
+} from "@/app/lib/weightUnits";
 import type { SetRow as SetRowLocal } from "./SetRowItem";
 import { getWorkoutConfig } from "./workout.data";
 import { createWorkoutStyles } from "./workout.styles";
@@ -48,7 +53,7 @@ import {
   getWorkoutHistoryByWorkoutId,
   type WorkoutHistoryEntry,
 } from "./workoutHistory";
-import { WorkoutPlayer } from "./WorkoutPlayer";
+import WorkoutPlayer from "./WorkoutPlayer";
 import {
   WorkoutPreview,
   type Exercise,
@@ -56,6 +61,8 @@ import {
   type ExerciseHistorySession,
   type StrengthBlock,
 } from "./WorkoutPreview";
+
+
 
 const IOS_ACCESSORY_ID = "workoutAccessoryDone";
 const FINISH_SUMMARY_STORAGE_KEY = "aa_fit_finish_summary";
@@ -73,6 +80,15 @@ type UndoAction = {
 
 export default function WorkoutLogScreen() {
   const { colors, isDark } = useAppTheme();
+    console.log("DEBUG workout imports", {
+      WorkoutPreview,
+      WorkoutPlayer,
+      Video,
+      SafeAreaView,
+    });
+
+  const { settings } = useAppSettings();
+  const weightUnit = settings.weightUnit;
   const S = useMemo(() => createWorkoutStyles(colors, isDark), [colors, isDark]);
 
   const params = useLocalSearchParams<{
@@ -698,18 +714,30 @@ export default function WorkoutLogScreen() {
     return Math.round((totalSetsCount * 120) / 60);
   }, [exercises]);
 
-  const updateSet = useCallback((exId: string, setId: string, patch: Partial<SetRowLocal>) => {
-    setExercises((prev) =>
-      prev.map((ex) =>
-        ex.id !== exId
-          ? ex
-          : {
-              ...ex,
-              sets: ex.sets.map((s) => (s.id === setId ? { ...s, ...patch } : s)),
-            },
-      ),
-    );
-  }, []);
+  const updateSet = useCallback(
+    (exId: string, setId: string, patch: Partial<SetRowLocal>) => {
+      const nextPatch = { ...patch };
+
+      if (patch.weight !== undefined) {
+        nextPatch.weight = convertInputWeightStringToStoredKgString({
+          inputWeight: patch.weight,
+          inputUnit: weightUnit,
+        });
+      }
+
+      setExercises((prev) =>
+        prev.map((ex) =>
+          ex.id !== exId
+            ? ex
+            : {
+                ...ex,
+                sets: ex.sets.map((s) => (s.id === setId ? { ...s, ...nextPatch } : s)),
+              },
+        ),
+      );
+    },
+    [weightUnit],
+  );
 
   const openNoteModal = useCallback(async (exId: string, setId: string) => {
     if (Platform.OS !== "web") {
@@ -1072,7 +1100,8 @@ export default function WorkoutLogScreen() {
         await Haptics.selectionAsync();
       }
 
-      const sessionId = availableDraft?.sessionId ?? makeSessionId(selectedWorkoutId ?? "full-body-foundation");
+      const sessionId =
+        availableDraft?.sessionId ?? makeSessionId(selectedWorkoutId ?? "full-body-foundation");
 
       const { summary, historyEntry } = buildFinishSummary({
         sessionId,
@@ -1221,6 +1250,8 @@ export default function WorkoutLogScreen() {
           tagFor={tagFor}
           workoutDuration={workoutDuration}
           onPressThumbnail={onPressThumbnail}
+          weightUnit={weightUnit}
+          formatWeight={formatStoredWeightStringForDisplay}
         />
       )}
 
@@ -1545,11 +1576,14 @@ export default function WorkoutLogScreen() {
             >
               <Trophy size={16} color={colors.premium} />
               <Text style={[S.prText, { color: colors.text }]}>
-                PR: {pr.weight}{" "}
+                PR:{" "}
                 {historyExercise?.unitLabel === "REPS"
-                  ? "reps"
-                  : historyExercise?.unitLabel?.toLowerCase() ?? "lbs"}{" "}
-                × {pr.reps}
+                  ? pr.weight
+                  : formatStoredWeightStringForDisplay({
+                      storedWeight: String(pr.weight),
+                      unit: weightUnit,
+                    })}{" "}
+                {historyExercise?.unitLabel === "REPS" ? "reps" : weightUnit} × {pr.reps}
               </Text>
               <Text style={[S.prDate, { color: colors.muted }]}>({pr.date})</Text>
             </View>
@@ -1600,7 +1634,7 @@ export default function WorkoutLogScreen() {
                     <Text style={[S.historyHead, { color: colors.muted }]}>
                       {historyExercise?.unitLabel === "REPS"
                         ? "WORK"
-                        : historyExercise?.unitLabel ?? "W"}
+                        : weightUnit.toUpperCase()}
                     </Text>
                     <Text style={[S.historyHead, { color: colors.muted }]}>REPS</Text>
                     <Text style={[S.historyHead, { color: colors.muted }]}>REST</Text>
@@ -1626,14 +1660,15 @@ export default function WorkoutLogScreen() {
                           {hs.set}
                         </Text>
                         <Text style={[S.historyCellText, { color: colors.text }]}>
-                          {hs.weight}
+                          {historyExercise?.unitLabel === "REPS"
+                            ? hs.weight
+                            : formatStoredWeightStringForDisplay({
+                                storedWeight: hs.weight,
+                                unit: weightUnit,
+                              }) || "—"}
                         </Text>
-                        <Text style={[S.historyCellText, { color: colors.text }]}>
-                          {hs.reps}
-                        </Text>
-                        <Text style={[S.historyCellText, { color: colors.text }]}>
-                          {hs.rest}
-                        </Text>
+                        <Text style={[S.historyCellText, { color: colors.text }]}>{hs.reps}</Text>
+                        <Text style={[S.historyCellText, { color: colors.text }]}>{hs.rest}</Text>
                         <View
                           style={[
                             S.historyDot,

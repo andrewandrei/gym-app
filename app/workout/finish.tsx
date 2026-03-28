@@ -1,10 +1,11 @@
+// app/workout/finish.tsx
 
-//workout/finish.tsx
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Svg, { Path } from "react-native-svg";
 
 import { useAppTheme } from "@/app/_providers/theme";
 import { getFinishFeedback, type FinishSummary } from "./finishFeedback";
@@ -89,6 +90,58 @@ type RichFinishSummary = FinishSummary & {
   >;
 };
 
+function PRBadge({
+  color,
+  backgroundColor,
+  borderColor,
+  label = "PR",
+}: {
+  color: string;
+  backgroundColor: string;
+  borderColor: string;
+  label?: string;
+}) {
+  return (
+    <View
+      style={[
+        stylesShared.prBadgeWrap,
+        {
+          backgroundColor,
+          borderColor,
+        },
+      ]}
+    >
+      <Svg width={10} height={10} viewBox="0 0 18 18">
+        <Path
+          d="M9 2L10.8 7H16L11.6 10.1L13.4 15L9 11.9L4.6 15L6.4 10.1L2 7H7.2L9 2Z"
+          fill={color}
+        />
+      </Svg>
+      <Text style={[stylesShared.prBadgeText, { color }]}>{label}</Text>
+    </View>
+  );
+}
+
+const stylesShared = StyleSheet.create({
+  prBadgeWrap: {
+    minHeight: 24,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+    borderWidth: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    alignSelf: "flex-start",
+  },
+  prBadgeText: {
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 0.3,
+    textTransform: "uppercase",
+  },
+});
+
 function formatNumber(value?: number | null) {
   if (value == null || Number.isNaN(value)) return null;
   if (Number.isInteger(value)) return String(value);
@@ -97,7 +150,9 @@ function formatNumber(value?: number | null) {
 
 function formatSigned(value?: number | null, suffix = "") {
   if (value == null || Number.isNaN(value) || value === 0) return null;
-  const abs = Number.isInteger(value) ? String(Math.abs(value)) : Math.abs(value).toFixed(1);
+  const abs = Number.isInteger(value)
+    ? String(Math.abs(value))
+    : Math.abs(value).toFixed(1);
   return `${value > 0 ? "+" : "-"}${abs}${suffix}`;
 }
 
@@ -164,9 +219,27 @@ function getRichSetDelta(
   const repsText = formatSigned(comparison.deltaVsPrevious?.reps, " reps");
   const volumeText = formatSigned(comparison.deltaVsPrevious?.volume, " vol");
 
-  if (weightText) return { label: weightText, positive: weightText.startsWith("+"), pr: false };
-  if (repsText) return { label: repsText, positive: repsText.startsWith("+"), pr: false };
-  if (volumeText) return { label: volumeText, positive: volumeText.startsWith("+"), pr: false };
+  if (weightText) {
+    return {
+      label: weightText,
+      positive: weightText.startsWith("+"),
+      pr: false,
+    };
+  }
+  if (repsText) {
+    return {
+      label: repsText,
+      positive: repsText.startsWith("+"),
+      pr: false,
+    };
+  }
+  if (volumeText) {
+    return {
+      label: volumeText,
+      positive: volumeText.startsWith("+"),
+      pr: false,
+    };
+  }
 
   if (comparison.state === "same") {
     return { label: "—", positive: false, pr: false };
@@ -175,17 +248,27 @@ function getRichSetDelta(
   return { label: null, positive: false, pr: false };
 }
 
-function getExerciseFooterText(ex: RichFinishSummary["exercises"][number], isNewPrExercise: boolean) {
+function getExerciseFooterText(
+  ex: RichFinishSummary["exercises"][number],
+  isNewPrExercise: boolean,
+) {
   if (isNewPrExercise) return "New all-time best in this session";
 
   if (ex.insights) {
     if (ex.insights.improvedSets > 0 && ex.insights.belowSets === 0) {
       return "Improved vs last session";
     }
-    if (ex.insights.matchedSets > 0 && ex.insights.improvedSets === 0 && ex.insights.belowSets === 0) {
+    if (
+      ex.insights.matchedSets > 0 &&
+      ex.insights.improvedSets === 0 &&
+      ex.insights.belowSets === 0
+    ) {
       return "Matched last session";
     }
-    if (ex.insights.belowSets > 0 || (ex.insights.improvedSets > 0 && ex.insights.belowSets > 0)) {
+    if (
+      ex.insights.belowSets > 0 ||
+      (ex.insights.improvedSets > 0 && ex.insights.belowSets > 0)
+    ) {
       return "Mixed compared with last session";
     }
   }
@@ -194,8 +277,8 @@ function getExerciseFooterText(ex: RichFinishSummary["exercises"][number], isNew
     return ex.comparedToLast.result === "better"
       ? "Improved vs last session"
       : ex.comparedToLast.result === "same"
-        ? "Matched last session"
-        : "Mixed compared with last session";
+      ? "Matched last session"
+      : "Mixed compared with last session";
   }
 
   return null;
@@ -312,9 +395,10 @@ export default function FinishScreen() {
           <Text style={styles.title}>{summary.workoutTitle}</Text>
 
           <Text style={styles.subtitle}>
-            {durationMin} min • {summary.totals.completedSets}/{summary.totals.totalSets} sets
-            {" • "}
-            {summary.totals.completedExercises}/{summary.totals.totalExercises} exercises
+            {durationMin} min • {summary.totals.completedSets}/
+            {summary.totals.totalSets} sets {" • "}
+            {summary.totals.completedExercises}/
+            {summary.totals.totalExercises} exercises
           </Text>
         </View>
 
@@ -334,7 +418,8 @@ export default function FinishScreen() {
           <View style={styles.metricCard}>
             <Text style={styles.metricLabel}>Exercises</Text>
             <Text style={styles.metricValue}>
-              {summary.totals.completedExercises}/{summary.totals.totalExercises}
+              {summary.totals.completedExercises}/
+              {summary.totals.totalExercises}
             </Text>
           </View>
 
@@ -349,12 +434,23 @@ export default function FinishScreen() {
         <View style={styles.topCards}>
           {summary.prs.length > 0 && (
             <View style={styles.prCard}>
-              <Text style={styles.cardEyebrow}>
-                {summary.prs.length > 1 ? "New PRs" : "New PR"}
-              </Text>
+              <View style={styles.prCardHeader}>
+                <Text style={styles.cardEyebrow}>
+                  {summary.prs.length > 1 ? "New PRs" : "New PR"}
+                </Text>
+
+                <PRBadge
+                  color={colors.premium}
+                  backgroundColor={colors.premium + "16"}
+                  borderColor={colors.premium + "28"}
+                />
+              </View>
 
               {summary.prs.map((pr, index) => (
-                <View key={`${pr.exerciseId}-${pr.type ?? "legacy"}-${pr.set ?? index}`} style={styles.prRow}>
+                <View
+                  key={`${pr.exerciseId}-${pr.type ?? "legacy"}-${pr.set ?? index}`}
+                  style={styles.prRow}
+                >
                   <Text style={styles.prExercise}>{pr.exerciseName}</Text>
                   <Text style={styles.prValue}>
                     {pr.weight} × {pr.reps}
@@ -378,7 +474,9 @@ export default function FinishScreen() {
             const totalSets = ex.totalSetsPlanned;
             const completedSets = ex.completedSets;
             const statusLabel = getExerciseStatus(completedSets, totalSets);
-            const isNewPrExercise = summary.prs.some((pr) => pr.exerciseId === ex.id);
+            const isNewPrExercise = summary.prs.some(
+              (pr) => pr.exerciseId === ex.id,
+            );
 
             return (
               <View key={ex.id} style={styles.exerciseCard}>
@@ -388,9 +486,11 @@ export default function FinishScreen() {
                       <Text style={styles.exerciseName}>{ex.name}</Text>
 
                       {isNewPrExercise ? (
-                        <View style={styles.prMiniBadge}>
-                          <Text style={styles.prMiniBadgeText}>PR</Text>
-                        </View>
+                        <PRBadge
+                          color={colors.premium}
+                          backgroundColor={colors.premium + "16"}
+                          borderColor={colors.premium + "28"}
+                        />
                       ) : null}
                     </View>
 
@@ -405,8 +505,8 @@ export default function FinishScreen() {
                       statusLabel === "Completed"
                         ? styles.exerciseBadgeCompleted
                         : statusLabel === "Partial"
-                          ? styles.exerciseBadgePartial
-                          : styles.exerciseBadgeSkipped,
+                        ? styles.exerciseBadgePartial
+                        : styles.exerciseBadgeSkipped,
                     ]}
                   >
                     {statusLabel}
@@ -415,9 +515,15 @@ export default function FinishScreen() {
 
                 <View style={styles.tableHeader}>
                   <Text style={[styles.tableHeaderText, styles.colSet]}>SET</Text>
-                  <Text style={[styles.tableHeaderText, styles.colValue]}>WEIGHT</Text>
-                  <Text style={[styles.tableHeaderText, styles.colValue]}>REPS</Text>
-                  <Text style={[styles.tableHeaderText, styles.colDelta]}>VS LAST</Text>
+                  <Text style={[styles.tableHeaderText, styles.colValue]}>
+                    WEIGHT
+                  </Text>
+                  <Text style={[styles.tableHeaderText, styles.colValue]}>
+                    REPS
+                  </Text>
+                  <Text style={[styles.tableHeaderText, styles.colDelta]}>
+                    VS LAST
+                  </Text>
                 </View>
 
                 {ex.sets.map((set) => {
@@ -426,7 +532,11 @@ export default function FinishScreen() {
 
                   const label =
                     richDelta.label ??
-                    (!set.done || !legacyDelta ? null : legacyDelta === "same" ? "—" : legacyDelta);
+                    (!set.done || !legacyDelta
+                      ? null
+                      : legacyDelta === "same"
+                      ? "—"
+                      : legacyDelta);
 
                   const isPositive =
                     richDelta.label != null
@@ -437,7 +547,9 @@ export default function FinishScreen() {
 
                   return (
                     <View key={set.set} style={styles.setRow}>
-                      <Text style={[styles.setCell, styles.colSet]}>S{set.set}</Text>
+                      <Text style={[styles.setCell, styles.colSet]}>
+                        S{set.set}
+                      </Text>
 
                       <Text style={[styles.setCell, styles.colValue]}>
                         {set.weight || "—"}
@@ -513,11 +625,21 @@ function createStyles(
 ) {
   const soft = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)";
   const goldSoft = isDark ? "rgba(244,200,74,0.14)" : "rgba(244,200,74,0.16)";
-  const goldSoftStrong = isDark ? "rgba(244,200,74,0.18)" : "rgba(244,200,74,0.22)";
-  const greenSoft = isDark ? "rgba(34,197,94,0.16)" : "rgba(34,197,94,0.12)";
-  const amberSoft = isDark ? "rgba(245,158,11,0.18)" : "rgba(245,158,11,0.12)";
-  const graySoft = isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)";
-  const divider = isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)";
+  const goldSoftStrong = isDark
+    ? "rgba(244,200,74,0.18)"
+    : "rgba(244,200,74,0.22)";
+  const greenSoft = isDark
+    ? "rgba(34,197,94,0.16)"
+    : "rgba(34,197,94,0.12)";
+  const amberSoft = isDark
+    ? "rgba(245,158,11,0.18)"
+    : "rgba(245,158,11,0.12)";
+  const graySoft = isDark
+    ? "rgba(255,255,255,0.08)"
+    : "rgba(0,0,0,0.05)";
+  const divider = isDark
+    ? "rgba(255,255,255,0.08)"
+    : "rgba(0,0,0,0.06)";
 
   return StyleSheet.create({
     safe: {
@@ -596,6 +718,14 @@ function createStyles(
       padding: 16,
       borderRadius: 18,
       backgroundColor: goldSoftStrong,
+    },
+
+    prCardHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 10,
+      marginBottom: 4,
     },
 
     feedbackCard: {
@@ -685,21 +815,6 @@ function createStyles(
       fontSize: 13,
       fontWeight: "700",
       color: colors.muted,
-    },
-
-    prMiniBadge: {
-      paddingHorizontal: 8,
-      paddingVertical: 4,
-      borderRadius: 999,
-      backgroundColor: goldSoft,
-    },
-
-    prMiniBadgeText: {
-      fontSize: 11,
-      fontWeight: "900",
-      color: colors.text,
-      letterSpacing: 0.4,
-      textTransform: "uppercase",
     },
 
     exerciseBadge: {

@@ -1,5 +1,6 @@
 // app/(tabs)/index.tsx
 
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect, useRouter } from "expo-router";
 import { ChevronRight, Clock, Moon, Sun } from "lucide-react-native";
 import React, { useCallback, useMemo, useState } from "react";
@@ -18,10 +19,13 @@ import { ScreenHeader } from "@/components/ui/ScreenHeader";
 import { BorderWidth } from "@/styles/hairline";
 import { Spacing } from "@/styles/spacing";
 
+import { useAppSettings } from "../_providers/appSettings";
+
 import { useAppTheme } from "../_providers/theme";
 import { getProgram } from "../program/program.data";
 import {
   getProgramWorkoutTemplate,
+  getWorkoutCountForWeek,
   parseProgramWorkoutId,
 } from "../program/programWorkouts";
 import {
@@ -44,10 +48,27 @@ type PrepCard = {
   badge?: string;
 };
 
+type WorkoutCard = {
+  id: string;
+  title: string;
+  subtitle: string;
+  imageUrl: string;
+  badge?: string;
+};
+
+type RecipeCard = {
+  id: string;
+  title: string;
+  metaBold: string;
+  metaMuted: string;
+  imageUrl: string;
+};
+
 const HERO_PROGRAM_ID = "strength-foundations";
 const HERO_WORKOUT_ID = "strength-foundations-week-2-workout-1";
 const WEEKLY_TOTAL = 3;
-const PROGRAM_TOTAL = 21;
+
+const FINISH_SUMMARY_STORAGE_KEY = "aa_fit_finish_summary";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -93,8 +114,18 @@ function calcProgramCompleted(
   programId: string,
 ): number {
   return history.filter(
-    (e) => e.programId === programId || e.workoutId.startsWith(programId),
+    (e) =>
+      e.programId === programId || e.workoutId.startsWith(programId),
   ).length;
+}
+
+function calcProgramTotal(programId: string): number {
+  const program = getProgram(programId);
+  if (!program) return 0;
+  return program.weeks.reduce(
+    (sum, _, idx) => sum + getWorkoutCountForWeek(idx),
+    0,
+  );
 }
 
 function getSessionDateLabel(completedAt: string): string {
@@ -133,10 +164,17 @@ function RecentSessionCard({
       ? Math.round((entry.totals.completedSets / entry.totals.totalSets) * 100)
       : 100;
 
-  const isDark = colors.background === "#0B0B0C" || colors.background === "#111214";
-  const cardBg = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)";
-  const borderCol = isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.08)";
-  const trackCol = isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.08)";
+  const isDark =
+  colors.background === "#0B0B0C" ||
+  colors.background === "#111214" ||
+  colors.background === "#0F0F10";
+
+    // 🔥 Light mode → force premium dark cards
+    const cardBg = isDark ? "rgba(255,255,255,0.06)" : "#151517";
+    const borderCol = isDark ? "rgba(255,255,255,0.10)" : "#2B2B2F";
+    const trackCol = isDark
+      ? "rgba(255,255,255,0.12)"
+      : "rgba(255,255,255,0.08)";
 
   return (
     <TouchableOpacity
@@ -146,7 +184,7 @@ function RecentSessionCard({
     >
       <View style={sessionCardStyles.topRow}>
         <View style={sessionCardStyles.titleBlock}>
-          <Text style={[sessionCardStyles.title, { color: colors.text }]} numberOfLines={1}>
+          <Text style={[sessionCardStyles.title, { color: isDark ? colors.text : "#FFFFFF" }]} numberOfLines={1}>
             {entry.workoutTitle}
           </Text>
           <View style={sessionCardStyles.metaRow}>
@@ -155,12 +193,12 @@ function RecentSessionCard({
               {formatMinutes(entry.durationSec)}
             </Text>
             <Text style={[sessionCardStyles.metaDot, { color: colors.muted }]}>·</Text>
-            <Text style={[sessionCardStyles.metaText, { color: colors.muted }]}>
+            <Text style={[sessionCardStyles.metaText, { color: isDark ? colors.muted : "#9A9AA1" }]}>
               {entry.totals.completedSets}/{entry.totals.totalSets} sets
             </Text>
           </View>
         </View>
-        <Text style={[sessionCardStyles.dateLabel, { color: colors.muted }]}>
+        <Text style={[sessionCardStyles.dateLabel, { color: isDark ? colors.muted : "#9A9AA1" }]}>
           {getSessionDateLabel(entry.completedAt)}
         </Text>
       </View>
@@ -169,7 +207,7 @@ function RecentSessionCard({
         <View
           style={[
             sessionCardStyles.barFill,
-            { width: `${completionPct}%` as any, backgroundColor: colors.text },
+            { width: `${completionPct}%` as any, backgroundColor: isDark ? colors.premium : colors.premium },
           ]}
         />
       </View>
@@ -237,11 +275,16 @@ const sessionCardStyles = StyleSheet.create({
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { colors, isDark, toggleTheme } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
+  const { settings, setAppearance } = useAppSettings();
 
   const [workoutDraft, setWorkoutDraft] = useState<WorkoutDraft | null>(null);
   const [history, setHistory] = useState<WorkoutHistoryEntry[]>([]);
 
+  // Derive program total dynamically from program config
+  const programTotal = useMemo(() => calcProgramTotal(HERO_PROGRAM_ID), []);
+
+  // Derived stats from real history
   const weeklyDone = useMemo(() => calcWeeklyDone(history), [history]);
   const streakDays = useMemo(() => calcStreak(history), [history]);
   const programCompleted = useMemo(
@@ -249,7 +292,9 @@ export default function HomeScreen() {
     [history],
   );
 
-  const recentSessions = useMemo(() => history.slice(0, 5), [history]);
+  // Only show the last 2 recent sessions
+  const recentSessions = useMemo(() => history.slice(0, 2), [history]);
+
   const activeProgram = useMemo(() => getProgram(HERO_PROGRAM_ID), []);
 
   const heroWorkoutParsed = useMemo(
@@ -277,6 +322,64 @@ export default function HomeScreen() {
         subtitle: "Breathing · Stretching · 6 min",
         imageUrl: "https://i.ytimg.com/vi/2ZgCRBLg2Zs/maxresdefault.jpg",
         badge: "Cool-down",
+      },
+    ],
+    [],
+  );
+
+  const workoutCards = useMemo<WorkoutCard[]>(
+    () => [
+      {
+        id: "w-001",
+        title: "Arms & Shoulders Minimum Equipment",
+        subtitle: "HIIT · 30 min",
+        imageUrl:
+          "https://i.ytimg.com/vi/w0zPgPkx8yI/hq720.jpg?sqp=-oaymwEhCK4FEIIDSFryq4qpAxMIARUAAAAAGAElAADIQj0AgKJD&rs=AOn4CLCB-fSirLZ7-OC0R2z5r58bt-aUvQ",
+        badge: "Arms",
+      },
+      {
+        id: "w-002",
+        title: "Legs Strength Session",
+        subtitle: "Strength · 42 min",
+        imageUrl: "https://i.ytimg.com/vi/6O8SRDEK5F4/maxresdefault.jpg",
+        badge: "Legs",
+      },
+      {
+        id: "w-003",
+        title: "Upper Body Hypertrophy",
+        subtitle: "Hypertrophy · 45 min",
+        imageUrl: "https://i.ytimg.com/vi/2ZgCRBLg2Zs/maxresdefault.jpg",
+        badge: "Upper",
+      },
+    ],
+    [],
+  );
+
+  const recipeCards = useMemo<RecipeCard[]>(
+    () => [
+      {
+        id: "r-004",
+        title: "Low Carb Lemon Pepper Chicken with Tzatziki",
+        metaBold: "Main course · ~35 min",
+        metaMuted: "High Protein · Low Carb",
+        imageUrl:
+          "https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?auto=format&fit=crop&w=1600&q=80",
+      },
+      {
+        id: "r-002",
+        title: "Greek Yogurt + Berries",
+        metaBold: "Breakfast · ~10 min",
+        metaMuted: "High Protein · Quick",
+        imageUrl:
+          "https://images.unsplash.com/photo-1490474418585-ba9bad8fd0ea?auto=format&fit=crop&w=1600&q=80",
+      },
+      {
+        id: "r-006",
+        title: "Salmon + Greens",
+        metaBold: "Dinner · ~18 min",
+        metaMuted: "Omega-3 · Low Carb",
+        imageUrl:
+          "https://images.unsplash.com/photo-1467003909585-2f8a72700288?auto=format&fit=crop&w=1600&q=80",
       },
     ],
     [],
@@ -317,9 +420,11 @@ export default function HomeScreen() {
   const programMeta = activeProgram.meta;
   const heroImage = activeProgram.hero;
 
-  const defaultWorkoutLabel = heroWorkoutParsed
-    ? `Workout ${((heroWorkoutParsed.weekNumber - 1) * 3) + heroWorkoutParsed.workoutNumber}`
-    : "Workout 4";
+  const heroWorkoutNumber = heroWorkoutParsed
+    ? ((heroWorkoutParsed.weekNumber - 1) * 3) + heroWorkoutParsed.workoutNumber
+    : 4;
+
+  const defaultWorkoutLabel = `Workout ${heroWorkoutNumber}`;
 
   const defaultWorkoutName = heroWorkoutTemplate?.title ?? "Hypertrophy Focus";
 
@@ -339,7 +444,7 @@ export default function HomeScreen() {
   const greetingSub =
     ctaState === "resume" && draftProgress
       ? `${draftProgress.completedSets} of ${draftProgress.totalSets} sets completed`
-      : `${weeklyDone} of ${WEEKLY_TOTAL} workouts completed this week`;
+      : undefined;
 
   const weeklyLeft = Math.max(0, WEEKLY_TOTAL - weeklyDone);
 
@@ -347,13 +452,21 @@ export default function HomeScreen() {
     if (ctaState === "resume" && workoutDraft) {
       router.push({
         pathname: "/workout",
-        params: { resumeDraft: "1", workoutId: workoutDraft.workoutId, source: "home" },
+        params: {
+          resumeDraft: "1",
+          workoutId: workoutDraft.workoutId,
+          source: "home",
+        },
       });
       return;
     }
     router.push({
       pathname: "/workout",
-      params: { workoutId: HERO_WORKOUT_ID, programId: HERO_PROGRAM_ID, source: "home" },
+      params: {
+        workoutId: HERO_WORKOUT_ID,
+        programId: HERO_PROGRAM_ID,
+        source: "home",
+      },
     });
   };
 
@@ -362,15 +475,77 @@ export default function HomeScreen() {
     setWorkoutDraft(null);
   };
 
-  const openPlanOverview = () =>
+  const openPlanOverview = () => {
     router.push({ pathname: "/program/[id]", params: { id: HERO_PROGRAM_ID } });
+  };
 
-  const openAllPrep = () => router.push("/workouts");
-  const openAllHistory = () => router.push("/workout-history");
-  const openPrepCard = (id: string) =>
-    router.push({ pathname: "/workout", params: { workoutId: id, source: "home" } });
-  const openSession = (_entry: WorkoutHistoryEntry) =>
+  const openAllPrep = () => {
+    router.push("/workouts");
+  };
+
+  const openAllHistory = () => {
     router.push("/workout-history");
+  };
+
+  const openPrepCard = (id: string) => {
+    router.push({ pathname: "/workout", params: { workoutId: id, source: "home" } });
+  };
+
+  const openWorkoutCard = (id: string) => {
+    router.push({
+      pathname: "/workout",
+      params: { workoutId: id, source: "home" },
+    });
+  };
+
+  const openRecipe = (id: string) => {
+    router.push({ pathname: "/recipes/[id]", params: { id } });
+  };
+
+  const openSession = async (entry: WorkoutHistoryEntry) => {
+    try {
+      const summary = {
+        sessionId: entry.sessionId,
+        workoutId: entry.workoutId,
+        workoutTitle: entry.workoutTitle,
+        programId: entry.programId,
+        status: entry.status,
+        durationSec: entry.durationSec,
+        totals: entry.totals,
+        insights: {
+          completionRate:
+            entry.totals.totalSets > 0
+              ? entry.totals.completedSets / entry.totals.totalSets
+              : 1,
+          prCount: 0,
+          missingLoadCount: 0,
+          strengthSetCount: entry.totals.completedSets,
+          avgTrackedLoad: 0,
+          improvedExerciseCount: 0,
+          matchedExerciseCount: 0,
+          previousSessionFound: false,
+        },
+        prs: [],
+        wins: [],
+        exercises:
+          entry.exercises?.map((ex) => ({
+            id: ex.id,
+            name: ex.name,
+            completedSets: ex.completedSets,
+            totalSetsPlanned: ex.totalSetsPlanned,
+            unitLabel: ex.unitLabel,
+            sessionVolume: ex.sessionVolume,
+            comparedToLast: ex.comparedToLast,
+            sets: ex.sets,
+          })) ?? [],
+      };
+
+      await AsyncStorage.setItem(FINISH_SUMMARY_STORAGE_KEY, JSON.stringify(summary));
+      router.push("/workout/finish");
+    } catch {
+      router.push("/workout-history");
+    }
+  };
 
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -381,6 +556,7 @@ export default function HomeScreen() {
         contentContainerStyle={styles.container}
         showsVerticalScrollIndicator={false}
       >
+        {/* ── Greeting ─────────────────────────────────────────── */}
         <ScreenHeader
           variant="hero"
           title={greetingTitle}
@@ -389,7 +565,9 @@ export default function HomeScreen() {
             <TouchableOpacity
               style={styles.iconButton}
               activeOpacity={0.85}
-              onPress={toggleTheme}
+              onPress={async () => {
+                await setAppearance(settings.appearance === "dark" ? "light" : "dark");
+              }}
             >
               {isDark ? (
                 <Sun size={18} color={colors.text} />
@@ -400,6 +578,7 @@ export default function HomeScreen() {
           }
         />
 
+        {/* ── Weekly progress bar ──────────────────────────────── */}
         <View style={styles.weekMetaRow}>
           <Text style={styles.weekMetaLeft}>This week</Text>
           <Text style={styles.weekMetaRight}>
@@ -416,9 +595,14 @@ export default function HomeScreen() {
           />
         </View>
 
+        {/* ── Today header ─────────────────────────────────────── */}
         <View style={styles.todayRow}>
           <Text style={styles.todayTitle}>Today</Text>
-          <TouchableOpacity style={styles.planLink} activeOpacity={0.8} onPress={openPlanOverview}>
+          <TouchableOpacity
+            style={styles.planLink}
+            activeOpacity={0.8}
+            onPress={openPlanOverview}
+          >
             <Text style={styles.planLinkText}>Plan overview</Text>
             <ChevronRight size={16} color={colors.muted} />
           </TouchableOpacity>
@@ -426,6 +610,7 @@ export default function HomeScreen() {
 
         <Text style={styles.todaySub}>Your current plan</Text>
 
+        {/* ── Hero card ────────────────────────────────────────── */}
         <View style={styles.heroCard}>
           <ImageBackground
             source={{ uri: heroImage }}
@@ -438,10 +623,11 @@ export default function HomeScreen() {
               <View style={styles.leftChips}>
                 <View style={styles.chipLight}>
                   <Text style={styles.chipLightText}>
-                    {programCompleted}/{PROGRAM_TOTAL} complete
+                    {programCompleted}/{programTotal} complete
                   </Text>
                 </View>
               </View>
+
               {streakDays > 0 && (
                 <View style={styles.chipOutline}>
                   <Text style={styles.chipOutlineText}>{streakDays}-day streak</Text>
@@ -452,31 +638,40 @@ export default function HomeScreen() {
             <View style={styles.heroBottom}>
               <Text style={styles.heroEyebrow}>{workoutLabel}</Text>
               <Text style={styles.heroTitle}>{workoutName}</Text>
-              <Text style={styles.heroMeta}>{programTitle} · {programMeta}</Text>
+              <Text style={styles.heroMeta}>
+                {programTitle} · {programMeta}
+              </Text>
 
-              <View style={styles.metricsRow}>
-                {draftProgress ? (
+              {/* Metrics row — only when resuming a draft */}
+              {draftProgress && (
+                <View style={styles.metricsRow}>
                   <View style={styles.metricPill}>
                     <Text style={styles.metricPillText}>
                       {draftProgress.completedSets}/{draftProgress.totalSets} sets logged
                     </Text>
                   </View>
-                ) : (
-                  <View style={styles.metricPill}>
-                    <Text style={styles.metricPillText}>Today's main session</Text>
-                  </View>
-                )}
-              </View>
+                </View>
+              )}
 
-              <TouchableOpacity style={styles.heroCta} onPress={startWorkout} activeOpacity={0.9}>
+              <TouchableOpacity
+                style={styles.heroCta}
+                onPress={startWorkout}
+                activeOpacity={0.9}
+              >
                 <Text style={styles.heroCtaIcon}>▶</Text>
                 <Text style={styles.heroCtaText}>
-                  {ctaState === "resume" ? "Resume workout" : `Start workout: ${defaultWorkoutLabel}`}
+                  {ctaState === "resume"
+                    ? "Resume workout"
+                    : `Start ${defaultWorkoutLabel}`}
                 </Text>
               </TouchableOpacity>
 
               {ctaState === "resume" && (
-                <TouchableOpacity onPress={discardWorkout} style={styles.discardButton} activeOpacity={0.75}>
+                <TouchableOpacity
+                  onPress={discardWorkout}
+                  style={styles.discardButton}
+                  activeOpacity={0.75}
+                >
                   <Text style={styles.discardText}>Discard workout</Text>
                 </TouchableOpacity>
               )}
@@ -484,39 +679,16 @@ export default function HomeScreen() {
           </ImageBackground>
         </View>
 
-        {/* Prep for today */}
-        <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionTitle}>Prep for today</Text>
-          <TouchableOpacity style={styles.sectionLink} activeOpacity={0.8} onPress={openAllPrep}>
-            <Text style={styles.sectionLinkText}>See all</Text>
-            <ChevronRight size={16} color={colors.muted} />
-          </TouchableOpacity>
-        </View>
-
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.prepRail}
-        >
-          {prepCards.map((card, index) => (
-            <View key={card.id} style={index !== prepCards.length - 1 ? styles.prepCardGap : undefined}>
-              <EditorialCard
-                title={card.title}
-                metaBold={card.subtitle}
-                imageUrl={card.imageUrl}
-                badgeLabel={card.badge}
-                onPress={() => openPrepCard(card.id)}
-              />
-            </View>
-          ))}
-        </ScrollView>
-
-        {/* Recent sessions */}
+        {/* ── Recent sessions (last 2) ─────────────────────────── */}
         {recentSessions.length > 0 && (
           <>
             <View style={[styles.sectionHeaderRow, styles.recentSectionHeader]}>
               <Text style={styles.sectionTitle}>Recent sessions</Text>
-              <TouchableOpacity style={styles.sectionLink} activeOpacity={0.8} onPress={openAllHistory}>
+              <TouchableOpacity
+                style={styles.sectionLink}
+                activeOpacity={0.8}
+                onPress={openAllHistory}
+              >
                 <Text style={styles.sectionLinkText}>See all</Text>
                 <ChevronRight size={16} color={colors.muted} />
               </TouchableOpacity>
@@ -526,7 +698,11 @@ export default function HomeScreen() {
               {recentSessions.map((entry, index) => (
                 <View
                   key={entry.sessionId}
-                  style={index !== recentSessions.length - 1 ? styles.recentCardGap : undefined}
+                  style={
+                    index !== recentSessions.length - 1
+                      ? styles.recentCardGap
+                      : undefined
+                  }
                 >
                   <RecentSessionCard
                     entry={entry}
@@ -539,11 +715,127 @@ export default function HomeScreen() {
           </>
         )}
 
+        {/* ── Prep for today ───────────────────────────────────── */}
+        <View style={styles.sectionHeaderRow}>
+          <Text style={styles.sectionTitle}>Prep for today</Text>
+          <TouchableOpacity
+            style={styles.sectionLink}
+            activeOpacity={0.8}
+            onPress={openAllPrep}
+          >
+            <Text style={styles.sectionLinkText}>See all</Text>
+            <ChevronRight size={16} color={colors.muted} />
+          </TouchableOpacity>
+        </View>
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.prepRail}
+        >
+          {prepCards.map((card, index) => (
+            <View
+              key={card.id}
+              style={
+                index !== prepCards.length - 1 ? styles.prepCardGap : undefined
+              }
+            >
+              <EditorialCard
+                title={card.title}
+                metaBold={card.subtitle}
+                imageUrl={card.imageUrl}
+                badgeLabel={card.badge}
+                onPress={() => openPrepCard(card.id)}
+              />
+            </View>
+          ))}
+        </ScrollView>
+
+        {/* ── Try individual workouts ──────────────────────────── */}
+        <View style={[styles.sectionHeaderRow, styles.workoutsSectionHeader]}>
+          <Text style={styles.sectionTitle}>Try individual workouts</Text>
+          <TouchableOpacity
+            style={styles.sectionLink}
+            activeOpacity={0.8}
+            onPress={() => router.push("/workouts")}
+          >
+            <Text style={styles.sectionLinkText}>See all</Text>
+            <ChevronRight size={16} color={colors.muted} />
+          </TouchableOpacity>
+        </View>
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.prepRail}
+        >
+          {workoutCards.map((card, index) => (
+            <View
+              key={card.id}
+              style={
+                index !== workoutCards.length - 1
+                  ? styles.prepCardGap
+                  : undefined
+              }
+            >
+              <EditorialCard
+                title={card.title}
+                metaBold={card.subtitle}
+                imageUrl={card.imageUrl}
+                badgeLabel={card.badge}
+                onPress={() => openWorkoutCard(card.id)}
+              />
+            </View>
+          ))}
+        </ScrollView>
+
+        {/* ── Featured recipes ─────────────────────────────────── */}
+        <View style={[styles.sectionHeaderRow, styles.recipesSectionHeader]}>
+          <Text style={styles.sectionTitle}>Featured recipes</Text>
+          <TouchableOpacity
+            style={styles.sectionLink}
+            activeOpacity={0.8}
+            onPress={() => router.push("/recipes")}
+          >
+            <Text style={styles.sectionLinkText}>See all</Text>
+            <ChevronRight size={16} color={colors.muted} />
+          </TouchableOpacity>
+        </View>
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.prepRail}
+        >
+          {recipeCards.map((card, index) => (
+            <View
+              key={card.id}
+              style={
+                index !== recipeCards.length - 1
+                  ? styles.prepCardGap
+                  : undefined
+              }
+            >
+              <EditorialCard
+                title={card.title}
+                metaBold={card.metaBold}
+                metaMuted={card.metaMuted}
+                imageUrl={card.imageUrl}
+                width={210}
+                mediaHeight={210}
+                onPress={() => openRecipe(card.id)}
+              />
+            </View>
+          ))}
+        </ScrollView>
+
         <View style={styles.bottomSpacer} />
       </ScrollView>
     </SafeAreaView>
   );
 }
+
+// ─── Styles ──────────────────────────────────────────────────────────────────
 
 function createStyles(colors: {
   background: string;
@@ -558,81 +850,345 @@ function createStyles(colors: {
   const BORDER = colors.borderSubtle ?? colors.border ?? "rgba(0,0,0,0.10)";
 
   return StyleSheet.create({
-    safe: { flex: 1, backgroundColor: colors.background },
-    scroll: { flex: 1, backgroundColor: colors.background },
-    container: { paddingTop: 4, paddingBottom: Spacing.lg, paddingHorizontal: Spacing.md },
+    safe: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+
+    scroll: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+
+    container: {
+      paddingTop: 4,
+      paddingBottom: Spacing.lg,
+      paddingHorizontal: Spacing.md,
+    },
 
     iconButton: {
-      width: 40, height: 40, borderRadius: 20,
+      width: 40,
+      height: 40,
+      borderRadius: 20,
       backgroundColor: colors.card,
-      borderWidth: BorderWidth.default, borderColor: BORDER,
-      alignItems: "center", justifyContent: "center",
+      borderWidth: BorderWidth.default,
+      borderColor: BORDER,
+      alignItems: "center",
+      justifyContent: "center",
     },
 
-    weekMetaRow: { marginTop: 8, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-    weekMetaLeft: { fontSize: 13, fontWeight: "700", color: colors.muted, letterSpacing: -0.05 },
-    weekMetaRight: { fontSize: 13, fontWeight: "800", color: colors.text, letterSpacing: -0.05 },
+    // ── Weekly progress ──────────────────────────────────────
+
+    weekMetaRow: {
+      marginTop: 8,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+    },
+
+    weekMetaLeft: {
+      fontSize: 13,
+      fontWeight: "700",
+      color: colors.muted,
+      letterSpacing: -0.05,
+    },
+
+    weekMetaRight: {
+      fontSize: 13,
+      fontWeight: "800",
+      color: colors.text,
+      letterSpacing: -0.05,
+    },
 
     weekProgressBg: {
-      marginTop: 10, height: 8,
-      backgroundColor: isDarkLike(colors.background) ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.08)",
-      borderRadius: 999, overflow: "hidden",
+      marginTop: 10,
+      height: 3,
+      backgroundColor: isDarkLike(colors.background)
+        ? "rgba(255,255,255,0.12)"
+        : "rgba(0,0,0,0.08)",
+      borderRadius: 999,
+      overflow: "hidden",
     },
-    weekProgressFill: { height: 8, backgroundColor: colors.text, borderRadius: 999 },
 
-    todayRow: { marginTop: 20, flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end" },
-    todayTitle: { fontSize: 26, fontWeight: "900", color: colors.text, letterSpacing: -0.25 },
-    planLink: { paddingVertical: 6, flexDirection: "row", alignItems: "center", gap: 4 },
-    planLinkText: { fontSize: 14, color: colors.muted, fontWeight: "800", letterSpacing: -0.1 },
-    todaySub: { fontSize: 15, color: colors.muted, marginTop: 8, marginBottom: 14, fontWeight: "700", letterSpacing: -0.1 },
+    weekProgressFill: {
+      height: 3,
+      backgroundColor: colors.text,
+      borderRadius: 999,
+    },
+
+    // ── Today header ─────────────────────────────────────────
+
+    todayRow: {
+      marginTop: 20,
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "flex-end",
+    },
+
+    todayTitle: {
+      fontSize: 26,
+      fontWeight: "900",
+      color: colors.text,
+      letterSpacing: -0.25,
+    },
+
+    planLink: {
+      paddingVertical: 6,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+    },
+
+    planLinkText: {
+      fontSize: 14,
+      color: colors.muted,
+      fontWeight: "800",
+      letterSpacing: -0.1,
+    },
+
+    todaySub: {
+      fontSize: 15,
+      color: colors.muted,
+      marginTop: 8,
+      marginBottom: 14,
+      fontWeight: "700",
+      letterSpacing: -0.1,
+    },
+
+    // ── Hero card ────────────────────────────────────────────
 
     heroCard: {
-      borderRadius: 28, overflow: "hidden", backgroundColor: colors.card,
+      borderRadius: 28,
+      overflow: "hidden",
+      backgroundColor: colors.card,
       borderWidth: BorderWidth.default,
-      borderColor: isDarkLike(colors.background) ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
+      borderColor: isDarkLike(colors.background)
+        ? "rgba(255,255,255,0.08)"
+        : "rgba(0,0,0,0.06)",
     },
-    heroImage: { width: "100%", height: 470, justifyContent: "space-between" },
-    heroImageRadius: { borderRadius: 28 },
-    heroOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.30)" },
 
-    heroTop: { marginTop: 16, paddingHorizontal: 16, flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
-    leftChips: { gap: 10 },
-    chipLight: { backgroundColor: "rgba(255,255,255,0.84)", paddingVertical: 8, paddingHorizontal: 12, borderRadius: 999 },
-    chipLightText: { color: "#111", fontSize: 12, fontWeight: "900", letterSpacing: -0.05 },
-    chipOutline: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 999, borderWidth: BorderWidth.default, borderColor: "rgba(255,255,255,0.32)", backgroundColor: "rgba(0,0,0,0.22)" },
-    chipOutlineText: { color: "#FFF", fontSize: 12, fontWeight: "900", letterSpacing: -0.05 },
+    heroImage: {
+      width: "100%",
+      height: 470,
+      justifyContent: "space-between",
+    },
 
-    heroBottom: { paddingHorizontal: 18, paddingBottom: 18 },
-    heroEyebrow: { color: "rgba(255,255,255,0.76)", fontSize: 12, fontWeight: "900", letterSpacing: 1, textTransform: "uppercase" },
-    heroTitle: { marginTop: 8, color: "#FFF", fontSize: 28, lineHeight: 31, fontWeight: "900", letterSpacing: -0.35 },
-    heroMeta: { marginTop: 6, color: "rgba(255,255,255,0.88)", fontSize: 15, fontWeight: "700", letterSpacing: -0.1 },
+    heroImageRadius: {
+      borderRadius: 28,
+    },
 
-    metricsRow: { marginTop: 14, flexDirection: "row", flexWrap: "wrap", gap: 10 },
-    metricPill: { backgroundColor: "rgba(0,0,0,0.42)", borderRadius: 999, paddingVertical: 8, paddingHorizontal: 12, borderWidth: BorderWidth.default, borderColor: "rgba(255,255,255,0.18)" },
-    metricPillText: { color: "rgba(255,255,255,0.94)", fontSize: 12, fontWeight: "900", letterSpacing: -0.05 },
+    heroOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: "rgba(0,0,0,0.30)",
+    },
 
-    heroCta: { marginTop: 12, backgroundColor: "#FFF", borderRadius: 999, paddingVertical: 16, paddingHorizontal: 18, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 10 },
-    heroCtaIcon: { fontSize: 16, color: "#000", fontWeight: "900" },
-    heroCtaText: { fontSize: 16, fontWeight: "900", color: "#000", letterSpacing: -0.15 },
-    discardButton: { alignSelf: "center", marginTop: 10 },
-    discardText: { fontSize: 13, fontWeight: "700", color: "rgba(255,255,255,0.62)" },
+    heroTop: {
+      marginTop: 16,
+      paddingHorizontal: 16,
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "flex-start",
+    },
 
-    sectionHeaderRow: { marginTop: 36, marginBottom: 16, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-    recentSectionHeader: { marginTop: 32 },
-    sectionTitle: { fontSize: 18, fontWeight: "800", color: colors.text, letterSpacing: -0.2 },
-    sectionLink: { flexDirection: "row", alignItems: "center", gap: 4 },
-    sectionLinkText: { fontSize: 14, fontWeight: "800", color: colors.muted, letterSpacing: -0.1 },
+    leftChips: {
+      gap: 10,
+    },
 
-    prepRail: { paddingBottom: 8, paddingRight: Spacing.md },
-    prepCardGap: { marginRight: Spacing.md },
+    chipLight: {
+      backgroundColor: "rgba(255,255,255,0.84)",
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+      borderRadius: 999,
+    },
 
-    recentList: { gap: 10 },
-    recentCardGap: { marginBottom: 10 },
+    chipLightText: {
+      color: "#111",
+      fontSize: 12,
+      fontWeight: "900",
+      letterSpacing: -0.05,
+    },
 
-    bottomSpacer: { height: 32 },
+    chipOutline: {
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+      borderRadius: 999,
+      borderWidth: BorderWidth.default,
+      borderColor: "rgba(255,255,255,0.32)",
+      backgroundColor: "rgba(0,0,0,0.22)",
+    },
+
+    chipOutlineText: {
+      color: "#FFF",
+      fontSize: 12,
+      fontWeight: "900",
+      letterSpacing: -0.05,
+    },
+
+    heroBottom: {
+      paddingHorizontal: 18,
+      paddingBottom: 18,
+    },
+
+    heroEyebrow: {
+      color: "rgba(255,255,255,0.76)",
+      fontSize: 12,
+      fontWeight: "900",
+      letterSpacing: 1,
+      textTransform: "uppercase",
+    },
+
+    heroTitle: {
+      marginTop: 8,
+      color: "#FFF",
+      fontSize: 28,
+      lineHeight: 31,
+      fontWeight: "900",
+      letterSpacing: -0.35,
+    },
+
+    heroMeta: {
+      marginTop: 6,
+      color: "rgba(255,255,255,0.88)",
+      fontSize: 15,
+      fontWeight: "700",
+      letterSpacing: -0.1,
+    },
+
+    metricsRow: {
+      marginTop: 14,
+      minHeight: 0,
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 10,
+    },
+
+    metricPill: {
+      backgroundColor: "rgba(0,0,0,0.42)",
+      borderRadius: 999,
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+      borderWidth: BorderWidth.default,
+      borderColor: "rgba(255,255,255,0.18)",
+    },
+
+    metricPillText: {
+      color: "rgba(255,255,255,0.94)",
+      fontSize: 12,
+      fontWeight: "900",
+      letterSpacing: -0.05,
+    },
+
+    heroCta: {
+      marginTop: 12,
+      backgroundColor: "#FFF",
+      borderRadius: 999,
+      paddingVertical: 16,
+      paddingHorizontal: 18,
+      alignItems: "center",
+      justifyContent: "center",
+      flexDirection: "row",
+      gap: 10,
+    },
+
+    heroCtaIcon: {
+      fontSize: 16,
+      color: "#000",
+      fontWeight: "900",
+    },
+
+    heroCtaText: {
+      fontSize: 16,
+      fontWeight: "900",
+      color: "#000",
+      letterSpacing: -0.15,
+    },
+
+    discardButton: {
+      alignSelf: "center",
+      marginTop: 10,
+    },
+
+    discardText: {
+      fontSize: 13,
+      fontWeight: "700",
+      color: "rgba(255,255,255,0.62)",
+    },
+
+    // ── Section headers ──────────────────────────────────────
+
+    sectionHeaderRow: {
+      marginTop: 36,
+      marginBottom: 16,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+    },
+
+    recentSectionHeader: {
+      marginTop: 28,
+    },
+
+    workoutsSectionHeader: {
+      marginTop: 32,
+    },
+
+    recipesSectionHeader: {
+      marginTop: 32,
+    },
+
+    sectionTitle: {
+      fontSize: 18,
+      fontWeight: "800",
+      color: colors.text,
+      letterSpacing: -0.2,
+    },
+
+    sectionLink: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+    },
+
+    sectionLinkText: {
+      fontSize: 14,
+      fontWeight: "800",
+      color: colors.muted,
+      letterSpacing: -0.1,
+    },
+
+    // ── Rails ────────────────────────────────────────────────
+
+    prepRail: {
+      paddingBottom: 8,
+      paddingRight: Spacing.md,
+    },
+
+    prepCardGap: {
+      marginRight: Spacing.md,
+    },
+
+    // ── Recent sessions ──────────────────────────────────────
+
+    recentList: {
+      gap: 10,
+    },
+
+    recentCardGap: {
+      marginBottom: 10,
+    },
+
+    // ── Bottom spacer ────────────────────────────────────────
+
+    bottomSpacer: {
+      height: 32,
+    },
   });
 }
 
 function isDarkLike(background: string) {
-  return background === "#0B0B0C" || background === "#111214";
+  return (
+    background === "#0B0B0C" ||
+    background === "#111214" ||
+    background === "#0F0F10"
+  );
 }

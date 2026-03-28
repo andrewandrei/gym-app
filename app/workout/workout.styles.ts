@@ -43,7 +43,7 @@ export function createWorkoutStyles(
       paddingBottom: 24,
     },
 
-    /* ───────────────────────── Workout preview hero ───────────────────────── */
+    /* ───────────────────────── Workout preview ───────────────────────── */
 
     previewPage: {
       flex: 1,
@@ -55,7 +55,6 @@ export function createWorkoutStyles(
       top: 0,
       left: 0,
       right: 0,
-      overflow: "hidden",
       backgroundColor: colors.background,
     },
 
@@ -154,7 +153,7 @@ export function createWorkoutStyles(
 
     previewGroupWrap: {
       position: "relative",
-      paddingLeft: 14,
+      paddingLeft: 10,
     },
 
     previewGroupRail: {
@@ -284,7 +283,7 @@ export function createWorkoutStyles(
     previewInlineDivider: {
       height: BorderWidth.default,
       backgroundColor: BORDER,
-      marginLeft: 106,
+      marginLeft: 102,
     },
 
     previewBlockSpacer: {
@@ -343,7 +342,7 @@ export function createWorkoutStyles(
 
     groupWrap: {
       position: "relative",
-      paddingLeft: 14,
+      paddingLeft: 10,
       marginBottom: 8,
     },
 
@@ -452,23 +451,23 @@ export function createWorkoutStyles(
     },
 
     cols: {
-  flexDirection: "row",
-  alignItems: "center",
-  paddingHorizontal: 12,
-  paddingBottom: 8,
-  borderBottomWidth: BorderWidth.default,
-  borderBottomColor: isDark ? "rgba(255,255,255,0.05)" : "rgba(17,17,17,0.05)",
-  marginTop: 12,
-},
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: 12,
+      paddingBottom: 8,
+      borderBottomWidth: BorderWidth.default,
+      borderBottomColor: isDark ? "rgba(255,255,255,0.05)" : "rgba(17,17,17,0.05)",
+      marginTop: 12,
+    },
 
-colLabel: {
-  fontSize: 10,
-  fontWeight: "800",
-  color: colors.muted,
-  letterSpacing: 0.5,
-  textTransform: "uppercase",
-  opacity: 0.88,
-},
+    colLabel: {
+      fontSize: 10,
+      fontWeight: "800",
+      color: colors.muted,
+      letterSpacing: 0.5,
+      textTransform: "uppercase",
+      opacity: 0.88,
+    },
 
     colSetWrap: {
       width: 44,
@@ -487,8 +486,6 @@ colLabel: {
       alignItems: "center",
       justifyContent: "center",
     },
-
-   
 
     row: {
       position: "relative",

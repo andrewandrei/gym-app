@@ -29,6 +29,7 @@ const FULL_BODY_FOUNDATION_EXERCISES: Exercise[] = [
     image:
       "https://images.unsplash.com/photo-1599058918144-1ffabb6ab9a0?auto=format&fit=crop&w=1200&q=70",
     unitLabel: "LBS",
+    // YouTube
     videoUrl: "https://www.youtube.com/watch?v=ultWZbUMPL8",
     description:
       "The king of lower body exercises. Build massive quads, glutes, and overall leg strength with proper squat technique.",
@@ -56,7 +57,8 @@ const FULL_BODY_FOUNDATION_EXERCISES: Exercise[] = [
     image:
       "https://images.unsplash.com/photo-1434682881908-b43d0467b798?auto=format&fit=crop&w=1200&q=70",
     unitLabel: "LBS",
-    videoUrl: "https://www.youtube.com/watch?v=2SHsk9AzdjA",
+    // Vimeo
+    videoUrl: "https://vimeo.com/522443498",
     description:
       "Target your hamstrings and glutes with this hip-hinge movement. Perfect for building posterior chain strength.",
     tutorial: [
@@ -83,6 +85,7 @@ const FULL_BODY_FOUNDATION_EXERCISES: Exercise[] = [
     image:
       "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?auto=format&fit=crop&w=1200&q=70",
     unitLabel: "LBS",
+    // YouTube
     videoUrl: "https://www.youtube.com/watch?v=8iPEnn-ltC8",
     description: "Build upper chest strength and size with controlled incline pressing.",
     tutorial: [
@@ -109,6 +112,18 @@ const FULL_BODY_FOUNDATION_EXERCISES: Exercise[] = [
     image:
       "https://images.unsplash.com/photo-1599058917765-142b2a07f930?auto=format&fit=crop&w=1200&q=70",
     unitLabel: "LBS",
+    // Direct MP4
+    videoUrl: "https://cdn.muscleandstrength.com/sites/default/files/chest-supported-dumbbell-row.mp4",
+    description: "Isolate your back muscles by removing momentum. Great for building a thick, wide back.",
+    tutorial: [
+      "Set adjustable bench to 30-45 degrees",
+      "Lie face down with chest on the pad",
+      "Hold dumbbells with arms hanging straight",
+      "Pull elbows back, squeezing shoulder blades",
+      "Hold 1 second at the top",
+      "Lower with control over 2 seconds",
+    ],
+    musclesWorked: ["Lats", "Rhomboids", "Rear Delts", "Biceps"],
     sets: [
       { id: "s1", weight: "", reps: "12", rest: "1:15", done: false },
       { id: "s2", weight: "", reps: "12", rest: "1:15", done: false },
@@ -122,6 +137,18 @@ const FULL_BODY_FOUNDATION_EXERCISES: Exercise[] = [
     image:
       "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=1200&q=70",
     unitLabel: "LBS",
+    // YouTube
+    videoUrl: "https://www.youtube.com/watch?v=3VcKaXpzqRo",
+    description: "Build wider shoulders with strict lateral raises. Focus on controlled tempo and mind-muscle connection.",
+    tutorial: [
+      "Stand with dumbbells at your sides",
+      "Slight bend in elbows, palms facing in",
+      "Raise arms out to the sides to shoulder height",
+      "Lead with elbows, not hands",
+      "Pause briefly at the top",
+      "Lower slowly over 2 seconds",
+    ],
+    musclesWorked: ["Lateral Delts", "Traps"],
     sets: [
       { id: "s1", weight: "", reps: "15", rest: "1:15", done: false },
       { id: "s2", weight: "", reps: "15", rest: "1:15", done: false },
@@ -135,6 +162,18 @@ const FULL_BODY_FOUNDATION_EXERCISES: Exercise[] = [
     image:
       "https://images.unsplash.com/photo-1526401485004-2aa7f3d0bd19?auto=format&fit=crop&w=1200&q=70",
     unitLabel: "LBS",
+    // Vimeo
+    videoUrl: "https://vimeo.com/363691956",
+    description: "High-volume quad builder. A safer alternative to squats for accumulating leg volume.",
+    tutorial: [
+      "Sit in the leg press with back flat against pad",
+      "Place feet shoulder-width on the platform",
+      "Release the safety handles",
+      "Lower the weight slowly, knees tracking over toes",
+      "Press through your heels to extend legs",
+      "Don't lock knees at the top",
+    ],
+    musclesWorked: ["Quadriceps", "Glutes", "Hamstrings"],
     sets: [
       { id: "s1", weight: "", reps: "12", rest: "1:00", done: false },
       { id: "s2", weight: "", reps: "12", rest: "1:00", done: false },
@@ -148,6 +187,18 @@ const FULL_BODY_FOUNDATION_EXERCISES: Exercise[] = [
     image:
       "https://images.unsplash.com/photo-1599058918144-1ffabb6ab9a0?auto=format&fit=crop&w=1200&q=70",
     unitLabel: "REPS",
+    // YouTube
+    videoUrl: "https://www.youtube.com/watch?v=IODxDxX7oi4",
+    description: "Classic bodyweight push-up with slow tempo for time under tension.",
+    tutorial: [
+      "Start in plank position, hands shoulder-width",
+      "Lower your body over 2 seconds",
+      "Chest should nearly touch the floor",
+      "Push back up over 2 seconds",
+      "Keep core tight throughout",
+      "Don't let hips sag",
+    ],
+    musclesWorked: ["Chest", "Triceps", "Front Delts", "Core"],
     sets: [
       { id: "s1", weight: "", reps: "12", rest: "1:00", done: false },
       { id: "s2", weight: "", reps: "12", rest: "1:00", done: false },
@@ -161,6 +212,18 @@ const FULL_BODY_FOUNDATION_EXERCISES: Exercise[] = [
     image:
       "https://images.unsplash.com/photo-1517832207067-4db24a2ae47c?auto=format&fit=crop&w=1200&q=70",
     unitLabel: "REPS",
+    // YouTube
+    videoUrl: "https://www.youtube.com/watch?v=I5xbsA71v1A",
+    description: "Core stability exercise that teaches anti-extension. Great for building a strong, stable midsection.",
+    tutorial: [
+      "Lie on your back, arms pointing to ceiling",
+      "Knees bent at 90 degrees, shins parallel to floor",
+      "Press lower back into the floor",
+      "Extend opposite arm and leg slowly",
+      "Return to start, then switch sides",
+      "Keep lower back pressed down throughout",
+    ],
+    musclesWorked: ["Core", "Deep Stabilizers"],
     sets: [
       { id: "s1", weight: "", reps: "10", rest: "1:00", done: false },
       { id: "s2", weight: "", reps: "10", rest: "1:00", done: false },
@@ -390,7 +453,6 @@ export const WORKOUTS_BY_ID: Record<string, WorkoutConfig> = {
     historyByExerciseId: FULL_BODY_FOUNDATION_HISTORY,
   },
 
-  // Program Detail aliases
   "strength-foundations-week-1-workout-1": {
     id: "strength-foundations-week-1-workout-1",
     title: "Strength & Conditioning",

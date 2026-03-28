@@ -1,4 +1,4 @@
-// app/(tabs)/profile.tsx
+//app/(tabs)/profile.tsx
 import { useRouter } from "expo-router";
 import {
   Bell,
@@ -12,13 +12,16 @@ import {
   Shield,
   Utensils,
 } from "lucide-react-native";
-import React, { useMemo } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import React, { useCallback, useMemo } from "react";
+import { Alert, Linking, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { ScreenHeader } from "@/components/ui/ScreenHeader";
 
+import { useAppSettings } from "../_providers/appSettings";
 import { useAppTheme } from "../_providers/theme";
+import { clearWorkoutDraft } from "../workout/workoutDraft";
+import { clearWorkoutHistory } from "../workout/workoutHistory";
 import { createProfileStyles } from "./profile.styles";
 
 type RowIcon =
@@ -36,9 +39,11 @@ type SettingsRow = {
   key: string;
   title: string;
   subtitle?: string;
+  value?: string;
   icon: RowIcon;
   onPress: () => void;
   destructive?: boolean;
+  showChevron?: boolean;
 };
 
 function IconDot({
@@ -131,7 +136,23 @@ function Section({
                 </View>
               </View>
 
-              <ChevronRight size={18} color={mutedColor} />
+              {row.value ? (
+                <Text
+                  style={{
+                    fontSize: 14,
+                    fontWeight: "800",
+                    color: mutedColor,
+                    marginRight: row.showChevron === false ? 0 : 8,
+                  }}
+                  numberOfLines={1}
+                >
+                  {row.value}
+                </Text>
+              ) : null}
+
+              {row.showChevron === false ? null : (
+                <ChevronRight size={18} color={mutedColor} />
+              )}
             </Pressable>
           );
         })}
@@ -143,6 +164,9 @@ function Section({
 export default function ProfileScreen() {
   const router = useRouter();
   const { colors, isDark } = useAppTheme();
+  const { settings, setAppearance, setWeightUnit, setNotificationsEnabled } =
+    useAppSettings();
+
   const styles = useMemo(() => createProfileStyles(colors, isDark), [colors, isDark]);
 
   const name = "Andrei";
@@ -151,7 +175,73 @@ export default function ProfileScreen() {
   const planLabel = isPro ? "Elite" : "Free";
   const planHint = isPro ? "Active membership" : "Full access on the website";
 
-  const onUpgrade = () => router.push("/paywall");
+  const onUpgrade = useCallback(() => {
+    router.push("/paywall");
+  }, [router]);
+
+  const handleAppearancePress = useCallback(async () => {
+    const next = settings.appearance === "light" ? "dark" : "light";
+    await setAppearance(next);
+  }, [settings.appearance, setAppearance]);
+
+  const handleUnitsPress = useCallback(async () => {
+    const next = settings.weightUnit === "kg" ? "lbs" : "kg";
+    await setWeightUnit(next);
+  }, [settings.weightUnit, setWeightUnit]);
+
+  const handleNotificationsPress = useCallback(async () => {
+    await setNotificationsEnabled(!settings.notificationsEnabled);
+  }, [settings.notificationsEnabled, setNotificationsEnabled]);
+
+  const handleHelpPress = useCallback(async () => {
+    try {
+      await Linking.openURL("https://www.andreiandreifit.com");
+    } catch {
+      Alert.alert("Help", "Support link is not available right now.");
+    }
+  }, []);
+
+  const handlePrivacyPress = useCallback(async () => {
+    try {
+      await Linking.openURL("https://www.andreiandreifit.com");
+    } catch {
+      Alert.alert("Privacy", "Privacy page is not available right now.");
+    }
+  }, []);
+
+  const handleTermsPress = useCallback(async () => {
+    try {
+      await Linking.openURL("https://www.andreiandreifit.com");
+    } catch {
+      Alert.alert("Terms & policies", "Website link is not available right now.");
+    }
+  }, []);
+
+  const handleNutritionPress = useCallback(() => {
+    Alert.alert(
+      "Nutrition preferences",
+      "This section will connect to your meal and macro preferences next.",
+    );
+  }, []);
+
+  const handleLogoutPress = useCallback(() => {
+    Alert.alert(
+      "Log out",
+      "This will clear your local workout draft and history on this device for now.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Log out",
+          style: "destructive",
+          onPress: async () => {
+            await clearWorkoutDraft();
+            await clearWorkoutHistory();
+            Alert.alert("Logged out", "Local workout data was cleared on this device.");
+          },
+        },
+      ],
+    );
+  }, []);
 
   const sections = useMemo(() => {
     const account: SettingsRow[] = [
@@ -161,13 +251,15 @@ export default function ProfileScreen() {
         subtitle: isPro ? "Manage plan" : "Unlock all programs",
         icon: "crown",
         onPress: onUpgrade,
+        showChevron: true,
       },
       {
         key: "privacy",
         title: "Privacy",
         subtitle: "Data & permissions",
         icon: "shield",
-        onPress: () => {},
+        onPress: handlePrivacyPress,
+        showChevron: true,
       },
     ];
 
@@ -176,29 +268,36 @@ export default function ProfileScreen() {
         key: "notifications",
         title: "Notifications",
         subtitle: "Reminders & streaks",
+        value: settings.notificationsEnabled ? "On" : "Off",
         icon: "bell",
-        onPress: () => {},
+        onPress: handleNotificationsPress,
+        showChevron: false,
       },
       {
         key: "appearance",
         title: "Appearance",
         subtitle: "Light / Dark",
+        value: settings.appearance === "dark" ? "Dark" : "Light",
         icon: "moon",
-        onPress: () => {},
+        onPress: handleAppearancePress,
+        showChevron: false,
       },
       {
         key: "units",
         title: "Units",
-        subtitle: "kg, cm",
+        subtitle: "Workout measurements",
+        value: settings.weightUnit.toUpperCase(),
         icon: "ruler",
-        onPress: () => {},
+        onPress: handleUnitsPress,
+        showChevron: false,
       },
       {
         key: "nutrition",
         title: "Nutrition preferences",
         subtitle: "Macros & foods",
         icon: "utensils",
-        onPress: () => {},
+        onPress: handleNutritionPress,
+        showChevron: true,
       },
     ];
 
@@ -208,26 +307,43 @@ export default function ProfileScreen() {
         title: "Help",
         subtitle: "FAQ & contact",
         icon: "help",
-        onPress: () => {},
+        onPress: handleHelpPress,
+        showChevron: true,
       },
       {
         key: "terms",
         title: "Terms & policies",
         subtitle: "Read on the website",
         icon: "external",
-        onPress: () => {},
+        onPress: handleTermsPress,
+        showChevron: true,
       },
       {
         key: "logout",
         title: "Log out",
         icon: "logout",
         destructive: true,
-        onPress: () => {},
+        onPress: handleLogoutPress,
+        showChevron: true,
       },
     ];
 
     return { account, preferences, support };
-  }, [isPro, onUpgrade]);
+  }, [
+    handleAppearancePress,
+    handleHelpPress,
+    handleLogoutPress,
+    handleNotificationsPress,
+    handleNutritionPress,
+    handlePrivacyPress,
+    handleTermsPress,
+    handleUnitsPress,
+    isPro,
+    onUpgrade,
+    settings.appearance,
+    settings.notificationsEnabled,
+    settings.weightUnit,
+  ]);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={["top"]}>
@@ -236,10 +352,7 @@ export default function ProfileScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <ScreenHeader
-          title={name}
-          subtitle="Keep it simple. Execute consistently."
-        />
+        <ScreenHeader title={name} subtitle="Keep it simple. Execute consistently." />
 
         <View style={styles.planCard}>
           <View style={styles.planLeft}>
@@ -268,6 +381,7 @@ export default function ProfileScreen() {
           mutedColor={colors.muted}
           textColor={colors.text}
         />
+
         <Section
           title="Preferences"
           rows={sections.preferences}
@@ -275,6 +389,7 @@ export default function ProfileScreen() {
           mutedColor={colors.muted}
           textColor={colors.text}
         />
+
         <Section
           title="Support"
           rows={sections.support}

@@ -6,6 +6,7 @@ import { Animated, Pressable, Text, TextInput, View } from "react-native";
 import { Swipeable } from "react-native-gesture-handler";
 
 import { useAppTheme } from "@/app/_providers/theme";
+import { formatStoredWeightStringForDisplay } from "@/app/lib/weightUnits";
 import { createWorkoutStyles } from "./workout.styles";
 
 export type SetRow = {
@@ -35,6 +36,9 @@ type Props = {
 
   swipeRef: (ref: Swipeable | null) => void;
   closeOthers: (keepKey: string) => void;
+
+  weightUnit: "kg" | "lbs";
+  isWeightBased: boolean;
 };
 
 export function SetRowItem({
@@ -50,30 +54,32 @@ export function SetRowItem({
   onFocus,
   swipeRef,
   closeOthers,
+  weightUnit,
+  isWeightBased,
 }: Props) {
   const { colors, isDark } = useAppTheme();
   const S = useMemo(() => createWorkoutStyles(colors, isDark), [colors, isDark]);
 
   const cellStyle = (done: boolean, active: boolean) => ({
-  height: 52,
-  borderWidth: 1.5,
-  borderColor: done
-    ? "rgba(34, 197, 94, 0.26)"
-    : active
-      ? "rgba(244, 200, 74, 0.70)"
-      : colors.borderSubtle,
-  backgroundColor: done
-    ? "rgba(34, 197, 94, 0.05)"
-    : active
-      ? "rgba(244, 200, 74, 0.10)"
-      : colors.surface,
-});
+    height: 52,
+    borderWidth: 1.5,
+    borderColor: done
+      ? "rgba(34, 197, 94, 0.26)"
+      : active
+        ? "rgba(244, 200, 74, 0.70)"
+        : colors.borderSubtle,
+    backgroundColor: done
+      ? "rgba(34, 197, 94, 0.05)"
+      : active
+        ? "rgba(244, 200, 74, 0.10)"
+        : colors.surface,
+  });
 
-const inputTextStyle = (done: boolean) => ({
-  fontSize: 16,
-  fontWeight: "800" as const,
-  color: done ? "rgba(34, 197, 94, 0.92)" : colors.text,
-});
+  const inputTextStyle = (done: boolean) => ({
+    fontSize: 16,
+    fontWeight: "800" as const,
+    color: done ? "rgba(34, 197, 94, 0.92)" : colors.text,
+  });
 
   const placeholderColor = isDark ? "rgba(255,255,255,0.24)" : "rgba(0,0,0,0.25)";
   const mutedIndexColor = isDark ? "rgba(255,255,255,0.45)" : "rgba(0,0,0,0.45)";
@@ -82,15 +88,27 @@ const inputTextStyle = (done: boolean) => ({
   const rowKey = useMemo(() => `${exId}:${set.id}`, [exId, set.id]);
   const setKey = useMemo(() => `${exId}:${index}`, [exId, index]);
 
-  const [w, setW] = useState(set.weight ?? "");
+  const displayWeight = useMemo(() => {
+    if (!isWeightBased) return set.weight ?? "";
+
+    return formatStoredWeightStringForDisplay({
+      storedWeight: set.weight ?? "",
+      unit: weightUnit,
+    });
+  }, [isWeightBased, set.weight, weightUnit]);
+
+  const [w, setW] = useState(displayWeight);
   const [r, setR] = useState(set.reps ?? "");
   const [rest, setRest] = useState(set.rest ?? "");
 
   useEffect(() => {
-    setW(set.weight ?? "");
+    setW(displayWeight);
+  }, [displayWeight]);
+
+  useEffect(() => {
     setR(set.reps ?? "");
     setRest(set.rest ?? "");
-  }, [set.weight, set.reps, set.rest]);
+  }, [set.reps, set.rest]);
 
   const handleFocus = useCallback(() => {
     closeOthers(rowKey);
@@ -105,12 +123,32 @@ const inputTextStyle = (done: boolean) => ({
     const nextR = r.replace(/[^\d.]/g, "");
     const nextRest = rest;
 
-    if ((set.weight ?? "") !== nextW) patch.weight = nextW;
+    const currentDisplayWeight = isWeightBased
+      ? formatStoredWeightStringForDisplay({
+          storedWeight: set.weight ?? "",
+          unit: weightUnit,
+        })
+      : (set.weight ?? "");
+
+    if (currentDisplayWeight !== nextW) patch.weight = nextW;
     if ((set.reps ?? "") !== nextR) patch.reps = nextR;
     if ((set.rest ?? "") !== nextRest) patch.rest = nextRest;
 
     if (Object.keys(patch).length) onUpdate(exId, set.id, patch);
-  }, [set.done, set.weight, set.reps, set.rest, w, r, rest, onUpdate, exId, set.id]);
+  }, [
+    set.done,
+    set.weight,
+    set.reps,
+    set.rest,
+    w,
+    r,
+    rest,
+    isWeightBased,
+    weightUnit,
+    onUpdate,
+    exId,
+    set.id,
+  ]);
 
   const isDone = !!set.done;
 
@@ -189,7 +227,7 @@ const inputTextStyle = (done: boolean) => ({
             {index + 1}
           </Text>
 
-         {set.note ? (
+          {set.note ? (
             <View
               style={{
                 marginTop: 4,
@@ -282,12 +320,12 @@ const inputTextStyle = (done: boolean) => ({
           style={[
             S.checkBtn,
             {
-                width: 46,
-                height: 46,
-                borderRadius: 23,
-                borderWidth: 1.5,
-                borderColor: isDone ? "rgb(34, 197, 94)" : colors.borderSubtle,
-                backgroundColor: isDone ? "rgb(34, 197, 94)" : colors.surface,
+              width: 46,
+              height: 46,
+              borderRadius: 23,
+              borderWidth: 1.5,
+              borderColor: isDone ? "rgb(34, 197, 94)" : colors.borderSubtle,
+              backgroundColor: isDone ? "rgb(34, 197, 94)" : colors.surface,
             },
           ]}
         >

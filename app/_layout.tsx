@@ -5,6 +5,7 @@ import { Platform, StyleSheet, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
+import { AppSettingsProvider } from "./_providers/appSettings";
 import { EntitlementsProvider } from "./_providers/entitlements";
 import { ThemeProvider, useAppTheme } from "./_providers/theme";
 
@@ -49,9 +50,11 @@ function RootNavigator() {
 
 export default function RootLayout() {
   return (
-    <ThemeProvider>
-      <RootNavigator />
-    </ThemeProvider>
+    <AppSettingsProvider>
+      <ThemeProvider>
+        <RootNavigator />
+      </ThemeProvider>
+    </AppSettingsProvider>
   );
 }
 

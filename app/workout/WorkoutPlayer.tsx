@@ -1,12 +1,11 @@
 // app/workout/WorkoutPlayer.tsx
 
 import { MoreVertical, Share2 } from "lucide-react-native";
-import React from "react";
+import React, { useMemo } from "react";
 import { Image, Pressable, ScrollView, Text, View } from "react-native";
 
 import { useAppTheme } from "@/app/_providers/theme";
 import { BorderWidth } from "@/styles/hairline";
-import { useMemo } from "react";
 import { SetRowItem, SetRow as SetRowLocal } from "./SetRowItem";
 import { createWorkoutStyles } from "./workout.styles";
 import type { Exercise, StrengthBlock } from "./WorkoutPreview";
@@ -60,9 +59,12 @@ type Props = {
   workoutDuration: number;
 
   onPressThumbnail: (exId: string) => void;
+
+  weightUnit: "kg" | "lbs";
+  formatWeight: (args: { storedWeight: string; unit: "kg" | "lbs" }) => string;
 };
 
-export function WorkoutPlayer({
+export default function WorkoutPlayer({
   workoutTitle,
   blocks,
   exerciseById,
@@ -96,16 +98,19 @@ export function WorkoutPlayer({
   tagFor,
   workoutDuration,
   onPressThumbnail,
+  weightUnit,
 }: Props) {
   const { colors, isDark } = useAppTheme();
   const S = useMemo(() => createWorkoutStyles(colors, isDark), [colors, isDark]);
   const premium = colors.premium;
 
-  
+  const displayUnitLabel = useMemo(
+    () => weightUnit.toUpperCase(),
+    [weightUnit],
+  );
 
   return (
     <View style={S.page}>
-      {/* TOP BAR */}
       <View
         style={{
           position: "absolute",
@@ -172,13 +177,11 @@ export function WorkoutPlayer({
                     height: 38,
                     paddingHorizontal: 12,
                     borderRadius: 10,
-                   backgroundColor: restTimer
+                    backgroundColor: restTimer
                       ? "rgba(244,200,74,0.18)"
                       : colors.surface,
                     borderWidth: BorderWidth.default,
-                    borderColor: restTimer
-                      ? premium
-                      : colors.borderSubtle,
+                    borderColor: restTimer ? premium : colors.borderSubtle,
                     alignItems: "center",
                     justifyContent: "center",
                   },
@@ -293,6 +296,8 @@ export function WorkoutPlayer({
                 if (!ex) return null;
 
                 const blockTag = tagFor(block, idx);
+                const firstColumnLabel =
+                  ex.unitLabel === "REPS" ? "REPS" : displayUnitLabel;
 
                 return (
                   <View
@@ -337,7 +342,7 @@ export function WorkoutPlayer({
                         </View>
 
                         <View style={S.colValueWrap}>
-                          <Text style={S.colLabel}>{ex.unitLabel}</Text>
+                          <Text style={S.colLabel}>{firstColumnLabel}</Text>
                         </View>
 
                         <View style={S.colValueWrap}>
@@ -370,21 +375,17 @@ export function WorkoutPlayer({
                             swipeRefs.current[`${ex.id}:${s.id}`] = ref;
                           }}
                           closeOthers={closeAllSwipesExcept}
+                          weightUnit={weightUnit}
+                          isWeightBased={ex.unitLabel !== "REPS"}
                         />
                       ))}
 
                       <View style={[S.cardActions, { marginTop: 16 }]}>
-                        <Pressable
-                          onPress={() => openHistory(ex.id)}
-                          style={S.ghostBtn}
-                        >
+                        <Pressable onPress={() => openHistory(ex.id)} style={S.ghostBtn}>
                           <Text style={S.ghostText}>Exercise History</Text>
                         </Pressable>
 
-                        <Pressable
-                          onPress={() => addSet(ex.id)}
-                          style={S.ghostBtn}
-                        >
+                        <Pressable onPress={() => addSet(ex.id)} style={S.ghostBtn}>
                           <Text style={S.ghostText}>Add Set</Text>
                         </Pressable>
                       </View>
