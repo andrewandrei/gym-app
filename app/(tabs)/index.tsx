@@ -20,7 +20,6 @@ import { BorderWidth } from "@/styles/hairline";
 import { Spacing } from "@/styles/spacing";
 
 import { useAppSettings } from "../_providers/appSettings";
-
 import { useAppTheme } from "../_providers/theme";
 import { getProgram } from "../program/program.data";
 import {
@@ -67,12 +66,7 @@ type RecipeCard = {
 const HERO_PROGRAM_ID = "strength-foundations";
 const HERO_WORKOUT_ID = "strength-foundations-week-2-workout-1";
 const WEEKLY_TOTAL = 3;
-<<<<<<< HEAD
-
 const FINISH_SUMMARY_STORAGE_KEY = "aa_fit_finish_summary";
-=======
-const PROGRAM_TOTAL = 21;
->>>>>>> 2d69f957cdeb86c292827f00f709ed1b28910739
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -91,10 +85,6 @@ function calcStreak(history: WorkoutHistoryEntry[]): number {
   today.setHours(0, 0, 0, 0);
   let checkDay = today.getTime();
 
-<<<<<<< HEAD
-=======
-  // If didn't train today, start checking from yesterday
->>>>>>> 2d69f957cdeb86c292827f00f709ed1b28910739
   if (!trainedDays.has(checkDay)) {
     checkDay -= 86_400_000;
   }
@@ -110,14 +100,11 @@ function calcStreak(history: WorkoutHistoryEntry[]): number {
 
 function calcWeeklyDone(history: WorkoutHistoryEntry[]): number {
   const now = new Date();
-<<<<<<< HEAD
   const dayOfWeek = now.getDay();
-=======
-  const dayOfWeek = now.getDay(); // 0=Sun
->>>>>>> 2d69f957cdeb86c292827f00f709ed1b28910739
   const monday = new Date(now);
   monday.setDate(now.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
   monday.setHours(0, 0, 0, 0);
+
   return history.filter((e) => new Date(e.completedAt) >= monday).length;
 }
 
@@ -126,36 +113,39 @@ function calcProgramCompleted(
   programId: string,
 ): number {
   return history.filter(
-    (e) =>
-      e.programId === programId || e.workoutId.startsWith(programId),
+    (e) => e.programId === programId || e.workoutId.startsWith(programId),
   ).length;
 }
 
-<<<<<<< HEAD
 function calcProgramTotal(programId: string): number {
   const program = getProgram(programId);
   if (!program) return 0;
+
   return program.weeks.reduce(
     (sum, _, idx) => sum + getWorkoutCountForWeek(idx),
     0,
   );
 }
 
-=======
->>>>>>> 2d69f957cdeb86c292827f00f709ed1b28910739
 function getSessionDateLabel(completedAt: string): string {
   const d = new Date(completedAt);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+
   const yesterday = new Date(today);
   yesterday.setDate(today.getDate() - 1);
+
   const sessionDay = new Date(d);
   sessionDay.setHours(0, 0, 0, 0);
 
   if (sessionDay.getTime() === today.getTime()) return "Today";
   if (sessionDay.getTime() === yesterday.getTime()) return "Yesterday";
 
-  return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+  return d.toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
 }
 
 function formatMinutes(sec: number): string {
@@ -179,60 +169,65 @@ function RecentSessionCard({
       ? Math.round((entry.totals.completedSets / entry.totals.totalSets) * 100)
       : 100;
 
-<<<<<<< HEAD
   const isDark =
-  colors.background === "#0B0B0C" ||
-  colors.background === "#111214" ||
-  colors.background === "#0F0F10";
+    colors.background === "#0B0B0C" ||
+    colors.background === "#111214" ||
+    colors.background === "#0F0F10";
 
-    // 🔥 Light mode → force premium dark cards
-    const cardBg = isDark ? "rgba(255,255,255,0.06)" : "#151517";
-    const borderCol = isDark ? "rgba(255,255,255,0.10)" : "#2B2B2F";
-    const trackCol = isDark
-      ? "rgba(255,255,255,0.12)"
-      : "rgba(255,255,255,0.08)";
-=======
-  const isDark = colors.background === "#0B0B0C" || colors.background === "#111214";
-  const cardBg = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)";
-  const borderCol = isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.08)";
-  const trackCol = isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.08)";
->>>>>>> 2d69f957cdeb86c292827f00f709ed1b28910739
+  const cardBg = isDark ? "rgba(255,255,255,0.06)" : "#151517";
+  const borderCol = isDark ? "rgba(255,255,255,0.10)" : "#2B2B2F";
+  const trackCol = isDark
+    ? "rgba(255,255,255,0.12)"
+    : "rgba(255,255,255,0.08)";
 
   return (
     <TouchableOpacity
       onPress={onPress}
       activeOpacity={0.82}
-      style={[sessionCardStyles.card, { backgroundColor: cardBg, borderColor: borderCol }]}
+      style={[
+        sessionCardStyles.card,
+        { backgroundColor: cardBg, borderColor: borderCol },
+      ]}
     >
       <View style={sessionCardStyles.topRow}>
         <View style={sessionCardStyles.titleBlock}>
-<<<<<<< HEAD
-          <Text style={[sessionCardStyles.title, { color: isDark ? colors.text : "#FFFFFF" }]} numberOfLines={1}>
-=======
-          <Text style={[sessionCardStyles.title, { color: colors.text }]} numberOfLines={1}>
->>>>>>> 2d69f957cdeb86c292827f00f709ed1b28910739
+          <Text
+            style={[
+              sessionCardStyles.title,
+              { color: isDark ? colors.text : "#FFFFFF" },
+            ]}
+            numberOfLines={1}
+          >
             {entry.workoutTitle}
           </Text>
+
           <View style={sessionCardStyles.metaRow}>
             <Clock size={11} color={colors.muted} strokeWidth={2.5} />
-            <Text style={[sessionCardStyles.metaText, { color: colors.muted }]}>
+            <Text
+              style={[sessionCardStyles.metaText, { color: colors.muted }]}
+            >
               {formatMinutes(entry.durationSec)}
             </Text>
-            <Text style={[sessionCardStyles.metaDot, { color: colors.muted }]}>·</Text>
-<<<<<<< HEAD
-            <Text style={[sessionCardStyles.metaText, { color: isDark ? colors.muted : "#9A9AA1" }]}>
-=======
-            <Text style={[sessionCardStyles.metaText, { color: colors.muted }]}>
->>>>>>> 2d69f957cdeb86c292827f00f709ed1b28910739
+            <Text style={[sessionCardStyles.metaDot, { color: colors.muted }]}>
+              ·
+            </Text>
+            <Text
+              style={[
+                sessionCardStyles.metaText,
+                { color: isDark ? colors.muted : "#9A9AA1" },
+              ]}
+            >
               {entry.totals.completedSets}/{entry.totals.totalSets} sets
             </Text>
           </View>
         </View>
-<<<<<<< HEAD
-        <Text style={[sessionCardStyles.dateLabel, { color: isDark ? colors.muted : "#9A9AA1" }]}>
-=======
-        <Text style={[sessionCardStyles.dateLabel, { color: colors.muted }]}>
->>>>>>> 2d69f957cdeb86c292827f00f709ed1b28910739
+
+        <Text
+          style={[
+            sessionCardStyles.dateLabel,
+            { color: isDark ? colors.muted : "#9A9AA1" },
+          ]}
+        >
           {getSessionDateLabel(entry.completedAt)}
         </Text>
       </View>
@@ -241,11 +236,10 @@ function RecentSessionCard({
         <View
           style={[
             sessionCardStyles.barFill,
-<<<<<<< HEAD
-            { width: `${completionPct}%` as any, backgroundColor: isDark ? colors.premium : colors.premium },
-=======
-            { width: `${completionPct}%` as any, backgroundColor: colors.text },
->>>>>>> 2d69f957cdeb86c292827f00f709ed1b28910739
+            {
+              width: `${completionPct}%` as const,
+              backgroundColor: colors.premium,
+            },
           ]}
         />
       </View>
@@ -319,35 +313,16 @@ export default function HomeScreen() {
   const [workoutDraft, setWorkoutDraft] = useState<WorkoutDraft | null>(null);
   const [history, setHistory] = useState<WorkoutHistoryEntry[]>([]);
 
-<<<<<<< HEAD
-  // Derive program total dynamically from program config
   const programTotal = useMemo(() => calcProgramTotal(HERO_PROGRAM_ID), []);
-
-  // Derived stats from real history
   const weeklyDone = useMemo(() => calcWeeklyDone(history), [history]);
   const streakDays = useMemo(() => calcStreak(history), [history]);
   const programCompleted = useMemo(
     () => calcProgramCompleted(history, HERO_PROGRAM_ID),
     [history],
   );
-
-  // Only show the last 2 recent sessions
   const recentSessions = useMemo(() => history.slice(0, 2), [history]);
 
-=======
-  // Derived stats from real history
-  const weeklyDone = useMemo(() => calcWeeklyDone(history), [history]);
-  const streakDays = useMemo(() => calcStreak(history), [history]);
-  const programCompleted = useMemo(
-    () => calcProgramCompleted(history, HERO_PROGRAM_ID),
-    [history],
-  );
-
-  const recentSessions = useMemo(() => history.slice(0, 5), [history]);
-
->>>>>>> 2d69f957cdeb86c292827f00f709ed1b28910739
   const activeProgram = useMemo(() => getProgram(HERO_PROGRAM_ID), []);
-
   const heroWorkoutParsed = useMemo(
     () => parseProgramWorkoutId(HERO_WORKOUT_ID),
     [],
@@ -378,7 +353,6 @@ export default function HomeScreen() {
     [],
   );
 
-<<<<<<< HEAD
   const workoutCards = useMemo<WorkoutCard[]>(
     () => [
       {
@@ -437,8 +411,6 @@ export default function HomeScreen() {
     [],
   );
 
-=======
->>>>>>> 2d69f957cdeb86c292827f00f709ed1b28910739
   useFocusEffect(
     useCallback(() => {
       const run = async () => {
@@ -460,11 +432,16 @@ export default function HomeScreen() {
 
   const draftProgress = useMemo(() => {
     if (!workoutDraft) return null;
-    const totalSets = workoutDraft.exercises.reduce((sum, ex) => sum + ex.sets.length, 0);
+
+    const totalSets = workoutDraft.exercises.reduce(
+      (sum, ex) => sum + ex.sets.length,
+      0,
+    );
     const completedSets = workoutDraft.exercises.reduce(
       (sum, ex) => sum + ex.sets.filter((s) => s.done).length,
       0,
     );
+
     return { totalSets, completedSets };
   }, [workoutDraft]);
 
@@ -474,18 +451,11 @@ export default function HomeScreen() {
   const programMeta = activeProgram.meta;
   const heroImage = activeProgram.hero;
 
-<<<<<<< HEAD
   const heroWorkoutNumber = heroWorkoutParsed
-    ? ((heroWorkoutParsed.weekNumber - 1) * 3) + heroWorkoutParsed.workoutNumber
+    ? (heroWorkoutParsed.weekNumber - 1) * 3 + heroWorkoutParsed.workoutNumber
     : 4;
 
   const defaultWorkoutLabel = `Workout ${heroWorkoutNumber}`;
-=======
-  const defaultWorkoutLabel = heroWorkoutParsed
-    ? `Workout ${((heroWorkoutParsed.weekNumber - 1) * 3) + heroWorkoutParsed.workoutNumber}`
-    : "Workout 4";
->>>>>>> 2d69f957cdeb86c292827f00f709ed1b28910739
-
   const defaultWorkoutName = heroWorkoutTemplate?.title ?? "Hypertrophy Focus";
 
   const workoutLabel =
@@ -497,10 +467,6 @@ export default function HomeScreen() {
       : defaultWorkoutName;
 
   const weeklyProgress = WEEKLY_TOTAL > 0 ? weeklyDone / WEEKLY_TOTAL : 0;
-<<<<<<< HEAD
-=======
-  const programProgress = PROGRAM_TOTAL > 0 ? programCompleted / PROGRAM_TOTAL : 0;
->>>>>>> 2d69f957cdeb86c292827f00f709ed1b28910739
 
   const greetingTitle =
     ctaState === "resume" ? "Continue where you left off." : "Ready to train.";
@@ -508,11 +474,7 @@ export default function HomeScreen() {
   const greetingSub =
     ctaState === "resume" && draftProgress
       ? `${draftProgress.completedSets} of ${draftProgress.totalSets} sets completed`
-<<<<<<< HEAD
       : undefined;
-=======
-      : `${weeklyDone} of ${WEEKLY_TOTAL} workouts completed this week`;
->>>>>>> 2d69f957cdeb86c292827f00f709ed1b28910739
 
   const weeklyLeft = Math.max(0, WEEKLY_TOTAL - weeklyDone);
 
@@ -528,6 +490,7 @@ export default function HomeScreen() {
       });
       return;
     }
+
     router.push({
       pathname: "/workout",
       params: {
@@ -559,18 +522,8 @@ export default function HomeScreen() {
     router.push({ pathname: "/workout", params: { workoutId: id, source: "home" } });
   };
 
-<<<<<<< HEAD
   const openWorkoutCard = (id: string) => {
-    router.push({
-      pathname: "/workout",
-      params: { workoutId: id, source: "home" },
-    });
-=======
-  const openSession = (entry: WorkoutHistoryEntry) => {
-    // Navigate to the finish/summary screen for that session if we have a summary stored,
-    // otherwise just go to workout history
-    router.push("/workout-history");
->>>>>>> 2d69f957cdeb86c292827f00f709ed1b28910739
+    router.push({ pathname: "/workout", params: { workoutId: id, source: "home" } });
   };
 
   const openRecipe = (id: string) => {
@@ -615,7 +568,10 @@ export default function HomeScreen() {
           })) ?? [],
       };
 
-      await AsyncStorage.setItem(FINISH_SUMMARY_STORAGE_KEY, JSON.stringify(summary));
+      await AsyncStorage.setItem(
+        FINISH_SUMMARY_STORAGE_KEY,
+        JSON.stringify(summary),
+      );
       router.push("/workout/finish");
     } catch {
       router.push("/workout-history");
@@ -631,7 +587,6 @@ export default function HomeScreen() {
         contentContainerStyle={styles.container}
         showsVerticalScrollIndicator={false}
       >
-        {/* ── Greeting ─────────────────────────────────────────── */}
         <ScreenHeader
           variant="hero"
           title={greetingTitle}
@@ -641,7 +596,9 @@ export default function HomeScreen() {
               style={styles.iconButton}
               activeOpacity={0.85}
               onPress={async () => {
-                await setAppearance(settings.appearance === "dark" ? "light" : "dark");
+                await setAppearance(
+                  settings.appearance === "dark" ? "light" : "dark",
+                );
               }}
             >
               {isDark ? (
@@ -653,11 +610,6 @@ export default function HomeScreen() {
           }
         />
 
-<<<<<<< HEAD
-        {/* ── Weekly progress bar ──────────────────────────────── */}
-=======
-        {/* Weekly progress bar */}
->>>>>>> 2d69f957cdeb86c292827f00f709ed1b28910739
         <View style={styles.weekMetaRow}>
           <Text style={styles.weekMetaLeft}>This week</Text>
           <Text style={styles.weekMetaRight}>
@@ -674,11 +626,6 @@ export default function HomeScreen() {
           />
         </View>
 
-<<<<<<< HEAD
-        {/* ── Today header ─────────────────────────────────────── */}
-=======
-        {/* Today's workout hero */}
->>>>>>> 2d69f957cdeb86c292827f00f709ed1b28910739
         <View style={styles.todayRow}>
           <Text style={styles.todayTitle}>Today</Text>
           <TouchableOpacity
@@ -693,7 +640,6 @@ export default function HomeScreen() {
 
         <Text style={styles.todaySub}>Your current plan</Text>
 
-        {/* ── Hero card ────────────────────────────────────────── */}
         <View style={styles.heroCard}>
           <ImageBackground
             source={{ uri: heroImage }}
@@ -706,14 +652,16 @@ export default function HomeScreen() {
               <View style={styles.leftChips}>
                 <View style={styles.chipLight}>
                   <Text style={styles.chipLightText}>
-                    {programCompleted}/{PROGRAM_TOTAL} complete
+                    {programCompleted}/{programTotal} complete
                   </Text>
                 </View>
               </View>
 
               {streakDays > 0 && (
                 <View style={styles.chipOutline}>
-                  <Text style={styles.chipOutlineText}>{streakDays}-day streak</Text>
+                  <Text style={styles.chipOutlineText}>
+                    {streakDays}-day streak
+                  </Text>
                 </View>
               )}
             </View>
@@ -725,30 +673,16 @@ export default function HomeScreen() {
                 {programTitle} · {programMeta}
               </Text>
 
-<<<<<<< HEAD
-              {/* Metrics row — only when resuming a draft */}
               {draftProgress && (
                 <View style={styles.metricsRow}>
-=======
-              <View style={styles.metricsRow}>
-                {draftProgress ? (
->>>>>>> 2d69f957cdeb86c292827f00f709ed1b28910739
                   <View style={styles.metricPill}>
                     <Text style={styles.metricPillText}>
-                      {draftProgress.completedSets}/{draftProgress.totalSets} sets logged
+                      {draftProgress.completedSets}/{draftProgress.totalSets} sets
+                      logged
                     </Text>
                   </View>
-<<<<<<< HEAD
                 </View>
               )}
-=======
-                ) : (
-                  <View style={styles.metricPill}>
-                    <Text style={styles.metricPillText}>Today's main session</Text>
-                  </View>
-                )}
-              </View>
->>>>>>> 2d69f957cdeb86c292827f00f709ed1b28910739
 
               <TouchableOpacity
                 style={styles.heroCta}
@@ -776,8 +710,6 @@ export default function HomeScreen() {
           </ImageBackground>
         </View>
 
-<<<<<<< HEAD
-        {/* ── Recent sessions (last 2) ─────────────────────────── */}
         {recentSessions.length > 0 && (
           <>
             <View style={[styles.sectionHeaderRow, styles.recentSectionHeader]}>
@@ -813,10 +745,6 @@ export default function HomeScreen() {
           </>
         )}
 
-        {/* ── Prep for today ───────────────────────────────────── */}
-=======
-        {/* Prep for today */}
->>>>>>> 2d69f957cdeb86c292827f00f709ed1b28910739
         <View style={styles.sectionHeaderRow}>
           <Text style={styles.sectionTitle}>Prep for today</Text>
           <TouchableOpacity
@@ -852,8 +780,6 @@ export default function HomeScreen() {
           ))}
         </ScrollView>
 
-<<<<<<< HEAD
-        {/* ── Try individual workouts ──────────────────────────── */}
         <View style={[styles.sectionHeaderRow, styles.workoutsSectionHeader]}>
           <Text style={styles.sectionTitle}>Try individual workouts</Text>
           <TouchableOpacity
@@ -891,7 +817,6 @@ export default function HomeScreen() {
           ))}
         </ScrollView>
 
-        {/* ── Featured recipes ─────────────────────────────────── */}
         <View style={[styles.sectionHeaderRow, styles.recipesSectionHeader]}>
           <Text style={styles.sectionTitle}>Featured recipes</Text>
           <TouchableOpacity
@@ -930,39 +855,6 @@ export default function HomeScreen() {
             </View>
           ))}
         </ScrollView>
-=======
-        {/* Recent sessions */}
-        {recentSessions.length > 0 && (
-          <>
-            <View style={[styles.sectionHeaderRow, styles.recentSectionHeader]}>
-              <Text style={styles.sectionTitle}>Recent sessions</Text>
-              <TouchableOpacity
-                style={styles.sectionLink}
-                activeOpacity={0.8}
-                onPress={openAllHistory}
-              >
-                <Text style={styles.sectionLinkText}>See all</Text>
-                <ChevronRight size={16} color={colors.muted} />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.recentList}>
-              {recentSessions.map((entry, index) => (
-                <View
-                  key={entry.sessionId}
-                  style={index !== recentSessions.length - 1 ? styles.recentCardGap : undefined}
-                >
-                  <RecentSessionCard
-                    entry={entry}
-                    onPress={() => openSession(entry)}
-                    colors={colors}
-                  />
-                </View>
-              ))}
-            </View>
-          </>
-        )}
->>>>>>> 2d69f957cdeb86c292827f00f709ed1b28910739
 
         <View style={styles.bottomSpacer} />
       </ScrollView>
@@ -1012,8 +904,6 @@ function createStyles(colors: {
       justifyContent: "center",
     },
 
-    // ── Weekly progress ──────────────────────────────────────
-
     weekMetaRow: {
       marginTop: 8,
       flexDirection: "row",
@@ -1051,8 +941,6 @@ function createStyles(colors: {
       borderRadius: 999,
     },
 
-    // ── Today header ─────────────────────────────────────────
-
     todayRow: {
       marginTop: 20,
       flexDirection: "row",
@@ -1089,8 +977,6 @@ function createStyles(colors: {
       fontWeight: "700",
       letterSpacing: -0.1,
     },
-
-    // ── Hero card ────────────────────────────────────────────
 
     heroCard: {
       borderRadius: 28,
@@ -1249,8 +1135,6 @@ function createStyles(colors: {
       color: "rgba(255,255,255,0.62)",
     },
 
-    // ── Section headers ──────────────────────────────────────
-
     sectionHeaderRow: {
       marginTop: 36,
       marginBottom: 16,
@@ -1260,7 +1144,6 @@ function createStyles(colors: {
     },
 
     recentSectionHeader: {
-<<<<<<< HEAD
       marginTop: 28,
     },
 
@@ -1269,8 +1152,6 @@ function createStyles(colors: {
     },
 
     recipesSectionHeader: {
-=======
->>>>>>> 2d69f957cdeb86c292827f00f709ed1b28910739
       marginTop: 32,
     },
 
@@ -1294,8 +1175,6 @@ function createStyles(colors: {
       letterSpacing: -0.1,
     },
 
-    // ── Rails ────────────────────────────────────────────────
-
     prepRail: {
       paddingBottom: 8,
       paddingRight: Spacing.md,
@@ -1305,11 +1184,6 @@ function createStyles(colors: {
       marginRight: Spacing.md,
     },
 
-<<<<<<< HEAD
-    // ── Recent sessions ──────────────────────────────────────
-
-=======
->>>>>>> 2d69f957cdeb86c292827f00f709ed1b28910739
     recentList: {
       gap: 10,
     },
@@ -1318,11 +1192,6 @@ function createStyles(colors: {
       marginBottom: 10,
     },
 
-<<<<<<< HEAD
-    // ── Bottom spacer ────────────────────────────────────────
-
-=======
->>>>>>> 2d69f957cdeb86c292827f00f709ed1b28910739
     bottomSpacer: {
       height: 32,
     },
@@ -1330,14 +1199,9 @@ function createStyles(colors: {
 }
 
 function isDarkLike(background: string) {
-<<<<<<< HEAD
   return (
     background === "#0B0B0C" ||
     background === "#111214" ||
     background === "#0F0F10"
   );
 }
-=======
-  return background === "#0B0B0C" || background === "#111214";
-}
->>>>>>> 2d69f957cdeb86c292827f00f709ed1b28910739
