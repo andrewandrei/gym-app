@@ -6,8 +6,10 @@ import { Image, Pressable, ScrollView, Text, View } from "react-native";
 
 import { useAppTheme } from "@/app/_providers/theme";
 import { BorderWidth } from "@/styles/hairline";
-import { SetRowItem, SetRow as SetRowLocal } from "./SetRowItem";
+import SetRowItem, { SetRow as SetRowLocal } from "./SetRowItem";
 import { createWorkoutStyles } from "./workout.styles";
+import type { TrackingMode } from "./workout.types";
+import { getTrackingModeConfig } from "./workout.types";
 import type { Exercise, StrengthBlock } from "./WorkoutPreview";
 
 type Props = {
@@ -64,6 +66,58 @@ type Props = {
   formatWeight: (args: { storedWeight: string; unit: "kg" | "lbs" }) => string;
 };
 
+function getTrackingMode(ex: Exercise): TrackingMode {
+  return ((ex as any).trackingMode ?? "weight_reps") as TrackingMode;
+}
+
+function getColumnLabels(
+  ex: Exercise,
+  displayUnitLabel: string,
+): {
+  primary: string;
+  secondary: string;
+  third: string;
+} {
+  const trackingMode = getTrackingMode(ex);
+  const config = getTrackingModeConfig(trackingMode);
+
+  if (trackingMode === "weight_reps") {
+    return {
+      primary: displayUnitLabel,
+      secondary: config.secondaryLabel,
+      third: config.thirdLabel,
+    };
+  }
+
+  return {
+    primary: config.primaryLabel,
+    secondary: config.secondaryLabel,
+    third: config.thirdLabel,
+  };
+}
+
+function getExerciseSubline(ex: Exercise, trackingMode: TrackingMode) {
+  const base = `Tempo: ${ex.tempo}`;
+
+  if (trackingMode === "bodyweight_reps") {
+    return `${base} • Bodyweight / optional load`;
+  }
+
+  if (trackingMode === "time") {
+    return `${base} • Time based`;
+  }
+
+  if (trackingMode === "reps_only") {
+    return `${base} • Reps only`;
+  }
+
+  if (trackingMode === "calories") {
+    return `${base} • Calories based`;
+  }
+
+  return base;
+}
+
 export default function WorkoutPlayer({
   workoutTitle,
   blocks,
@@ -104,10 +158,7 @@ export default function WorkoutPlayer({
   const S = useMemo(() => createWorkoutStyles(colors, isDark), [colors, isDark]);
   const premium = colors.premium;
 
-  const displayUnitLabel = useMemo(
-    () => weightUnit.toUpperCase(),
-    [weightUnit],
-  );
+  const displayUnitLabel = useMemo(() => weightUnit.toUpperCase(), [weightUnit]);
 
   return (
     <View style={S.page}>
@@ -296,8 +347,9 @@ export default function WorkoutPlayer({
                 if (!ex) return null;
 
                 const blockTag = tagFor(block, idx);
-                const firstColumnLabel =
-                  ex.unitLabel === "REPS" ? "REPS" : displayUnitLabel;
+                const labels = getColumnLabels(ex, displayUnitLabel);
+                const trackingMode = getTrackingMode(ex);
+                const modeConfig = getTrackingModeConfig(trackingMode);
 
                 return (
                   <View
@@ -328,7 +380,9 @@ export default function WorkoutPlayer({
                             </Text>
                           </View>
 
-                          <Text style={S.exerciseSub}>Tempo: {ex.tempo}</Text>
+                          <Text style={S.exerciseSub}>
+                            {getExerciseSubline(ex, trackingMode)}
+                          </Text>
                         </View>
 
                         <Pressable style={S.menuBtn} onPress={() => openMenu(ex.id)}>
@@ -342,15 +396,15 @@ export default function WorkoutPlayer({
                         </View>
 
                         <View style={S.colValueWrap}>
-                          <Text style={S.colLabel}>{firstColumnLabel}</Text>
+                          <Text style={S.colLabel}>{labels.primary}</Text>
                         </View>
 
                         <View style={S.colValueWrap}>
-                          <Text style={S.colLabel}>REPS</Text>
+                          <Text style={S.colLabel}>{labels.secondary}</Text>
                         </View>
 
                         <View style={S.colValueWrap}>
-                          <Text style={S.colLabel}>REST</Text>
+                          <Text style={S.colLabel}>{labels.third}</Text>
                         </View>
 
                         <View style={S.colDoneWrap}>
@@ -376,7 +430,8 @@ export default function WorkoutPlayer({
                           }}
                           closeOthers={closeAllSwipesExcept}
                           weightUnit={weightUnit}
-                          isWeightBased={ex.unitLabel !== "REPS"}
+                          isWeightBased={modeConfig.isWeightBased}
+                          trackingMode={trackingMode}
                         />
                       ))}
 

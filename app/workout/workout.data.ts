@@ -1,7 +1,13 @@
 // app/workout/workout.data.ts
 
 import { getProgramWorkoutTemplate, parseProgramWorkoutId } from "../program/programWorkouts";
-import type { Exercise, ExerciseAlternative, ExerciseHistorySession, StrengthBlock } from "./WorkoutPreview";
+import type {
+  Exercise,
+  ExerciseAlternative,
+  ExerciseHistorySession,
+  StrengthBlock,
+} from "./WorkoutPreview";
+
 export type WorkoutConfig = {
   id: string;
   title: string;
@@ -20,7 +26,9 @@ const FULL_BODY_FOUNDATION_EXERCISES: Exercise[] = [
     image:
       "https://images.unsplash.com/photo-1517964603305-11c0f6f66012?auto=format&fit=crop&w=1200&q=70",
     unitLabel: "REPS",
-    sets: [{ id: "s1", weight: "", reps: "60", rest: "0:30", done: false }],
+    trackingMode: "time",
+    // stored as seconds
+    sets: [{ id: "s1", weight: "60", reps: "", rest: "0:30", done: false }],
   },
   {
     id: "ex-2",
@@ -29,7 +37,7 @@ const FULL_BODY_FOUNDATION_EXERCISES: Exercise[] = [
     image:
       "https://images.unsplash.com/photo-1599058918144-1ffabb6ab9a0?auto=format&fit=crop&w=1200&q=70",
     unitLabel: "LBS",
-    // YouTube
+    trackingMode: "weight_reps",
     videoUrl: "https://www.youtube.com/watch?v=ultWZbUMPL8",
     description:
       "The king of lower body exercises. Build massive quads, glutes, and overall leg strength with proper squat technique.",
@@ -47,7 +55,7 @@ const FULL_BODY_FOUNDATION_EXERCISES: Exercise[] = [
     sets: [
       { id: "s1", weight: "185", reps: "8", rest: "1:30", done: false },
       { id: "s2", weight: "185", reps: "8", rest: "1:30", done: false },
-      { id: "s3", weight: "", reps: "8", rest: "1:30", done: false },
+      { id: "s3", weight: "205", reps: "6", rest: "1:30", done: false },
     ],
   },
   {
@@ -57,7 +65,7 @@ const FULL_BODY_FOUNDATION_EXERCISES: Exercise[] = [
     image:
       "https://images.unsplash.com/photo-1434682881908-b43d0467b798?auto=format&fit=crop&w=1200&q=70",
     unitLabel: "LBS",
-    // Vimeo
+    trackingMode: "weight_reps",
     videoUrl: "https://vimeo.com/522443498",
     description:
       "Target your hamstrings and glutes with this hip-hinge movement. Perfect for building posterior chain strength.",
@@ -74,8 +82,8 @@ const FULL_BODY_FOUNDATION_EXERCISES: Exercise[] = [
     musclesWorked: ["Hamstrings", "Glutes", "Lower Back", "Core"],
     sets: [
       { id: "s1", weight: "165", reps: "10", rest: "1:30", done: false },
-      { id: "s2", weight: "", reps: "10", rest: "1:30", done: false },
-      { id: "s3", weight: "", reps: "10", rest: "1:30", done: false },
+      { id: "s2", weight: "185", reps: "8", rest: "1:30", done: false },
+      { id: "s3", weight: "185", reps: "8", rest: "1:30", done: false },
     ],
   },
   {
@@ -85,7 +93,7 @@ const FULL_BODY_FOUNDATION_EXERCISES: Exercise[] = [
     image:
       "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?auto=format&fit=crop&w=1200&q=70",
     unitLabel: "LBS",
-    // YouTube
+    trackingMode: "weight_reps",
     videoUrl: "https://www.youtube.com/watch?v=8iPEnn-ltC8",
     description: "Build upper chest strength and size with controlled incline pressing.",
     tutorial: [
@@ -100,9 +108,9 @@ const FULL_BODY_FOUNDATION_EXERCISES: Exercise[] = [
     ],
     musclesWorked: ["Upper Chest", "Front Delts", "Triceps"],
     sets: [
-      { id: "s1", weight: "", reps: "10", rest: "1:15", done: false },
-      { id: "s2", weight: "", reps: "10", rest: "1:15", done: false },
-      { id: "s3", weight: "", reps: "10", rest: "1:15", done: false },
+      { id: "s1", weight: "60", reps: "10", rest: "1:15", done: false },
+      { id: "s2", weight: "60", reps: "10", rest: "1:15", done: false },
+      { id: "s3", weight: "65", reps: "8", rest: "1:15", done: false },
     ],
   },
   {
@@ -112,7 +120,7 @@ const FULL_BODY_FOUNDATION_EXERCISES: Exercise[] = [
     image:
       "https://images.unsplash.com/photo-1599058917765-142b2a07f930?auto=format&fit=crop&w=1200&q=70",
     unitLabel: "LBS",
-    // Direct MP4
+    trackingMode: "weight_reps",
     videoUrl: "https://cdn.muscleandstrength.com/sites/default/files/chest-supported-dumbbell-row.mp4",
     description: "Isolate your back muscles by removing momentum. Great for building a thick, wide back.",
     tutorial: [
@@ -125,9 +133,9 @@ const FULL_BODY_FOUNDATION_EXERCISES: Exercise[] = [
     ],
     musclesWorked: ["Lats", "Rhomboids", "Rear Delts", "Biceps"],
     sets: [
-      { id: "s1", weight: "", reps: "12", rest: "1:15", done: false },
-      { id: "s2", weight: "", reps: "12", rest: "1:15", done: false },
-      { id: "s3", weight: "", reps: "12", rest: "1:15", done: false },
+      { id: "s1", weight: "55", reps: "12", rest: "1:15", done: false },
+      { id: "s2", weight: "55", reps: "12", rest: "1:15", done: false },
+      { id: "s3", weight: "60", reps: "10", rest: "1:15", done: false },
     ],
   },
   {
@@ -137,7 +145,7 @@ const FULL_BODY_FOUNDATION_EXERCISES: Exercise[] = [
     image:
       "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=1200&q=70",
     unitLabel: "LBS",
-    // YouTube
+    trackingMode: "weight_reps",
     videoUrl: "https://www.youtube.com/watch?v=3VcKaXpzqRo",
     description: "Build wider shoulders with strict lateral raises. Focus on controlled tempo and mind-muscle connection.",
     tutorial: [
@@ -150,9 +158,9 @@ const FULL_BODY_FOUNDATION_EXERCISES: Exercise[] = [
     ],
     musclesWorked: ["Lateral Delts", "Traps"],
     sets: [
-      { id: "s1", weight: "", reps: "15", rest: "1:15", done: false },
-      { id: "s2", weight: "", reps: "15", rest: "1:15", done: false },
-      { id: "s3", weight: "", reps: "15", rest: "1:15", done: false },
+      { id: "s1", weight: "20", reps: "15", rest: "1:15", done: false },
+      { id: "s2", weight: "20", reps: "15", rest: "1:15", done: false },
+      { id: "s3", weight: "20", reps: "15", rest: "1:15", done: false },
     ],
   },
   {
@@ -162,7 +170,7 @@ const FULL_BODY_FOUNDATION_EXERCISES: Exercise[] = [
     image:
       "https://images.unsplash.com/photo-1526401485004-2aa7f3d0bd19?auto=format&fit=crop&w=1200&q=70",
     unitLabel: "LBS",
-    // Vimeo
+    trackingMode: "weight_reps",
     videoUrl: "https://vimeo.com/363691956",
     description: "High-volume quad builder. A safer alternative to squats for accumulating leg volume.",
     tutorial: [
@@ -175,9 +183,9 @@ const FULL_BODY_FOUNDATION_EXERCISES: Exercise[] = [
     ],
     musclesWorked: ["Quadriceps", "Glutes", "Hamstrings"],
     sets: [
-      { id: "s1", weight: "", reps: "12", rest: "1:00", done: false },
-      { id: "s2", weight: "", reps: "12", rest: "1:00", done: false },
-      { id: "s3", weight: "", reps: "12", rest: "1:00", done: false },
+      { id: "s1", weight: "250", reps: "12", rest: "1:00", done: false },
+      { id: "s2", weight: "250", reps: "12", rest: "1:00", done: false },
+      { id: "s3", weight: "270", reps: "10", rest: "1:00", done: false },
     ],
   },
   {
@@ -187,7 +195,7 @@ const FULL_BODY_FOUNDATION_EXERCISES: Exercise[] = [
     image:
       "https://images.unsplash.com/photo-1599058918144-1ffabb6ab9a0?auto=format&fit=crop&w=1200&q=70",
     unitLabel: "REPS",
-    // YouTube
+    trackingMode: "bodyweight_reps",
     videoUrl: "https://www.youtube.com/watch?v=IODxDxX7oi4",
     description: "Classic bodyweight push-up with slow tempo for time under tension.",
     tutorial: [
@@ -201,8 +209,8 @@ const FULL_BODY_FOUNDATION_EXERCISES: Exercise[] = [
     musclesWorked: ["Chest", "Triceps", "Front Delts", "Core"],
     sets: [
       { id: "s1", weight: "", reps: "12", rest: "1:00", done: false },
-      { id: "s2", weight: "", reps: "12", rest: "1:00", done: false },
-      { id: "s3", weight: "", reps: "12", rest: "1:00", done: false },
+      { id: "s2", weight: "10", reps: "10", rest: "1:00", done: false },
+      { id: "s3", weight: "", reps: "15", rest: "1:00", done: false },
     ],
   },
   {
@@ -212,7 +220,7 @@ const FULL_BODY_FOUNDATION_EXERCISES: Exercise[] = [
     image:
       "https://images.unsplash.com/photo-1517832207067-4db24a2ae47c?auto=format&fit=crop&w=1200&q=70",
     unitLabel: "REPS",
-    // YouTube
+    trackingMode: "reps_only",
     videoUrl: "https://www.youtube.com/watch?v=I5xbsA71v1A",
     description: "Core stability exercise that teaches anti-extension. Great for building a strong, stable midsection.",
     tutorial: [
@@ -227,7 +235,7 @@ const FULL_BODY_FOUNDATION_EXERCISES: Exercise[] = [
     sets: [
       { id: "s1", weight: "", reps: "10", rest: "1:00", done: false },
       { id: "s2", weight: "", reps: "10", rest: "1:00", done: false },
-      { id: "s3", weight: "", reps: "10", rest: "1:00", done: false },
+      { id: "s3", weight: "", reps: "12", rest: "1:00", done: false },
     ],
   },
 ];
@@ -269,12 +277,12 @@ const FULL_BODY_FOUNDATION_HISTORY: Record<string, ExerciseHistorySession[]> = {
     {
       id: "rower-h1",
       dateLabel: "Mar 7, 2026",
-      sets: [{ set: 1, weight: "—", reps: "60", rest: "0:30", done: true }],
+      sets: [{ set: 1, weight: "60", reps: "", rest: "0:30", done: true }],
     },
     {
       id: "rower-h2",
       dateLabel: "Mar 3, 2026",
-      sets: [{ set: 1, weight: "—", reps: "50", rest: "0:30", done: true }],
+      sets: [{ set: 1, weight: "50", reps: "", rest: "0:30", done: true }],
     },
   ],
   "ex-2": [
@@ -287,35 +295,26 @@ const FULL_BODY_FOUNDATION_HISTORY: Record<string, ExerciseHistorySession[]> = {
         { set: 3, weight: "205", reps: "6", rest: "2:00", done: true },
       ],
     },
-    {
-      id: "squat-h2",
-      dateLabel: "Mar 1, 2026",
-      sets: [
-        { set: 1, weight: "175", reps: "8", rest: "1:30", done: true },
-        { set: 2, weight: "175", reps: "8", rest: "1:30", done: true },
-        { set: 3, weight: "185", reps: "6", rest: "2:00", done: true },
-      ],
-    },
   ],
-  "ex-3": [
+  "ex-8": [
     {
-      id: "rdl-h1",
+      id: "pushup-h1",
       dateLabel: "Mar 8, 2026",
       sets: [
-        { set: 1, weight: "165", reps: "10", rest: "1:30", done: true },
-        { set: 2, weight: "165", reps: "10", rest: "1:30", done: true },
-        { set: 3, weight: "185", reps: "8", rest: "1:30", done: true },
+        { set: 1, weight: "", reps: "10", rest: "1:00", done: true },
+        { set: 2, weight: "10", reps: "8", rest: "1:00", done: true },
+        { set: 3, weight: "", reps: "12", rest: "1:00", done: true },
       ],
     },
   ],
-  "ex-4": [
+  "ex-9": [
     {
-      id: "incline-h1",
-      dateLabel: "Mar 6, 2026",
+      id: "deadbug-h1",
+      dateLabel: "Mar 8, 2026",
       sets: [
-        { set: 1, weight: "60", reps: "10", rest: "1:15", done: true },
-        { set: 2, weight: "60", reps: "10", rest: "1:15", done: true },
-        { set: 3, weight: "65", reps: "8", rest: "1:15", done: true },
+        { set: 1, weight: "", reps: "8", rest: "1:00", done: true },
+        { set: 2, weight: "", reps: "8", rest: "1:00", done: true },
+        { set: 3, weight: "", reps: "10", rest: "1:00", done: true },
       ],
     },
   ],
@@ -329,6 +328,7 @@ const WARMUP_SEQUENCE_EXERCISES: Exercise[] = [
     image:
       "https://images.unsplash.com/photo-1517838277536-f5f99be501cd?auto=format&fit=crop&w=1200&q=70",
     unitLabel: "REPS",
+    trackingMode: "reps_only",
     sets: [{ id: "s1", weight: "", reps: "20", rest: "0:20", done: false }],
   },
   {
@@ -338,6 +338,7 @@ const WARMUP_SEQUENCE_EXERCISES: Exercise[] = [
     image:
       "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=1200&q=70",
     unitLabel: "REPS",
+    trackingMode: "reps_only",
     sets: [{ id: "s1", weight: "", reps: "15", rest: "0:30", done: false }],
   },
   {
@@ -347,6 +348,7 @@ const WARMUP_SEQUENCE_EXERCISES: Exercise[] = [
     image:
       "https://images.unsplash.com/photo-1599058918144-1ffabb6ab9a0?auto=format&fit=crop&w=1200&q=70",
     unitLabel: "REPS",
+    trackingMode: "bodyweight_reps",
     sets: [{ id: "s1", weight: "", reps: "12", rest: "0:30", done: false }],
   },
 ];
@@ -363,7 +365,8 @@ const COOLDOWN_SEQUENCE_EXERCISES: Exercise[] = [
     image:
       "https://images.unsplash.com/photo-1506126613408-eca07ce68773?auto=format&fit=crop&w=1200&q=70",
     unitLabel: "REPS",
-    sets: [{ id: "s1", weight: "", reps: "6", rest: "0:20", done: false }],
+    trackingMode: "time",
+    sets: [{ id: "s1", weight: "360", reps: "", rest: "0:20", done: false }],
   },
   {
     id: "cd-2",
@@ -372,7 +375,8 @@ const COOLDOWN_SEQUENCE_EXERCISES: Exercise[] = [
     image:
       "https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=1200&q=70",
     unitLabel: "REPS",
-    sets: [{ id: "s1", weight: "", reps: "8", rest: "0:20", done: false }],
+    trackingMode: "time",
+    sets: [{ id: "s1", weight: "45", reps: "", rest: "0:20", done: false }],
   },
   {
     id: "cd-3",
@@ -381,7 +385,8 @@ const COOLDOWN_SEQUENCE_EXERCISES: Exercise[] = [
     image:
       "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?auto=format&fit=crop&w=1200&q=70",
     unitLabel: "REPS",
-    sets: [{ id: "s1", weight: "", reps: "8", rest: "0:20", done: false }],
+    trackingMode: "time",
+    sets: [{ id: "s1", weight: "45", reps: "", rest: "0:20", done: false }],
   },
 ];
 

@@ -1,8 +1,14 @@
-//app/workout/workoutEngine.ts
+// app/workout/workoutEngine.ts
+
+import {
+  isComparableTrackingMode,
+  isPrTrackingMode,
+  type TrackingMode,
+} from "./workout.types";
 import type {
-    HistoryWorkoutExercise,
-    HistoryWorkoutSet,
-    WorkoutHistoryEntry,
+  HistoryWorkoutExercise,
+  HistoryWorkoutSet,
+  WorkoutHistoryEntry,
 } from "./workoutHistory";
 
 export type EngineSetInput = {
@@ -18,6 +24,7 @@ export type EngineExerciseInput = {
   id: string;
   name: string;
   unitLabel: string;
+  trackingMode?: TrackingMode;
   sets: EngineSetInput[];
 };
 
@@ -97,6 +104,7 @@ export type FinishSummary = {
   exercises: Array<{
     id: string;
     name: string;
+    trackingMode: TrackingMode;
     completedSets: number;
     totalSetsPlanned: number;
     unitLabel: string;
@@ -280,58 +288,18 @@ export function buildFinishSummary({
 }: BuildFinishSummaryParams): BuildFinishSummaryResult {
   const currentHistoryExercises = exercises.map(buildHistoryExerciseFromInput);
 
-  const completedExercisesOnly = currentHistoryExercises
-    .map((ex) => {
-      const completedSetsOnly = ex.sets
-        .filter((set) => set.done)
-        .map((set) => ({
-          set: set.set,
-          weight: set.weight ?? "",
-          reps: set.reps ?? "",
-          rest: set.rest ?? "",
-          done: !!set.done,
-          note: set.note ?? "",
-        }));
-
-      if (completedSetsOnly.length === 0) return null;
-
-      return {
-        id: ex.id,
-        name: ex.name,
-        completedSets: completedSetsOnly.length,
-        totalSetsPlanned: ex.totalSetsPlanned,
-        unitLabel: ex.unitLabel,
-        sessionVolume: ex.sessionVolume,
-        sets: completedSetsOnly,
-      };
-    })
-    .filter(Boolean) as Array<{
-    id: string;
-    name: string;
-    completedSets: number;
-    totalSetsPlanned: number;
-    unitLabel: string;
-    sessionVolume: number;
-    sets: Array<{
-      set: number;
-      weight: string;
-      reps: string;
-      rest: string;
-      done: boolean;
-      note?: string;
-    }>;
-  }>;
-
   const totalSets = currentHistoryExercises.reduce(
     (sum, ex) => sum + ex.totalSetsPlanned,
     0,
   );
-  const totalCompletedSets = completedExercisesOnly.reduce(
+  const totalCompletedSets = currentHistoryExercises.reduce(
     (sum, ex) => sum + ex.completedSets,
     0,
   );
   const totalExercisesCount = currentHistoryExercises.length;
-  const completedExercisesCount = completedExercisesOnly.length;
+  const completedExercisesCount = currentHistoryExercises.filter(
+    (ex) => ex.completedSets > 0,
+  ).length;
   const completionRate = totalSets > 0 ? totalCompletedSets / totalSets : 0;
 
   let strengthSetCount = 0;
@@ -340,9 +308,9 @@ export function buildFinishSummary({
   let totalTrackedLoad = 0;
   let trackedLoadCount = 0;
 
-  currentHistoryExercises.forEach((exercise) => {
-    const isStrengthExercise =
-      exercise.unitLabel === "LBS" || exercise.unitLabel === "KG";
+  currentHistoryExercises.forEach((exercise, exerciseIndex) => {
+    const trackingMode = exercises[exerciseIndex]?.trackingMode ?? "weight_reps";
+    const isStrengthExercise = isComparableTrackingMode(trackingMode);
 
     exercise.sets.forEach((set) => {
       if (!set.done) return;
@@ -373,7 +341,7 @@ export function buildFinishSummary({
     });
   });
 
-  const totalVolume = completedExercisesOnly.reduce(
+  const totalVolume = currentHistoryExercises.reduce(
     (sum, ex) => sum + ex.sessionVolume,
     0,
   );
@@ -396,369 +364,391 @@ export function buildFinishSummary({
   let matchedSetCount = 0;
   let belowSetCount = 0;
 
-  const finishedExercises: FinishSummary["exercises"] = completedExercisesOnly.map((exercise) => {
-    const previousExercise = findMatchingExerciseFromEntry(
-      previousWorkout,
-      exercise.id,
-      exercise.name,
-    );
+  const finishedExercises: FinishSummary["exercises"] = currentHistoryExercises.map(
+    (exercise, exerciseIndex) => {
+      const trackingMode = exercises[exerciseIndex]?.trackingMode ?? "weight_reps";
+      const supportsComparison = isComparableTrackingMode(trackingMode);
+      const supportsPR = isPrTrackingMode(trackingMode);
 
-    const bestExerciseHistory = sortedHistory
-      .map((entry) => findMatchingExerciseFromEntry(entry, exercise.id, exercise.name))
-      .filter(Boolean) as HistoryWorkoutExercise[];
-
-    let exerciseImprovedSets = 0;
-    let exerciseMatchedSets = 0;
-    let exerciseBelowSets = 0;
-    let exercisePrCount = 0;
-
-    const sets = exercise.sets.map((set) => {
-      const currentWeight = toNumber(set.weight);
-      const currentReps = toNumber(set.reps);
-      const currentVolume = getSetVolume(set.weight, set.reps);
-
-      const previousSet = findSetByNumber(previousExercise, set.set);
-      const previousWeight = toNumber(previousSet?.weight);
-      const previousReps = toNumber(previousSet?.reps);
-      const previousVolume = previousSet
-        ? getSetVolume(previousSet.weight, previousSet.reps)
+      const previousExercise = supportsComparison
+        ? findMatchingExerciseFromEntry(previousWorkout, exercise.id, exercise.name)
         : null;
 
-      const bestSet = findBestSetAtIndexAcrossHistory(
-        sortedHistory,
-        exercise.id,
-        exercise.name,
-        set.set,
-      );
+      const bestExerciseHistory = supportsComparison
+        ? (sortedHistory
+            .map((entry) => findMatchingExerciseFromEntry(entry, exercise.id, exercise.name))
+            .filter(Boolean) as HistoryWorkoutExercise[])
+        : [];
 
-      const bestWeight = toNumber(bestSet?.weight);
-      const bestReps = toNumber(bestSet?.reps);
-      const bestVolume = bestSet ? getSetVolume(bestSet.weight, bestSet.reps) : null;
+      let exerciseImprovedSets = 0;
+      let exerciseMatchedSets = 0;
+      let exerciseBelowSets = 0;
+      let exercisePrCount = 0;
 
-      let state: SetComparison["state"] = "no_data";
-      let isWeightPR = false;
-      let isRepPR = false;
-      let isVolumePR = false;
+      const sets = exercise.sets.map((set) => {
+        const currentWeight = toNumber(set.weight);
+        const currentReps = toNumber(set.reps);
+        const currentVolume = getSetVolume(set.weight, set.reps);
 
-      if (bestWeight != null && currentWeight != null && currentWeight > bestWeight) {
-        isWeightPR = true;
-      }
-      if (bestReps != null && currentReps != null && currentReps > bestReps) {
-        isRepPR = true;
-      }
-      if (bestVolume != null && currentVolume > bestVolume) {
-        isVolumePR = true;
-      }
+        const previousSet =
+          supportsComparison && set.done
+            ? findSetByNumber(previousExercise, set.set)
+            : null;
+        const previousWeight = toNumber(previousSet?.weight);
+        const previousReps = toNumber(previousSet?.reps);
+        const previousVolume = previousSet
+          ? getSetVolume(previousSet.weight, previousSet.reps)
+          : null;
 
-      if (isWeightPR || isRepPR || isVolumePR) {
-        state = "pr";
-      } else if (
-        previousWeight == null &&
-        previousReps == null &&
-        (previousVolume == null || previousVolume === 0)
-      ) {
-        state = "no_data";
-      } else {
-        const weightDelta =
-          currentWeight != null && previousWeight != null
-            ? currentWeight - previousWeight
-            : 0;
+        const bestSet =
+          supportsComparison && set.done
+            ? findBestSetAtIndexAcrossHistory(
+                sortedHistory,
+                exercise.id,
+                exercise.name,
+                set.set,
+              )
+            : null;
 
-        const repsDelta =
-          currentReps != null && previousReps != null ? currentReps - previousReps : 0;
+        const bestWeight = toNumber(bestSet?.weight);
+        const bestReps = toNumber(bestSet?.reps);
+        const bestVolume = bestSet ? getSetVolume(bestSet.weight, bestSet.reps) : null;
 
-        const volumeDelta =
-          previousVolume != null ? currentVolume - previousVolume : 0;
+        let state: SetComparison["state"] = "no_data";
+        let isWeightPR = false;
+        let isRepPR = false;
+        let isVolumePR = false;
 
-        if (volumeDelta > 0 || weightDelta > 0 || repsDelta > 0) {
-          state = "better";
-        } else if (
-          (currentWeight ?? 0) === (previousWeight ?? 0) &&
-          (currentReps ?? 0) === (previousReps ?? 0) &&
-          Math.round(currentVolume) === Math.round(previousVolume ?? 0)
+        if (set.done && supportsComparison) {
+          if (supportsPR && bestWeight != null && currentWeight != null && currentWeight > bestWeight) {
+            isWeightPR = true;
+          }
+          if (supportsPR && bestReps != null && currentReps != null && currentReps > bestReps) {
+            isRepPR = true;
+          }
+          if (supportsPR && bestVolume != null && currentVolume > bestVolume) {
+            isVolumePR = true;
+          }
+
+          if (isWeightPR || isRepPR || isVolumePR) {
+            state = "pr";
+          } else if (
+            previousWeight == null &&
+            previousReps == null &&
+            (previousVolume == null || previousVolume === 0)
+          ) {
+            state = "no_data";
+          } else {
+            const weightDelta =
+              currentWeight != null && previousWeight != null
+                ? currentWeight - previousWeight
+                : 0;
+
+            const repsDelta =
+              currentReps != null && previousReps != null ? currentReps - previousReps : 0;
+
+            const volumeDelta =
+              previousVolume != null ? currentVolume - previousVolume : 0;
+
+            if (volumeDelta > 0 || weightDelta > 0 || repsDelta > 0) {
+              state = "better";
+            } else if (
+              (currentWeight ?? 0) === (previousWeight ?? 0) &&
+              (currentReps ?? 0) === (previousReps ?? 0) &&
+              Math.round(currentVolume) === Math.round(previousVolume ?? 0)
+            ) {
+              state = "same";
+            } else {
+              state = "mixed";
+            }
+          }
+
+          if (state === "pr" || state === "better") {
+            exerciseImprovedSets += 1;
+            improvedSetCount += 1;
+          } else if (state === "same") {
+            exerciseMatchedSets += 1;
+            matchedSetCount += 1;
+          } else if (state === "mixed") {
+            exerciseBelowSets += 1;
+            belowSetCount += 1;
+          }
+
+          const newPrEntries: FinishSummary["prs"] = [];
+
+          if (isWeightPR && currentWeight != null && bestWeight != null) {
+            newPrEntries.push({
+              exerciseId: exercise.id,
+              exerciseName: exercise.name,
+              set: set.set,
+              type: "weight",
+              previousBestValue: bestWeight,
+              currentValue: currentWeight,
+              delta: currentWeight - bestWeight,
+              weight: set.weight,
+              reps: set.reps,
+            });
+          }
+
+          if (isRepPR && currentReps != null && bestReps != null) {
+            newPrEntries.push({
+              exerciseId: exercise.id,
+              exerciseName: exercise.name,
+              set: set.set,
+              type: "reps",
+              previousBestValue: bestReps,
+              currentValue: currentReps,
+              delta: currentReps - bestReps,
+              weight: set.weight,
+              reps: set.reps,
+            });
+          }
+
+          if (isVolumePR && bestVolume != null) {
+            newPrEntries.push({
+              exerciseId: exercise.id,
+              exerciseName: exercise.name,
+              set: set.set,
+              type: "volume",
+              previousBestValue: bestVolume,
+              currentValue: currentVolume,
+              delta: currentVolume - bestVolume,
+              weight: set.weight,
+              reps: set.reps,
+            });
+          }
+
+          if (newPrEntries.length > 0) {
+            prs.push(...newPrEntries);
+            exercisePrCount += newPrEntries.length;
+          }
+        }
+
+        return {
+          ...set,
+          comparison:
+            set.done && supportsComparison
+              ? ({
+                  previous:
+                    previousWeight != null || previousReps != null || previousVolume != null
+                      ? {
+                          weight: previousWeight ?? undefined,
+                          reps: previousReps ?? undefined,
+                          volume: previousVolume ?? undefined,
+                        }
+                      : undefined,
+                  deltaVsPrevious:
+                    previousWeight != null || previousReps != null || previousVolume != null
+                      ? {
+                          weight:
+                            currentWeight != null && previousWeight != null
+                              ? currentWeight - previousWeight
+                              : undefined,
+                          reps:
+                            currentReps != null && previousReps != null
+                              ? currentReps - previousReps
+                              : undefined,
+                          volume:
+                            previousVolume != null ? currentVolume - previousVolume : undefined,
+                        }
+                      : undefined,
+                  best:
+                    bestWeight != null || bestReps != null || bestVolume != null
+                      ? {
+                          weight: bestWeight ?? undefined,
+                          reps: bestReps ?? undefined,
+                          volume: bestVolume ?? undefined,
+                        }
+                      : undefined,
+                  deltaVsBest:
+                    bestWeight != null || bestReps != null || bestVolume != null
+                      ? {
+                          weight:
+                            currentWeight != null && bestWeight != null
+                              ? currentWeight - bestWeight
+                              : undefined,
+                          reps:
+                            currentReps != null && bestReps != null
+                              ? currentReps - bestReps
+                              : undefined,
+                          volume: bestVolume != null ? currentVolume - bestVolume : undefined,
+                        }
+                      : undefined,
+                  state,
+                  isWeightPR,
+                  isRepPR,
+                  isVolumePR,
+                } satisfies SetComparison)
+              : undefined,
+        };
+      });
+
+      const completedOnlySets = exercise.sets.filter((set) => set.done);
+
+      const previousBestWeight = previousExercise
+        ? previousExercise.sets.reduce((max, set) => {
+            const w = toNumber(set.weight);
+            return w == null ? max : Math.max(max, w);
+          }, 0)
+        : 0;
+
+      const previousBestReps = previousExercise
+        ? previousExercise.sets.reduce((max, set) => {
+            const r = toNumber(set.reps);
+            return r == null ? max : Math.max(max, r);
+          }, 0)
+        : 0;
+
+      const previousSessionVolume = previousExercise
+        ? previousExercise.sets.reduce((sum, set) => {
+            if (!set.done) return sum;
+            return sum + getSetVolume(set.weight, set.reps);
+          }, 0)
+        : 0;
+
+      const currentBestWeight = completedOnlySets.reduce((max, set) => {
+        const w = toNumber(set.weight);
+        return w == null ? max : Math.max(max, w);
+      }, 0);
+
+      const currentBestReps = completedOnlySets.reduce((max, set) => {
+        const r = toNumber(set.reps);
+        return r == null ? max : Math.max(max, r);
+      }, 0);
+
+      let comparedToLast: FinishSummary["exercises"][number]["comparedToLast"] = {
+        result: "no_data",
+      };
+
+      if (supportsComparison && previousExercise && completedOnlySets.length > 0) {
+        const improvedWeight = currentBestWeight > previousBestWeight;
+        const improvedReps = currentBestReps > previousBestReps;
+        const improvedVolume = exercise.sessionVolume > previousSessionVolume;
+
+        let result: "better" | "same" | "mixed" | "no_data" = "same";
+
+        if (improvedWeight || improvedReps || improvedVolume) result = "better";
+        else if (
+          currentBestWeight === previousBestWeight &&
+          currentBestReps === previousBestReps &&
+          Math.round(exercise.sessionVolume) === Math.round(previousSessionVolume)
         ) {
-          state = "same";
+          result = "same";
         } else {
-          state = "mixed";
+          result = "mixed";
+        }
+
+        comparedToLast = {
+          previousWeight: previousBestWeight || undefined,
+          previousReps: previousBestReps || undefined,
+          previousVolume: previousSessionVolume || undefined,
+          result,
+        };
+      }
+
+      let bestWeightAllTime = 0;
+      let bestRepsAllTime = 0;
+      let bestVolumeAllTime = 0;
+
+      bestExerciseHistory.forEach((historyExercise) => {
+        historyExercise.sets.forEach((set) => {
+          const w = toNumber(set.weight);
+          const r = toNumber(set.reps);
+          const v = getSetVolume(set.weight, set.reps);
+
+          if (w != null) bestWeightAllTime = Math.max(bestWeightAllTime, w);
+          if (r != null) bestRepsAllTime = Math.max(bestRepsAllTime, r);
+          bestVolumeAllTime = Math.max(bestVolumeAllTime, v);
+        });
+      });
+
+      let comparedToBest: FinishSummary["exercises"][number]["comparedToBest"] = {
+        result: "no_data",
+      };
+
+      if (supportsComparison && bestExerciseHistory.length > 0 && completedOnlySets.length > 0) {
+        const improvedWeight = currentBestWeight > bestWeightAllTime;
+        const improvedReps = currentBestReps > bestRepsAllTime;
+        const improvedVolume = exercise.sessionVolume > bestVolumeAllTime;
+
+        let result: "better" | "same" | "mixed" | "no_data" = "same";
+
+        if (improvedWeight || improvedReps || improvedVolume) result = "better";
+        else if (
+          currentBestWeight === bestWeightAllTime &&
+          currentBestReps === bestRepsAllTime &&
+          Math.round(exercise.sessionVolume) === Math.round(bestVolumeAllTime)
+        ) {
+          result = "same";
+        } else {
+          result = "mixed";
+        }
+
+        comparedToBest = {
+          bestWeight: bestWeightAllTime || undefined,
+          bestReps: bestRepsAllTime || undefined,
+          bestVolume: bestVolumeAllTime || undefined,
+          result,
+        };
+      }
+
+      if (supportsComparison && previousExercise && completedOnlySets.length > 0) {
+        if (currentBestWeight > previousBestWeight) {
+          wins.push({
+            exerciseId: exercise.id,
+            exerciseName: exercise.name,
+            type: "heavier",
+            label: "Heavier than last session",
+          });
+        } else if (currentBestReps > previousBestReps) {
+          wins.push({
+            exerciseId: exercise.id,
+            exerciseName: exercise.name,
+            type: "more_reps",
+            label: "More reps than last session",
+          });
+        } else if (
+          currentBestWeight === previousBestWeight &&
+          currentBestReps === previousBestReps &&
+          currentBestWeight > 0
+        ) {
+          wins.push({
+            exerciseId: exercise.id,
+            exerciseName: exercise.name,
+            type: "matched",
+            label: "Matched last session",
+          });
+        } else if (exercise.sessionVolume > previousSessionVolume && exercise.sessionVolume > 0) {
+          wins.push({
+            exerciseId: exercise.id,
+            exerciseName: exercise.name,
+            type: "volume_up",
+            label: "Higher session volume",
+          });
         }
       }
 
-      if (state === "pr" || state === "better") {
-        exerciseImprovedSets += 1;
-        improvedSetCount += 1;
-      } else if (state === "same") {
-        exerciseMatchedSets += 1;
-        matchedSetCount += 1;
-      } else if (state === "mixed") {
-        exerciseBelowSets += 1;
-        belowSetCount += 1;
-      }
-
-      const newPrEntries: FinishSummary["prs"] = [];
-
-      if (isWeightPR && currentWeight != null && bestWeight != null) {
-        newPrEntries.push({
-          exerciseId: exercise.id,
-          exerciseName: exercise.name,
-          set: set.set,
-          type: "weight",
-          previousBestValue: bestWeight,
-          currentValue: currentWeight,
-          delta: currentWeight - bestWeight,
-          weight: set.weight,
-          reps: set.reps,
-        });
-      }
-
-      if (isRepPR && currentReps != null && bestReps != null) {
-        newPrEntries.push({
-          exerciseId: exercise.id,
-          exerciseName: exercise.name,
-          set: set.set,
-          type: "reps",
-          previousBestValue: bestReps,
-          currentValue: currentReps,
-          delta: currentReps - bestReps,
-          weight: set.weight,
-          reps: set.reps,
-        });
-      }
-
-      if (isVolumePR && bestVolume != null) {
-        newPrEntries.push({
-          exerciseId: exercise.id,
-          exerciseName: exercise.name,
-          set: set.set,
-          type: "volume",
-          previousBestValue: bestVolume,
-          currentValue: currentVolume,
-          delta: currentVolume - bestVolume,
-          weight: set.weight,
-          reps: set.reps,
-        });
-      }
-
-      if (newPrEntries.length > 0) {
-        prs.push(...newPrEntries);
-        exercisePrCount += newPrEntries.length;
+      if (supportsComparison && completedOnlySets.length > 0) {
+        if (comparedToLast.result === "better") improvedExerciseCount += 1;
+        else if (comparedToLast.result === "same") matchedExerciseCount += 1;
+        else if (comparedToLast.result === "mixed") belowExerciseCount += 1;
       }
 
       return {
-        ...set,
-        comparison: {
-          previous:
-            previousWeight != null || previousReps != null || previousVolume != null
-              ? {
-                  weight: previousWeight ?? undefined,
-                  reps: previousReps ?? undefined,
-                  volume: previousVolume ?? undefined,
-                }
-              : undefined,
-          deltaVsPrevious:
-            previousWeight != null || previousReps != null || previousVolume != null
-              ? {
-                  weight:
-                    currentWeight != null && previousWeight != null
-                      ? currentWeight - previousWeight
-                      : undefined,
-                  reps:
-                    currentReps != null && previousReps != null
-                      ? currentReps - previousReps
-                      : undefined,
-                  volume:
-                    previousVolume != null ? currentVolume - previousVolume : undefined,
-                }
-              : undefined,
-          best:
-            bestWeight != null || bestReps != null || bestVolume != null
-              ? {
-                  weight: bestWeight ?? undefined,
-                  reps: bestReps ?? undefined,
-                  volume: bestVolume ?? undefined,
-                }
-              : undefined,
-          deltaVsBest:
-            bestWeight != null || bestReps != null || bestVolume != null
-              ? {
-                  weight:
-                    currentWeight != null && bestWeight != null
-                      ? currentWeight - bestWeight
-                      : undefined,
-                  reps:
-                    currentReps != null && bestReps != null
-                      ? currentReps - bestReps
-                      : undefined,
-                  volume: bestVolume != null ? currentVolume - bestVolume : undefined,
-                }
-              : undefined,
-          state,
-          isWeightPR,
-          isRepPR,
-          isVolumePR,
-        } satisfies SetComparison,
+        ...exercise,
+        trackingMode,
+        comparedToLast,
+        comparedToBest,
+        insights: {
+          improvedSets: exerciseImprovedSets,
+          matchedSets: exerciseMatchedSets,
+          belowSets: exerciseBelowSets,
+          prCount: exercisePrCount,
+        },
+        sets,
       };
-    });
-
-    const previousBestWeight = previousExercise
-      ? previousExercise.sets.reduce((max, set) => {
-          const w = toNumber(set.weight);
-          return w == null ? max : Math.max(max, w);
-        }, 0)
-      : 0;
-
-    const previousBestReps = previousExercise
-      ? previousExercise.sets.reduce((max, set) => {
-          const r = toNumber(set.reps);
-          return r == null ? max : Math.max(max, r);
-        }, 0)
-      : 0;
-
-    const previousSessionVolume = previousExercise
-      ? previousExercise.sets.reduce((sum, set) => {
-          if (!set.done) return sum;
-          return sum + getSetVolume(set.weight, set.reps);
-        }, 0)
-      : 0;
-
-    const currentBestWeight = exercise.sets.reduce((max, set) => {
-      const w = toNumber(set.weight);
-      return w == null ? max : Math.max(max, w);
-    }, 0);
-
-    const currentBestReps = exercise.sets.reduce((max, set) => {
-      const r = toNumber(set.reps);
-      return r == null ? max : Math.max(max, r);
-    }, 0);
-
-    let comparedToLast: FinishSummary["exercises"][number]["comparedToLast"] = {
-      result: "no_data",
-    };
-
-    if (previousExercise) {
-      const improvedWeight = currentBestWeight > previousBestWeight;
-      const improvedReps = currentBestReps > previousBestReps;
-      const improvedVolume = exercise.sessionVolume > previousSessionVolume;
-
-      let result: "better" | "same" | "mixed" | "no_data" = "same";
-
-      if (improvedWeight || improvedReps || improvedVolume) result = "better";
-      else if (
-        currentBestWeight === previousBestWeight &&
-        currentBestReps === previousBestReps &&
-        Math.round(exercise.sessionVolume) === Math.round(previousSessionVolume)
-      ) {
-        result = "same";
-      } else {
-        result = "mixed";
-      }
-
-      comparedToLast = {
-        previousWeight: previousBestWeight || undefined,
-        previousReps: previousBestReps || undefined,
-        previousVolume: previousSessionVolume || undefined,
-        result,
-      };
-    }
-
-    let bestWeightAllTime = 0;
-    let bestRepsAllTime = 0;
-    let bestVolumeAllTime = 0;
-
-    bestExerciseHistory.forEach((historyExercise) => {
-      historyExercise.sets.forEach((set) => {
-        const w = toNumber(set.weight);
-        const r = toNumber(set.reps);
-        const v = getSetVolume(set.weight, set.reps);
-
-        if (w != null) bestWeightAllTime = Math.max(bestWeightAllTime, w);
-        if (r != null) bestRepsAllTime = Math.max(bestRepsAllTime, r);
-        bestVolumeAllTime = Math.max(bestVolumeAllTime, v);
-      });
-    });
-
-    let comparedToBest: FinishSummary["exercises"][number]["comparedToBest"] = {
-      result: "no_data",
-    };
-
-    if (bestExerciseHistory.length > 0) {
-      const improvedWeight = currentBestWeight > bestWeightAllTime;
-      const improvedReps = currentBestReps > bestRepsAllTime;
-      const improvedVolume = exercise.sessionVolume > bestVolumeAllTime;
-
-      let result: "better" | "same" | "mixed" | "no_data" = "same";
-
-      if (improvedWeight || improvedReps || improvedVolume) result = "better";
-      else if (
-        currentBestWeight === bestWeightAllTime &&
-        currentBestReps === bestRepsAllTime &&
-        Math.round(exercise.sessionVolume) === Math.round(bestVolumeAllTime)
-      ) {
-        result = "same";
-      } else {
-        result = "mixed";
-      }
-
-      comparedToBest = {
-        bestWeight: bestWeightAllTime || undefined,
-        bestReps: bestRepsAllTime || undefined,
-        bestVolume: bestVolumeAllTime || undefined,
-        result,
-      };
-    }
-
-    if (previousExercise && exercise.sets.length > 0) {
-      if (currentBestWeight > previousBestWeight) {
-        wins.push({
-          exerciseId: exercise.id,
-          exerciseName: exercise.name,
-          type: "heavier",
-          label: "Heavier than last session",
-        });
-      } else if (currentBestReps > previousBestReps) {
-        wins.push({
-          exerciseId: exercise.id,
-          exerciseName: exercise.name,
-          type: "more_reps",
-          label: "More reps than last session",
-        });
-      } else if (
-        currentBestWeight === previousBestWeight &&
-        currentBestReps === previousBestReps &&
-        currentBestWeight > 0
-      ) {
-        wins.push({
-          exerciseId: exercise.id,
-          exerciseName: exercise.name,
-          type: "matched",
-          label: "Matched last session",
-        });
-      } else if (exercise.sessionVolume > previousSessionVolume && exercise.sessionVolume > 0) {
-        wins.push({
-          exerciseId: exercise.id,
-          exerciseName: exercise.name,
-          type: "volume_up",
-          label: "Higher session volume",
-        });
-      }
-    }
-
-    if (comparedToLast.result === "better") improvedExerciseCount += 1;
-    else if (comparedToLast.result === "same") matchedExerciseCount += 1;
-    else if (comparedToLast.result === "mixed") belowExerciseCount += 1;
-
-    return {
-      ...exercise,
-      comparedToLast,
-      comparedToBest,
-      insights: {
-        improvedSets: exerciseImprovedSets,
-        matchedSets: exerciseMatchedSets,
-        belowSets: exerciseBelowSets,
-        prCount: exercisePrCount,
-      },
-      sets,
-    };
-  });
+    },
+  );
 
   const historyEntry: WorkoutHistoryEntry = {
     sessionId,

@@ -13,6 +13,15 @@ export function createProgressStyles(
     border: string;
     borderSubtle: string;
     premium: string;
+    premiumText: string;
+    premiumSoft: string;
+    premiumBorder: string;
+    success: string;
+    successText: string;
+    successSoft: string;
+    successBorder: string;
+    danger: string;
+    warning: string;
   },
   isDark: boolean,
 ) {
@@ -20,10 +29,10 @@ export function createProgressStyles(
   const SOFT = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)";
   const SOFT_2 = isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)";
   const SOFT_3 = isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.08)";
-  const GOLD_SOFT = isDark ? "rgba(244,200,74,0.16)" : "rgba(244,200,74,0.16)";
-  const GOLD_SOFT_STRONG = isDark ? "rgba(244,200,74,0.22)" : "rgba(244,200,74,0.22)";
-  const GREEN_SOFT = isDark ? "rgba(52,199,89,0.18)" : "rgba(52,199,89,0.12)";
-  const ORANGE_SOFT = isDark ? "rgba(255,159,10,0.20)" : "rgba(255,159,10,0.12)";
+  const GOLD_SOFT = colors.premiumSoft;
+  const GOLD_SOFT_STRONG = colors.premiumBorder;
+  const GREEN_SOFT = colors.successSoft;
+  const ORANGE_SOFT = isDark ? "rgba(245,158,11,0.20)" : "rgba(245,158,11,0.12)";
   const BLUE_SOFT = isDark ? "rgba(90,200,250,0.18)" : "rgba(90,200,250,0.12)";
   const RED_SOFT = isDark ? "rgba(255,69,58,0.18)" : "rgba(255,69,58,0.10)";
 
@@ -334,7 +343,7 @@ export function createProgressStyles(
     },
 
     weekDotCompleted: {
-      backgroundColor: colors.text,
+      backgroundColor: colors.success,
     },
 
     weekDotPartial: {
@@ -403,7 +412,7 @@ export function createProgressStyles(
 
     dayChipCompleted: {
       backgroundColor: GREEN_SOFT,
-      borderColor: GREEN_SOFT,
+      borderColor: colors.successBorder,
     },
 
     dayChipPartial: {
@@ -579,7 +588,7 @@ export function createProgressStyles(
     exerciseTrendText: {
       fontSize: 11,
       fontWeight: "900",
-      color: colors.text,
+      color: colors.premiumText,
       letterSpacing: 0.25,
       textTransform: "uppercase",
     },
@@ -680,7 +689,7 @@ export function createProgressStyles(
 
     trendPillGood: {
       backgroundColor: GREEN_SOFT,
-      borderColor: GREEN_SOFT,
+      borderColor: colors.successBorder,
     },
 
     trendPillUp: {
@@ -699,7 +708,7 @@ export function createProgressStyles(
     },
 
     trendTextGood: {
-      color: colors.text,
+      color: colors.successText,
     },
 
     trendTextUp: {
@@ -739,7 +748,6 @@ export function createProgressStyles(
       height: 24,
     },
 
-    // legacy compatibility / safe fallbacks
     barTrack: {
       height: 10,
       borderRadius: 999,

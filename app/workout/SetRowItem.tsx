@@ -1,13 +1,21 @@
 // app/workout/SetRowItem.tsx
 
 import { Check, MessageSquare } from "lucide-react-native";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Animated, Pressable, Text, TextInput, View } from "react-native";
 import { Swipeable } from "react-native-gesture-handler";
 
 import { useAppTheme } from "@/app/_providers/theme";
 import { formatStoredWeightStringForDisplay } from "@/app/lib/weightUnits";
 import { createWorkoutStyles } from "./workout.styles";
+import {
+  formatSecondsToClock,
+  getTrackingModeConfig,
+  normalizeTimeInput,
+  parseClockToSeconds,
+  sanitizeNumericInput,
+  type TrackingMode,
+} from "./workout.types";
 
 export type SetRow = {
   id: string;
@@ -17,8 +25,6 @@ export type SetRow = {
   done?: boolean;
   note?: string;
 };
-
-export type UnitLabel = "LBS" | "KG" | "REPS";
 
 type Props = {
   set: SetRow;
@@ -39,6 +45,7 @@ type Props = {
 
   weightUnit: "kg" | "lbs";
   isWeightBased: boolean;
+  trackingMode?: TrackingMode;
 };
 
 export function SetRowItem({
@@ -56,29 +63,46 @@ export function SetRowItem({
   closeOthers,
   weightUnit,
   isWeightBased,
+  trackingMode = "weight_reps",
 }: Props) {
   const { colors, isDark } = useAppTheme();
   const S = useMemo(() => createWorkoutStyles(colors, isDark), [colors, isDark]);
+  const modeConfig = useMemo(() => getTrackingModeConfig(trackingMode), [trackingMode]);
+
+  const primaryInputRef = useRef<TextInput | null>(null);
+  const secondaryInputRef = useRef<TextInput | null>(null);
+  const thirdInputRef = useRef<TextInput | null>(null);
+  const lastAutoFocusedKeyRef = useRef<string | null>(null);
+
+  const [primarySelection, setPrimarySelection] = useState<
+    { start: number; end: number } | undefined
+  >(undefined);
+  const [secondarySelection, setSecondarySelection] = useState<
+    { start: number; end: number } | undefined
+  >(undefined);
+  const [thirdSelection, setThirdSelection] = useState<
+    { start: number; end: number } | undefined
+  >(undefined);
 
   const cellStyle = (done: boolean, active: boolean) => ({
-    height: 52,
+    height: 56,
     borderWidth: 1.5,
     borderColor: done
-      ? "rgba(34, 197, 94, 0.26)"
+      ? colors.successBorder
       : active
-        ? "rgba(244, 200, 74, 0.70)"
+        ? colors.premiumBorder
         : colors.borderSubtle,
     backgroundColor: done
-      ? "rgba(34, 197, 94, 0.05)"
+      ? colors.successSoft
       : active
-        ? "rgba(244, 200, 74, 0.10)"
+        ? colors.premiumSoft
         : colors.surface,
   });
 
   const inputTextStyle = (done: boolean) => ({
     fontSize: 16,
     fontWeight: "800" as const,
-    color: done ? "rgba(34, 197, 94, 0.92)" : colors.text,
+    color: done ? colors.successText : colors.text,
   });
 
   const placeholderColor = isDark ? "rgba(255,255,255,0.24)" : "rgba(0,0,0,0.25)";
@@ -90,67 +114,136 @@ export function SetRowItem({
 
   const displayWeight = useMemo(() => {
     if (!isWeightBased) return set.weight ?? "";
-
+    if (!(set.weight ?? "").trim()) return "";
     return formatStoredWeightStringForDisplay({
       storedWeight: set.weight ?? "",
       unit: weightUnit,
     });
   }, [isWeightBased, set.weight, weightUnit]);
 
-  const [w, setW] = useState(displayWeight);
-  const [r, setR] = useState(set.reps ?? "");
-  const [rest, setRest] = useState(set.rest ?? "");
+  const primaryValue = useMemo(() => {
+    if (trackingMode === "time") return formatSecondsToClock(set.weight);
+    if (trackingMode === "reps_only") return set.reps ?? "";
+    if (trackingMode === "calories") return set.weight ?? "";
+    return displayWeight;
+  }, [trackingMode, set.weight, set.reps, displayWeight]);
+
+  const secondaryValue = useMemo(() => {
+    if (trackingMode === "time" || trackingMode === "reps_only" || trackingMode === "calories") {
+      return set.rest ?? "";
+    }
+    return set.reps ?? "";
+  }, [trackingMode, set.reps, set.rest]);
+
+  const thirdValue = useMemo(() => {
+    if (modeConfig.hideThirdField) return "";
+    return set.rest ?? "";
+  }, [modeConfig.hideThirdField, set.rest]);
+
+  const [primary, setPrimary] = useState(primaryValue);
+  const [secondary, setSecondary] = useState(secondaryValue);
+  const [third, setThird] = useState(thirdValue);
 
   useEffect(() => {
-    setW(displayWeight);
-  }, [displayWeight]);
+    setPrimary(primaryValue);
+  }, [primaryValue]);
 
   useEffect(() => {
-    setR(set.reps ?? "");
-    setRest(set.rest ?? "");
-  }, [set.reps, set.rest]);
+    setSecondary(secondaryValue);
+  }, [secondaryValue]);
 
-  const handleFocus = useCallback(() => {
-    closeOthers(rowKey);
-    onFocus(setKey);
-  }, [closeOthers, rowKey, onFocus, setKey]);
+  useEffect(() => {
+    setThird(thirdValue);
+  }, [thirdValue]);
+
+  useEffect(() => {
+    if (!isActive || !!set.done) return;
+    if (lastAutoFocusedKeyRef.current === setKey) return;
+
+    const targetRef =
+      primaryInputRef.current ?? secondaryInputRef.current ?? thirdInputRef.current;
+
+    if (!targetRef) return;
+
+    const t = setTimeout(() => {
+      targetRef.focus();
+      lastAutoFocusedKeyRef.current = setKey;
+    }, 140);
+
+    return () => clearTimeout(t);
+  }, [isActive, set.done, setKey]);
+
+  const handleFocus = useCallback(
+    (field: "primary" | "secondary" | "third", value: string) => {
+      closeOthers(rowKey);
+      onFocus(setKey);
+      lastAutoFocusedKeyRef.current = setKey;
+
+      const nextSelection = {
+        start: value.length,
+        end: value.length,
+      };
+
+      if (field === "primary") setPrimarySelection(nextSelection);
+      if (field === "secondary") setSecondarySelection(nextSelection);
+      if (field === "third") setThirdSelection(nextSelection);
+    },
+    [closeOthers, rowKey, onFocus, setKey],
+  );
 
   const commit = useCallback(() => {
     if (set.done) return;
 
     const patch: Partial<SetRow> = {};
-    const nextW = w.replace(/[^\d.]/g, "");
-    const nextR = r.replace(/[^\d.]/g, "");
-    const nextRest = rest;
 
-    const currentDisplayWeight = isWeightBased
-      ? formatStoredWeightStringForDisplay({
-          storedWeight: set.weight ?? "",
-          unit: weightUnit,
-        })
-      : (set.weight ?? "");
+    if (trackingMode === "time") {
+      const nextSeconds = parseClockToSeconds(primary);
+      if ((set.weight ?? "") !== nextSeconds) patch.weight = nextSeconds;
+      if ((set.rest ?? "") !== secondary) patch.rest = secondary;
+    } else if (trackingMode === "reps_only") {
+      const cleanReps = sanitizeNumericInput(primary);
+      if ((set.reps ?? "") !== cleanReps) patch.reps = cleanReps;
+      if ((set.rest ?? "") !== secondary) patch.rest = secondary;
+    } else if (trackingMode === "calories") {
+      const cleanCalories = sanitizeNumericInput(primary);
+      if ((set.weight ?? "") !== cleanCalories) patch.weight = cleanCalories;
+      if ((set.rest ?? "") !== secondary) patch.rest = secondary;
+    } else {
+      const cleanPrimary = sanitizeNumericInput(primary);
+      const cleanSecondary = sanitizeNumericInput(secondary);
+      const cleanThird = third;
 
-    if (currentDisplayWeight !== nextW) patch.weight = nextW;
-    if ((set.reps ?? "") !== nextR) patch.reps = nextR;
-    if ((set.rest ?? "") !== nextRest) patch.rest = nextRest;
+      const currentDisplayWeight = isWeightBased
+        ? formatStoredWeightStringForDisplay({
+            storedWeight: set.weight ?? "",
+            unit: weightUnit,
+          })
+        : set.weight ?? "";
+
+      if (currentDisplayWeight !== cleanPrimary) patch.weight = cleanPrimary;
+      if ((set.reps ?? "") !== cleanSecondary) patch.reps = cleanSecondary;
+      if ((set.rest ?? "") !== cleanThird) patch.rest = cleanThird;
+    }
 
     if (Object.keys(patch).length) onUpdate(exId, set.id, patch);
   }, [
+    exId,
+    isWeightBased,
+    onUpdate,
+    primary,
+    secondary,
     set.done,
-    set.weight,
+    set.id,
     set.reps,
     set.rest,
-    w,
-    r,
-    rest,
-    isWeightBased,
+    set.weight,
+    third,
+    trackingMode,
     weightUnit,
-    onUpdate,
-    exId,
-    set.id,
   ]);
 
   const isDone = !!set.done;
+  const hideThirdField = modeConfig.hideThirdField;
 
   return (
     <Swipeable
@@ -197,14 +290,14 @@ export function SetRowItem({
             height: 76,
             paddingVertical: 10,
             backgroundColor: isDone
-              ? "rgba(34, 197, 94, 0.08)"
+              ? colors.successSoft
               : isActive
-                ? "rgba(244, 200, 74, 0.12)"
+                ? colors.premiumSoft
                 : colors.surface,
           },
         ]}
       >
-        {isActive ? <View style={S.rowActiveBar} /> : null}
+        {isActive ? <View style={[S.rowActiveBar, { backgroundColor: colors.premium }]} /> : null}
 
         <Pressable
           onLongPress={() => onNote(exId, set.id)}
@@ -216,7 +309,7 @@ export function SetRowItem({
               S.setIndex,
               {
                 color: isDone
-                  ? "rgba(34, 197, 94, 0.80)"
+                  ? colors.successText
                   : isActive
                     ? colors.text
                     : mutedIndexColor,
@@ -247,19 +340,26 @@ export function SetRowItem({
         <View style={{ flex: 1, marginHorizontal: 6 }}>
           <View style={[S.cell, cellStyle(isDone, isActive)]}>
             <TextInput
+              ref={primaryInputRef}
               {...(iosAccessoryProps ?? {})}
-              value={w}
-              onChangeText={(t) => setW(t.replace(/[^\d.]/g, ""))}
-              onFocus={handleFocus}
-              onPressIn={handleFocus}
+              value={primary}
+              onChangeText={(t) => {
+                if (trackingMode === "time") {
+                  setPrimary(normalizeTimeInput(t));
+                  return;
+                }
+                setPrimary(sanitizeNumericInput(t));
+              }}
+              onFocus={() => handleFocus("primary", primary)}
+              selection={primarySelection}
+              onSelectionChange={(e) => setPrimarySelection(e.nativeEvent.selection)}
               onBlur={commit}
               keyboardType="numeric"
               inputMode="numeric"
               style={[S.input, inputTextStyle(isDone)]}
-              placeholder="—"
+              placeholder={modeConfig.primaryPlaceholder ?? "—"}
               placeholderTextColor={placeholderColor}
               editable={!isDone}
-              selectTextOnFocus
               autoCorrect={false}
               autoComplete="off"
               returnKeyType="done"
@@ -271,19 +371,38 @@ export function SetRowItem({
         <View style={{ flex: 1, marginHorizontal: 6 }}>
           <View style={[S.cell, cellStyle(isDone, isActive)]}>
             <TextInput
+              ref={secondaryInputRef}
               {...(iosAccessoryProps ?? {})}
-              value={r}
-              onChangeText={(t) => setR(t.replace(/[^\d.]/g, ""))}
-              onFocus={handleFocus}
-              onPressIn={handleFocus}
+              value={secondary}
+              onChangeText={(t) => {
+                if (trackingMode === "time") {
+                  setSecondary(t);
+                  return;
+                }
+                if (trackingMode === "reps_only" || trackingMode === "calories") {
+                  setSecondary(t);
+                  return;
+                }
+                setSecondary(sanitizeNumericInput(t));
+              }}
+              onFocus={() => handleFocus("secondary", secondary)}
+              selection={secondarySelection}
+              onSelectionChange={(e) => setSecondarySelection(e.nativeEvent.selection)}
               onBlur={commit}
-              keyboardType="numeric"
-              inputMode="numeric"
+              keyboardType={
+                trackingMode === "time" || trackingMode === "reps_only" || trackingMode === "calories"
+                  ? "default"
+                  : "numeric"
+              }
+              inputMode={
+                trackingMode === "time" || trackingMode === "reps_only" || trackingMode === "calories"
+                  ? "text"
+                  : "numeric"
+              }
               style={[S.input, inputTextStyle(isDone)]}
-              placeholder="—"
+              placeholder={modeConfig.secondaryPlaceholder ?? "—"}
               placeholderTextColor={placeholderColor}
               editable={!isDone}
-              selectTextOnFocus
               autoCorrect={false}
               autoComplete="off"
               returnKeyType="done"
@@ -293,20 +412,27 @@ export function SetRowItem({
         </View>
 
         <View style={{ flex: 1, marginHorizontal: 6 }}>
-          <View style={[S.cell, cellStyle(isDone, isActive)]}>
+          <View
+            style={[
+              S.cell,
+              cellStyle(isDone, isActive),
+              hideThirdField && { opacity: 0.35 },
+            ]}
+          >
             <TextInput
+              ref={thirdInputRef}
               {...(iosAccessoryProps ?? {})}
-              value={rest}
-              onChangeText={setRest}
-              onFocus={handleFocus}
-              onPressIn={handleFocus}
+              value={hideThirdField ? "" : third}
+              onChangeText={setThird}
+              onFocus={() => handleFocus("third", third)}
+              selection={thirdSelection}
+              onSelectionChange={(e) => setThirdSelection(e.nativeEvent.selection)}
               onBlur={commit}
               keyboardType="default"
               style={[S.input, inputTextStyle(isDone)]}
-              placeholder="—"
+              placeholder={hideThirdField ? "" : modeConfig.thirdPlaceholder ?? "—"}
               placeholderTextColor={placeholderColor}
-              editable={!isDone}
-              selectTextOnFocus
+              editable={!isDone && !hideThirdField}
               autoCorrect={false}
               autoComplete="off"
               returnKeyType="done"
@@ -324,8 +450,8 @@ export function SetRowItem({
               height: 46,
               borderRadius: 23,
               borderWidth: 1.5,
-              borderColor: isDone ? "rgb(34, 197, 94)" : colors.borderSubtle,
-              backgroundColor: isDone ? "rgb(34, 197, 94)" : colors.surface,
+              borderColor: isDone ? colors.success : colors.borderSubtle,
+              backgroundColor: isDone ? colors.success : colors.surface,
             },
           ]}
         >
@@ -335,3 +461,5 @@ export function SetRowItem({
     </Swipeable>
   );
 }
+
+export default SetRowItem;

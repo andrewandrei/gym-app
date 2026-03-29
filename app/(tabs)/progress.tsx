@@ -51,6 +51,18 @@ function getSoftStrong(isDark: boolean) {
   return isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.07)";
 }
 
+function getNegativeColor(colors: any, isDark: boolean) {
+  return isDark ? "#FF8A7A" : "#B42318";
+}
+
+function getNegativeSoft(isDark: boolean) {
+  return isDark ? "rgba(255,107,94,0.16)" : "rgba(217,45,32,0.10)";
+}
+
+function getNegativeBorder(isDark: boolean) {
+  return isDark ? "rgba(255,107,94,0.30)" : "rgba(180,35,24,0.18)";
+}
+
 function getStatusStyle(
   session: WeekSession,
   colors: any,
@@ -67,17 +79,17 @@ function getStatusStyle(
 
   if (session.complete) {
     return {
-      bg: isDark ? "rgba(34,197,94,0.16)" : "rgba(34,197,94,0.12)",
-      border: "transparent",
-      text: "#22C55E",
+      bg: colors.successSoft,
+      border: colors.successBorder,
+      text: colors.successText,
       label: "Completed",
     };
   }
 
   return {
-    bg: isDark ? "rgba(245,158,11,0.18)" : "rgba(245,158,11,0.12)",
-    border: "transparent",
-    text: "#F59E0B",
+    bg: colors.warningSoft,
+    border: colors.warningBorder,
+    text: colors.warningText,
     label: "Partial",
   };
 }
@@ -190,7 +202,7 @@ function PRToast({
         S.toast,
         {
           backgroundColor: colors.card,
-          borderColor: colors.premium + "55",
+          borderColor: colors.premiumBorder,
           transform: [{ translateY: ty }],
           opacity: op,
         },
@@ -200,12 +212,12 @@ function PRToast({
         style={[
           S.toastIcon,
           {
-            backgroundColor: colors.premium + "20",
-            borderColor: colors.borderSubtle,
+            backgroundColor: colors.premiumSoft,
+            borderColor: colors.premiumBorder,
           },
         ]}
       >
-        <PRIcon color={colors.premium} />
+        <PRIcon color={colors.premiumText} />
       </View>
       <View style={{ flex: 1 }}>
         <Text style={[S.toastTitle, { color: colors.text }]}>
@@ -213,7 +225,7 @@ function PRToast({
         </Text>
         <Text style={[S.toastSub, { color: colors.muted }]}>
           {name} —{" "}
-          <Text style={{ color: "#22C55E", fontWeight: FontWeight.heavy }}>
+          <Text style={{ color: colors.successText, fontWeight: FontWeight.heavy }}>
             +{gain} kg
           </Text>
         </Text>
@@ -228,13 +240,13 @@ function PRBadge({ colors }: { colors: any }) {
       style={[
         S.prMiniBadge,
         {
-          backgroundColor: colors.premium + "16",
-          borderColor: colors.premium + "28",
+          backgroundColor: colors.premiumSoft,
+          borderColor: colors.premiumBorder,
         },
       ]}
     >
-      <PRIcon color={colors.premium} />
-      <Text style={[S.prMiniBadgeText, { color: colors.premium }]}>PR</Text>
+      <PRIcon color={colors.premiumText} />
+      <Text style={[S.prMiniBadgeText, { color: colors.premiumText }]}>PR</Text>
     </View>
   );
 }
@@ -255,9 +267,9 @@ function WeekDetailPanel({
   const statusLabel = week.upcoming
     ? "PLANNED"
     : week.current
-    ? "IN PROGRESS"
-    : "COMPLETED";
-  const statusColor = week.upcoming ? colors.muted : colors.premium;
+      ? "IN PROGRESS"
+      : "COMPLETED";
+  const statusColor = week.upcoming ? colors.muted : colors.premiumText;
 
   return (
     <View
@@ -312,7 +324,7 @@ function WeekDetailPanel({
               S.finishLikeCard,
               {
                 backgroundColor: colors.card,
-                borderColor: hasPR ? colors.premium + "34" : colors.borderSubtle,
+                borderColor: hasPR ? colors.premiumBorder : colors.borderSubtle,
                 opacity: s.planned ? 0.64 : pressed ? 0.84 : 1,
                 marginBottom: 10,
               },
@@ -391,7 +403,7 @@ function WeekDetailPanel({
                         marginTop: 5,
                       }}
                     />
-                    <Text style={[S.prText, { color: colors.premium }]}>
+                    <Text style={[S.prText, { color: colors.premiumText }]}>
                       {l.replace("🏆", "").trim()}
                     </Text>
                   </View>
@@ -414,8 +426,8 @@ function WeekDetailPanel({
               {s.planned
                 ? "Upcoming session in this block"
                 : s.complete
-                ? "Completed session"
-                : "Partially logged session"}
+                  ? "Completed session"
+                  : "Partially logged session"}
             </Text>
           </Pressable>
         );
@@ -572,12 +584,12 @@ function ProgramTab({
                 style={[
                   S.prMiniBadge,
                   {
-                    backgroundColor: colors.premium + "16",
-                    borderColor: colors.premium + "28",
+                    backgroundColor: colors.premiumSoft,
+                    borderColor: colors.premiumBorder,
                   },
                 ]}
               >
-                <Text style={[S.prMiniBadgeText, { color: colors.premium }]}>
+                <Text style={[S.prMiniBadgeText, { color: colors.premiumText }]}>
                   Current
                 </Text>
               </View>
@@ -595,7 +607,7 @@ function ProgramTab({
                       style={[
                         S.dayLetter,
                         {
-                          color: isToday ? colors.premium : colors.muted,
+                          color: isToday ? colors.premiumText : colors.muted,
                           fontWeight: isToday ? FontWeight.black : FontWeight.bold,
                         },
                       ]}
@@ -610,13 +622,13 @@ function ProgramTab({
                           backgroundColor: isRest
                             ? "transparent"
                             : isDone
-                            ? colors.text
-                            : isToday
-                            ? colors.premium + "22"
-                            : soft,
+                              ? colors.success
+                              : isToday
+                                ? colors.premiumSoft
+                                : soft,
                           borderWidth: isRest || isDone ? 0 : 0.5,
                           borderColor: isToday
-                            ? colors.premium + "80"
+                            ? colors.premiumBorder
                             : colors.borderSubtle,
                         },
                       ]}
@@ -625,7 +637,7 @@ function ProgramTab({
                         <Svg width={11} height={11} viewBox="0 0 12 12">
                           <Path
                             d="M2 6L5 9L10 3"
-                            stroke={isDark ? "#111" : "#fff"}
+                            stroke={isDark ? "#111111" : "#FFFFFF"}
                             strokeWidth={2.2}
                             strokeLinecap="round"
                             strokeLinejoin="round"
@@ -662,10 +674,10 @@ function ProgramTab({
                           color: isRest
                             ? colors.muted
                             : isDone
-                            ? colors.muted
-                            : isToday
-                            ? colors.premium
-                            : colors.muted,
+                              ? colors.muted
+                              : isToday
+                                ? colors.premiumText
+                                : colors.muted,
                         },
                       ]}
                     >
@@ -725,10 +737,10 @@ function ProgramTab({
                             backgroundColor: done
                               ? colors.premium
                               : current
-                              ? colors.background
-                              : isDark
-                              ? "rgba(255,255,255,0.10)"
-                              : "rgba(0,0,0,0.08)",
+                                ? colors.background
+                                : isDark
+                                  ? "rgba(255,255,255,0.10)"
+                                  : "rgba(0,0,0,0.08)",
                             borderWidth: current || sel ? 2.2 : 0,
                             borderColor: colors.premium,
                           },
@@ -738,7 +750,7 @@ function ProgramTab({
                         style={[
                           S.dotLabel,
                           {
-                            color: done || current ? colors.premium : colors.muted,
+                            color: done || current ? colors.premiumText : colors.muted,
                             fontWeight:
                               current || sel ? FontWeight.black : FontWeight.bold,
                           },
@@ -816,7 +828,7 @@ function ProgramTab({
                 {
                   label: "Sessions",
                   value: String(monthData.totalSessions),
-                  color: colors.premium,
+                  color: colors.premiumText,
                 },
                 {
                   label: "This week",
@@ -826,7 +838,7 @@ function ProgramTab({
                 {
                   label: "Consistency",
                   value: `${monthData.consistency}%`,
-                  color: "#22C55E",
+                  color: colors.successText,
                 },
               ].map((s, i) => (
                 <View key={i}>
@@ -891,10 +903,10 @@ function ProgramTab({
                             backgroundColor: tr
                               ? colors.premium
                               : isT
-                              ? colors.premium + "22"
-                              : soft,
+                                ? colors.premiumSoft
+                                : soft,
                             borderWidth: isT && !tr ? 0.5 : 0,
-                            borderColor: colors.premium,
+                            borderColor: colors.premiumBorder,
                             opacity: fut ? 0.3 : 1,
                           },
                         ]}
@@ -903,7 +915,7 @@ function ProgramTab({
                           style={[
                             S.calNum,
                             {
-                              color: tr ? "#111" : isT ? colors.premium : colors.muted,
+                              color: tr ? "#111111" : isT ? colors.premiumText : colors.muted,
                               fontWeight: tr || isT ? FontWeight.bold : FontWeight.medium,
                               fontSize: 9,
                             },
@@ -916,7 +928,7 @@ function ProgramTab({
                           <Text
                             style={{
                               fontSize: 5,
-                              color: "#111",
+                              color: "#111111",
                               fontWeight: FontWeight.black,
                             }}
                           >
@@ -933,7 +945,7 @@ function ProgramTab({
             <View style={{ flexDirection: "row", gap: 16, marginTop: 12 }}>
               {[
                 { color: colors.premium, label: "Trained" },
-                { color: colors.premium + "22", border: colors.premium, label: "Today" },
+                { color: colors.premiumSoft, border: colors.premiumBorder, label: "Today" },
                 { color: soft, label: "Rest" },
               ].map((l, i) => (
                 <View
@@ -971,8 +983,8 @@ function PerformanceTab({
   isDark: boolean;
 }) {
   const [openId, setOpenId] = useState<string | null>(null);
-  const soft = getSoft(isDark);
   const prCount = exerciseCards.filter((e) => (e.trend?.prCount ?? 0) > 0).length;
+  const negativeColor = getNegativeColor(colors, isDark);
 
   return (
     <View>
@@ -982,13 +994,13 @@ function PerformanceTab({
           style={[
             S.prMiniBadge,
             {
-              backgroundColor: colors.premium + "16",
-              borderColor: colors.premium + "28",
+              backgroundColor: colors.premiumSoft,
+              borderColor: colors.premiumBorder,
             },
           ]}
         >
-          <PRIcon color={colors.premium} />
-          <Text style={[S.prMiniBadgeText, { color: colors.premium }]}>
+          <PRIcon color={colors.premiumText} />
+          <Text style={[S.prMiniBadgeText, { color: colors.premiumText }]}>
             {prCount}
           </Text>
         </View>
@@ -1035,7 +1047,7 @@ function PerformanceTab({
                 S.finishLikeCard,
                 {
                   backgroundColor: colors.card,
-                  borderColor: hasPR ? colors.premium + "34" : colors.borderSubtle,
+                  borderColor: hasPR ? colors.premiumBorder : colors.borderSubtle,
                   marginBottom: 10,
                 },
               ]}
@@ -1060,7 +1072,7 @@ function PerformanceTab({
                       style={{
                         fontSize: 16,
                         fontWeight: FontWeight.heavy,
-                        color: gain > 0 ? "#22C55E" : "#EF4444",
+                        color: gain > 0 ? colors.successText : negativeColor,
                         letterSpacing: -0.1,
                       }}
                     >
@@ -1122,7 +1134,7 @@ function PerformanceTab({
                             <Text
                               style={{
                                 fontSize: 8,
-                                color: j === chart.length - 1 ? colors.premium : colors.muted,
+                                color: j === chart.length - 1 ? colors.premiumText : colors.muted,
                               }}
                             >
                               W{ex.sessionsLogged - chart.length + j + 1}
@@ -1130,7 +1142,7 @@ function PerformanceTab({
                             <Text
                               style={{
                                 fontSize: 9,
-                                color: j === chart.length - 1 ? colors.premium : colors.muted,
+                                color: j === chart.length - 1 ? colors.premiumText : colors.muted,
                                 fontWeight:
                                   j === chart.length - 1 ? FontWeight.heavy : FontWeight.medium,
                                 marginTop: 2,
@@ -1160,7 +1172,7 @@ function PerformanceTab({
                         ? {
                             label: "Gain",
                             value: `${gain > 0 ? "+" : ""}${gain.toFixed(1)} kg`,
-                            color: gain > 0 ? "#22C55E" : "#EF4444",
+                            color: gain > 0 ? colors.successText : negativeColor,
                           }
                         : null,
                       ex.latestSession
@@ -1217,6 +1229,9 @@ function BodyTab({
   const [angleIdx, setAngleIdx] = useState(0);
   const ANGLES = ["Front", "Side", "Back"];
   const soft = getSoft(isDark);
+  const negativeColor = getNegativeColor(colors, isDark);
+  const negativeSoft = getNegativeSoft(isDark);
+  const negativeBorder = getNegativeBorder(isDark);
 
   const latest = checkins[checkins.length - 1];
   const first = checkins[0];
@@ -1250,19 +1265,15 @@ function BodyTab({
                 style={[
                   S.prMiniBadge,
                   {
-                    backgroundColor: wDown
-                      ? "rgba(34,197,94,0.16)"
-                      : "rgba(239,68,68,0.14)",
-                    borderColor: wDown
-                      ? "rgba(34,197,94,0.28)"
-                      : "rgba(239,68,68,0.24)",
+                    backgroundColor: wDown ? colors.successSoft : negativeSoft,
+                    borderColor: wDown ? colors.successBorder : negativeBorder,
                   },
                 ]}
               >
                 <Text
                   style={[
                     S.prMiniBadgeText,
-                    { color: wDown ? "#22C55E" : "#EF4444" },
+                    { color: wDown ? colors.successText : negativeColor },
                   ]}
                 >
                   {wDelta > 0 ? "+" : ""}
@@ -1323,7 +1334,7 @@ function BodyTab({
           const delta = +(vals[vals.length - 1] - vals[0]).toFixed(1);
           const good = delta === 0 ? null : f.good === "down" ? delta < 0 : delta > 0;
           const col =
-            delta === 0 ? colors.muted : good ? "#22C55E" : "#EF4444";
+            delta === 0 ? colors.muted : good ? colors.successText : negativeColor;
 
           return (
             <View
@@ -1426,7 +1437,7 @@ function BodyTab({
                   S.eyebrow,
                   {
                     textAlign: "center",
-                    color: slot.accent ? colors.premium : colors.muted,
+                    color: slot.accent ? colors.premiumText : colors.muted,
                     marginBottom: 8,
                   },
                 ]}
@@ -1443,8 +1454,8 @@ function BodyTab({
                       j === 0
                         ? compareIdx !== null
                           ? colors.borderSubtle
-                          : colors.premium + "50"
-                        : colors.premium + "50",
+                          : colors.premiumBorder
+                        : colors.premiumBorder,
                   },
                 ]}
               >
@@ -1453,7 +1464,7 @@ function BodyTab({
                     <Svg width={22} height={22} viewBox="0 0 24 24" opacity={0.45}>
                       <Path
                         d="M14.5 4h-5L8 7H4a1 1 0 00-1 1v10a1 1 0 001 1h16a1 1 0 001-1V8a1 1 0 00-1-1h-4l-1.5-3z"
-                        stroke={colors.premium}
+                        stroke={colors.premiumText}
                         strokeWidth={1.6}
                         strokeLinecap="round"
                         strokeLinejoin="round"
@@ -1463,7 +1474,7 @@ function BodyTab({
                         cx={12}
                         cy={13}
                         r={3}
-                        stroke={colors.premium}
+                        stroke={colors.premiumText}
                         strokeWidth={1.6}
                         fill="none"
                       />
@@ -1472,7 +1483,7 @@ function BodyTab({
                       style={[
                         S.caption,
                         {
-                          color: colors.premium,
+                          color: colors.premiumText,
                           fontWeight: FontWeight.bold,
                           textAlign: "center",
                           paddingHorizontal: 8,
@@ -1559,11 +1570,11 @@ function BodyTab({
                   S.prMiniBadge,
                   {
                     backgroundColor: sel
-                      ? colors.premium + "16"
+                      ? colors.premiumSoft
                       : isDark
-                      ? "rgba(255,255,255,0.05)"
-                      : "rgba(0,0,0,0.04)",
-                    borderColor: sel ? colors.premium + "50" : colors.borderSubtle,
+                        ? "rgba(255,255,255,0.05)"
+                        : "rgba(0,0,0,0.04)",
+                    borderColor: sel ? colors.premiumBorder : colors.borderSubtle,
                   },
                 ]}
               >
@@ -1571,7 +1582,7 @@ function BodyTab({
                   style={{
                     fontSize: 12,
                     fontWeight: sel ? FontWeight.heavy : FontWeight.bold,
-                    color: sel ? colors.premium : colors.muted,
+                    color: sel ? colors.premiumText : colors.muted,
                   }}
                 >
                   {c.date}
@@ -1592,15 +1603,15 @@ function BodyTab({
                 style={[
                   S.compareCard,
                   {
-                    backgroundColor: colors.premium + "10",
-                    borderColor: colors.premium + "35",
+                    backgroundColor: colors.premiumSoft,
+                    borderColor: colors.premiumBorder,
                     marginTop: 12,
                   },
                 ]}
               >
                 <View style={S.row}>
                   <View>
-                    <Text style={[S.subhead, { color: colors.premium, fontSize: 13 }]}>
+                    <Text style={[S.subhead, { color: colors.premiumText, fontSize: 13 }]}>
                       {c.date}
                     </Text>
                     <Text style={[S.caption, { color: colors.muted, marginTop: 2 }]}>
@@ -1613,7 +1624,7 @@ function BodyTab({
                       style={[
                         S.subhead,
                         {
-                          color: isDown ? "#22C55E" : "#EF4444",
+                          color: isDown ? colors.successText : negativeColor,
                           fontWeight: FontWeight.heavy,
                         },
                       ]}
@@ -1649,13 +1660,13 @@ function BodyTab({
           style={[
             S.checkinBtn,
             {
-              backgroundColor: colors.premium + "14",
-              borderColor: colors.premium + "45",
+              backgroundColor: colors.premiumSoft,
+              borderColor: colors.premiumBorder,
               marginTop: 12,
             },
           ]}
         >
-          <Text style={[S.subhead, { color: colors.premium }]}>
+          <Text style={[S.subhead, { color: colors.premiumText }]}>
             + New Check-in
           </Text>
         </Pressable>
@@ -1683,6 +1694,7 @@ function CheckInSheet({
   const [weight, setWeight] = useState("");
   const [meas, setMeas] = useState({ waist: "", chest: "", arm: "" });
   const soft = getSoft(isDark);
+  const negativeColor = getNegativeColor(colors, isDark);
 
   const now = new Date();
   const isoDate = now.toISOString().split("T")[0];
@@ -1856,7 +1868,7 @@ function CheckInSheet({
                           style={[
                             S.caption,
                             {
-                              color: good ? "#22C55E" : "#EF4444",
+                              color: good ? colors.successText : negativeColor,
                               fontWeight: FontWeight.heavy,
                             },
                           ]}
@@ -1964,12 +1976,12 @@ function CheckInSheet({
               style={[
                 S.doneCircle,
                 {
-                  backgroundColor: colors.premium + "20",
-                  borderColor: colors.premium + "45",
+                  backgroundColor: colors.successSoft,
+                  borderColor: colors.successBorder,
                 },
               ]}
             >
-              <Text style={{ fontSize: 20, color: colors.premium }}>✓</Text>
+              <Text style={{ fontSize: 20, color: colors.successText }}>✓</Text>
             </View>
             <Text style={[S.title2, { color: colors.text, marginBottom: 6 }]}>
               Check-in saved
@@ -2004,6 +2016,9 @@ function ShareModal({
   const [sent, setSent] = useState(false);
   const [note, setNote] = useState("");
   const soft = getSoft(isDark);
+  const negativeColor = getNegativeColor(colors, isDark);
+  const negativeSoft = getNegativeSoft(isDark);
+  const negativeBorder = getNegativeBorder(isDark);
 
   const { checkins, weekHistory, programTitle, programSubtitle } = data;
   const first = checkins[0];
@@ -2101,7 +2116,7 @@ function ShareModal({
                   S.shareCard,
                   {
                     backgroundColor: isDark ? colors.card : "#1A1A1A",
-                    borderColor: colors.premium + "40",
+                    borderColor: colors.premiumBorder,
                   },
                 ]}
               >
@@ -2109,7 +2124,9 @@ function ShareModal({
                   <Text style={[S.eyebrow, { color: "rgba(255,255,255,0.4)" }]}>
                     PROGRESS REPORT
                   </Text>
-                  <Text style={[S.eyebrow, { color: colors.premium }]}>GYM APP</Text>
+                  <Text style={[S.eyebrow, { color: colors.premiumText }]}>
+                    GYM APP
+                  </Text>
                 </View>
 
                 <Text style={[S.title2, { color: "#FFFFFF", marginTop: 14 }]}>
@@ -2133,17 +2150,17 @@ function ShareModal({
                     {
                       label: "Body weight",
                       value: `${wDelta > 0 ? "+" : ""}${wDelta} kg`,
-                      color: wDown ? "#22C55E" : "#EF4444",
+                      color: wDown ? colors.successText : negativeColor,
                     },
                     {
                       label: "Sessions",
                       value: `${doneS}/${totalS}`,
-                      color: colors.premium,
+                      color: colors.premiumText,
                     },
                     {
                       label: "PRs hit",
                       value: `${topPRs.length}+`,
-                      color: colors.premium,
+                      color: colors.premiumText,
                     },
                   ].map((s, i) => (
                     <View
@@ -2216,7 +2233,7 @@ function ShareModal({
                       }}
                     />
                   </View>
-                  <Text style={{ fontSize: 11, fontWeight: FontWeight.heavy, color: colors.premium }}>
+                  <Text style={{ fontSize: 11, fontWeight: FontWeight.heavy, color: colors.premiumText }}>
                     {pct}%
                   </Text>
                 </View>
@@ -2285,7 +2302,7 @@ function ShareModal({
                       style={[
                         S.subhead,
                         {
-                          color: r.good ? "#22C55E" : "#EF4444",
+                          color: r.good ? colors.successText : negativeColor,
                           marginLeft: 10,
                           minWidth: 44,
                           textAlign: "right",
@@ -2320,13 +2337,13 @@ function ShareModal({
                   style={[
                     S.primaryBtn,
                     {
-                      backgroundColor: "#22C55E18",
+                      backgroundColor: colors.successSoft,
                       borderWidth: StyleSheet.hairlineWidth,
-                      borderColor: "#22C55E40",
+                      borderColor: colors.successBorder,
                     },
                   ]}
                 >
-                  <Text style={[S.btnText, { color: "#22C55E" }]}>
+                  <Text style={[S.btnText, { color: colors.successText }]}>
                     ✓ Sent to your coach
                   </Text>
                 </View>

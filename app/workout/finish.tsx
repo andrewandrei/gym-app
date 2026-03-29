@@ -8,16 +8,11 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
 
 import { useAppTheme } from "@/app/_providers/theme";
+import { BorderWidth } from "@/styles/hairline";
 import { getFinishFeedback, type FinishSummary } from "./finishFeedback";
+import { formatSecondsToClock, type TrackingMode } from "./workout.types";
 
 const FINISH_SUMMARY_STORAGE_KEY = "aa_fit_finish_summary";
-
-type LegacyComparedToLast = {
-  previousWeight?: number;
-  previousReps?: number;
-  previousVolume?: number;
-  result: "better" | "same" | "mixed" | "no_data";
-};
 
 type SetComparison = {
   previous?: {
@@ -47,40 +42,9 @@ type SetComparison = {
 };
 
 type RichFinishSummary = FinishSummary & {
-  status?: "partial" | "completed";
-  sessionId?: string;
-  workoutId?: string;
-  programId?: string;
-  insights: FinishSummary["insights"] & {
-    belowExerciseCount?: number;
-    improvedSetCount?: number;
-    matchedSetCount?: number;
-    belowSetCount?: number;
-    previousSessionFound?: boolean;
-  };
-  prs: Array<
-    FinishSummary["prs"][number] & {
-      set?: number;
-      type?: "weight" | "reps" | "volume";
-      previousBestValue?: number;
-      currentValue?: number;
-      delta?: number;
-    }
-  >;
   exercises: Array<
     FinishSummary["exercises"][number] & {
-      comparedToBest?: {
-        bestWeight?: number;
-        bestReps?: number;
-        bestVolume?: number;
-        result: "better" | "same" | "mixed" | "no_data";
-      };
-      insights?: {
-        improvedSets: number;
-        matchedSets: number;
-        belowSets: number;
-        prCount: number;
-      };
+      trackingMode?: TrackingMode;
       sets: Array<
         FinishSummary["exercises"][number]["sets"][number] & {
           comparison?: SetComparison;
@@ -94,12 +58,10 @@ function PRBadge({
   color,
   backgroundColor,
   borderColor,
-  label = "PR",
 }: {
   color: string;
   backgroundColor: string;
   borderColor: string;
-  label?: string;
 }) {
   return (
     <View
@@ -117,7 +79,7 @@ function PRBadge({
           fill={color}
         />
       </Svg>
-      <Text style={[stylesShared.prBadgeText, { color }]}>{label}</Text>
+      <Text style={[stylesShared.prBadgeText, { color }]}>PR</Text>
     </View>
   );
 }
@@ -156,28 +118,37 @@ function formatSigned(value?: number | null, suffix = "") {
   return `${value > 0 ? "+" : "-"}${abs}${suffix}`;
 }
 
-function getLegacySetDelta(
-  set: { weight: string; reps: string; done: boolean },
-  comparedToLast?: LegacyComparedToLast,
+function getTrackingMode(ex: RichFinishSummary["exercises"][number]): TrackingMode {
+  return ex.trackingMode ?? "weight_reps";
+}
+
+function getHeadersForMode(mode: TrackingMode) {
+  if (mode === "time") return ["SET", "TIME", "REST", "STATUS"] as const;
+  if (mode === "reps_only") return ["SET", "REPS", "REST", "STATUS"] as const;
+  if (mode === "calories") return ["SET", "CAL", "REST", "STATUS"] as const;
+  if (mode === "bodyweight_reps") return ["SET", "LOAD", "REPS", "VS LAST"] as const;
+  return ["SET", "WEIGHT", "REPS", "VS LAST"] as const;
+}
+
+function getPrimaryValue(
+  mode: TrackingMode,
+  set: RichFinishSummary["exercises"][number]["sets"][number],
 ) {
-  if (!comparedToLast || comparedToLast.result === "no_data") return null;
+  if (mode === "time") return formatSecondsToClock(set.weight) || "—";
+  if (mode === "reps_only") return set.reps || "—";
+  if (mode === "calories") return set.weight ? `${set.weight} cal` : "—";
+  if (mode === "bodyweight_reps") return set.weight || "BW";
+  return set.weight || "—";
+}
 
-  const weightNow = Number(set.weight);
-  const repsNow = Number(set.reps);
-
-  const weightPrev = comparedToLast.previousWeight ?? 0;
-  const repsPrev = comparedToLast.previousReps ?? 0;
-
-  if (!weightNow && !repsNow) return null;
-
-  const weightDiff = weightNow - weightPrev;
-  const repsDiff = repsNow - repsPrev;
-
-  if (weightDiff > 0) return `+${weightDiff} kg`;
-  if (repsDiff > 0) return `+${repsDiff} reps`;
-  if (weightDiff === 0 && repsDiff === 0) return "same";
-
-  return null;
+function getSecondValue(
+  mode: TrackingMode,
+  set: RichFinishSummary["exercises"][number]["sets"][number],
+) {
+  if (mode === "time") return set.rest || "—";
+  if (mode === "reps_only") return set.rest || "—";
+  if (mode === "calories") return set.rest || "—";
+  return set.reps || "—";
 }
 
 function getRichSetDelta(
@@ -187,9 +158,7 @@ function getRichSetDelta(
   positive: boolean;
   pr: boolean;
 } {
-  if (!comparison) {
-    return { label: null, positive: false, pr: false };
-  }
+  if (!comparison) return { label: null, positive: false, pr: false };
 
   if (comparison.isWeightPR && comparison.deltaVsBest?.weight) {
     return {
@@ -220,27 +189,14 @@ function getRichSetDelta(
   const volumeText = formatSigned(comparison.deltaVsPrevious?.volume, " vol");
 
   if (weightText) {
-    return {
-      label: weightText,
-      positive: weightText.startsWith("+"),
-      pr: false,
-    };
+    return { label: weightText, positive: weightText.startsWith("+"), pr: false };
   }
   if (repsText) {
-    return {
-      label: repsText,
-      positive: repsText.startsWith("+"),
-      pr: false,
-    };
+    return { label: repsText, positive: repsText.startsWith("+"), pr: false };
   }
   if (volumeText) {
-    return {
-      label: volumeText,
-      positive: volumeText.startsWith("+"),
-      pr: false,
-    };
+    return { label: volumeText, positive: volumeText.startsWith("+"), pr: false };
   }
-
   if (comparison.state === "same") {
     return { label: "—", positive: false, pr: false };
   }
@@ -248,40 +204,15 @@ function getRichSetDelta(
   return { label: null, positive: false, pr: false };
 }
 
-function getExerciseFooterText(
-  ex: RichFinishSummary["exercises"][number],
-  isNewPrExercise: boolean,
+function getFourthValue(
+  mode: TrackingMode,
+  set: RichFinishSummary["exercises"][number]["sets"][number],
 ) {
-  if (isNewPrExercise) return "New all-time best in this session";
-
-  if (ex.insights) {
-    if (ex.insights.improvedSets > 0 && ex.insights.belowSets === 0) {
-      return "Improved vs last session";
-    }
-    if (
-      ex.insights.matchedSets > 0 &&
-      ex.insights.improvedSets === 0 &&
-      ex.insights.belowSets === 0
-    ) {
-      return "Matched last session";
-    }
-    if (
-      ex.insights.belowSets > 0 ||
-      (ex.insights.improvedSets > 0 && ex.insights.belowSets > 0)
-    ) {
-      return "Mixed compared with last session";
-    }
+  if (mode === "time" || mode === "reps_only" || mode === "calories") {
+    return set.done ? "✓" : "";
   }
 
-  if (ex.comparedToLast && ex.comparedToLast.result !== "no_data") {
-    return ex.comparedToLast.result === "better"
-      ? "Improved vs last session"
-      : ex.comparedToLast.result === "same"
-      ? "Matched last session"
-      : "Mixed compared with last session";
-  }
-
-  return null;
+  return getRichSetDelta(set.comparison).label ?? "";
 }
 
 function getExerciseStatus(completedSets: number, totalSets: number) {
@@ -295,10 +226,8 @@ function getExerciseStatus(completedSets: number, totalSets: number) {
 
 export default function FinishScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{
-    sessionStatus?: string | string[];
-  }>();
-  const { colors, isDark } = useAppTheme();
+  const params = useLocalSearchParams<{ sessionStatus?: string | string[] }>();
+  const { colors } = useAppTheme();
 
   const sessionStatusParam = Array.isArray(params.sessionStatus)
     ? params.sessionStatus[0]
@@ -345,7 +274,7 @@ export default function FinishScreen() {
     return getFinishFeedback(summary);
   }, [summary]);
 
-  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   if (loading) {
     return (
@@ -391,82 +320,47 @@ export default function FinishScreen() {
           <Text style={styles.eyebrow}>
             {isPartialSession ? "Partial session" : "Workout complete"}
           </Text>
-
           <Text style={styles.title}>{summary.workoutTitle}</Text>
-
           <Text style={styles.subtitle}>
-            {durationMin} min • {summary.totals.completedSets}/
-            {summary.totals.totalSets} sets {" • "}
-            {summary.totals.completedExercises}/
-            {summary.totals.totalExercises} exercises
+            {durationMin} min • {summary.totals.completedSets}/{summary.totals.totalSets} sets •{" "}
+            {summary.totals.completedExercises}/{summary.totals.totalExercises} exercises
           </Text>
         </View>
 
-        <View style={styles.metricsGrid}>
-          <View style={styles.metricCard}>
-            <Text style={styles.metricLabel}>Duration</Text>
-            <Text style={styles.metricValue}>{durationMin} min</Text>
-          </View>
+        {summary.prs.length > 0 ? (
+          <View style={styles.prCard}>
+            <View style={styles.prCardHeader}>
+              <Text style={styles.cardEyebrow}>
+                {summary.prs.length > 1 ? "New PRs" : "New PR"}
+              </Text>
 
-          <View style={styles.metricCard}>
-            <Text style={styles.metricLabel}>Sets logged</Text>
-            <Text style={styles.metricValue}>
-              {summary.totals.completedSets}/{summary.totals.totalSets}
-            </Text>
-          </View>
-
-          <View style={styles.metricCard}>
-            <Text style={styles.metricLabel}>Exercises</Text>
-            <Text style={styles.metricValue}>
-              {summary.totals.completedExercises}/
-              {summary.totals.totalExercises}
-            </Text>
-          </View>
-
-          <View style={styles.metricCard}>
-            <Text style={styles.metricLabel}>Completion</Text>
-            <Text style={styles.metricValue}>
-              {Math.round(summary.insights.completionRate * 100)}%
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.topCards}>
-          {summary.prs.length > 0 && (
-            <View style={styles.prCard}>
-              <View style={styles.prCardHeader}>
-                <Text style={styles.cardEyebrow}>
-                  {summary.prs.length > 1 ? "New PRs" : "New PR"}
-                </Text>
-
-                <PRBadge
-                  color={colors.premium}
-                  backgroundColor={colors.premium + "16"}
-                  borderColor={colors.premium + "28"}
-                />
-              </View>
-
-              {summary.prs.map((pr, index) => (
-                <View
-                  key={`${pr.exerciseId}-${pr.type ?? "legacy"}-${pr.set ?? index}`}
-                  style={styles.prRow}
-                >
-                  <Text style={styles.prExercise}>{pr.exerciseName}</Text>
-                  <Text style={styles.prValue}>
-                    {pr.weight} × {pr.reps}
-                    {typeof pr.set === "number" ? ` • Set ${pr.set}` : ""}
-                    {pr.type ? ` • ${pr.type.toUpperCase()}` : ""}
-                  </Text>
-                </View>
-              ))}
+              <PRBadge
+                color={colors.premiumText}
+                backgroundColor={colors.premiumSoft}
+                borderColor={colors.premiumBorder}
+              />
             </View>
-          )}
 
-          <View style={styles.feedbackCard}>
-            <Text style={styles.cardEyebrow}>{feedback.kicker}</Text>
-            <Text style={styles.feedbackTitle}>{feedback.title}</Text>
-            <Text style={styles.feedbackBody}>{feedback.body}</Text>
+            {summary.prs.map((pr, index) => (
+              <View
+                key={`${pr.exerciseId}-${pr.type ?? "legacy"}-${pr.set ?? index}`}
+                style={styles.prRow}
+              >
+                <Text style={styles.prExercise}>{pr.exerciseName}</Text>
+                <Text style={styles.prValue}>
+                  {pr.weight} × {pr.reps}
+                  {typeof pr.set === "number" ? ` • Set ${pr.set}` : ""}
+                  {pr.type ? ` • ${pr.type.toUpperCase()}` : ""}
+                </Text>
+              </View>
+            ))}
           </View>
+        ) : null}
+
+        <View style={styles.feedbackCard}>
+          <Text style={styles.cardEyebrow}>{feedback.kicker}</Text>
+          <Text style={styles.feedbackTitle}>{feedback.title}</Text>
+          <Text style={styles.feedbackBody}>{feedback.body}</Text>
         </View>
 
         <View style={styles.exerciseList}>
@@ -474,9 +368,11 @@ export default function FinishScreen() {
             const totalSets = ex.totalSetsPlanned;
             const completedSets = ex.completedSets;
             const statusLabel = getExerciseStatus(completedSets, totalSets);
-            const isNewPrExercise = summary.prs.some(
-              (pr) => pr.exerciseId === ex.id,
-            );
+            const isNewPrExercise = summary.prs.some((pr) => pr.exerciseId === ex.id);
+            const mode = getTrackingMode(ex);
+            const headers = getHeadersForMode(mode);
+            const isStatusMode =
+              mode === "time" || mode === "reps_only" || mode === "calories";
 
             return (
               <View key={ex.id} style={styles.exerciseCard}>
@@ -484,12 +380,11 @@ export default function FinishScreen() {
                   <View style={styles.exerciseHeaderLeft}>
                     <View style={styles.exerciseTitleRow}>
                       <Text style={styles.exerciseName}>{ex.name}</Text>
-
                       {isNewPrExercise ? (
                         <PRBadge
-                          color={colors.premium}
-                          backgroundColor={colors.premium + "16"}
-                          borderColor={colors.premium + "28"}
+                          color={colors.premiumText}
+                          backgroundColor={colors.premiumSoft}
+                          borderColor={colors.premiumBorder}
                         />
                       ) : null}
                     </View>
@@ -505,8 +400,8 @@ export default function FinishScreen() {
                       statusLabel === "Completed"
                         ? styles.exerciseBadgeCompleted
                         : statusLabel === "Partial"
-                        ? styles.exerciseBadgePartial
-                        : styles.exerciseBadgeSkipped,
+                          ? styles.exerciseBadgePartial
+                          : styles.exerciseBadgeSkipped,
                     ]}
                   >
                     {statusLabel}
@@ -514,79 +409,43 @@ export default function FinishScreen() {
                 </View>
 
                 <View style={styles.tableHeader}>
-                  <Text style={[styles.tableHeaderText, styles.colSet]}>SET</Text>
-                  <Text style={[styles.tableHeaderText, styles.colValue]}>
-                    WEIGHT
-                  </Text>
-                  <Text style={[styles.tableHeaderText, styles.colValue]}>
-                    REPS
-                  </Text>
-                  <Text style={[styles.tableHeaderText, styles.colDelta]}>
-                    VS LAST
-                  </Text>
+                  <Text style={[styles.tableHeaderText, styles.colSet]}>{headers[0]}</Text>
+                  <Text style={[styles.tableHeaderText, styles.colValue]}>{headers[1]}</Text>
+                  <Text style={[styles.tableHeaderText, styles.colValue]}>{headers[2]}</Text>
+                  <Text style={[styles.tableHeaderText, styles.colDelta]}>{headers[3]}</Text>
                 </View>
 
                 {ex.sets.map((set) => {
                   const richDelta = getRichSetDelta(set.comparison);
-                  const legacyDelta = getLegacySetDelta(set, ex.comparedToLast);
-
-                  const label =
-                    richDelta.label ??
-                    (!set.done || !legacyDelta
-                      ? null
-                      : legacyDelta === "same"
-                      ? "—"
-                      : legacyDelta);
-
-                  const isPositive =
-                    richDelta.label != null
-                      ? richDelta.positive
-                      : !!label && label.startsWith("+");
-
+                  const isPositive = richDelta.label != null ? richDelta.positive : false;
                   const isPr = richDelta.pr;
 
                   return (
                     <View key={set.set} style={styles.setRow}>
-                      <Text style={[styles.setCell, styles.colSet]}>
-                        S{set.set}
+                      <Text style={[styles.setCell, styles.colSet]}>S{set.set}</Text>
+
+                      <Text style={[styles.setCell, styles.colValue]}>
+                        {getPrimaryValue(mode, set)}
                       </Text>
 
                       <Text style={[styles.setCell, styles.colValue]}>
-                        {set.weight || "—"}
-                      </Text>
-
-                      <Text style={[styles.setCell, styles.colValue]}>
-                        {set.reps || "—"}
+                        {getSecondValue(mode, set)}
                       </Text>
 
                       <Text
                         style={[
                           styles.deltaText,
                           styles.colDelta,
-                          isPositive && styles.deltaPositive,
-                          isPr && styles.deltaPr,
+                          !isStatusMode && isPositive && styles.deltaPositive,
+                          !isStatusMode && isPr && styles.deltaPr,
+                          isStatusMode && set.done && styles.deltaPositive,
                         ]}
-                        numberOfLines={1}
                       >
-                        {!set.done || !label ? "" : label}
+                        {getFourthValue(mode, set)}
                       </Text>
                     </View>
                   );
                 })}
-
-                <View style={styles.exerciseFooter}>
-                  {getExerciseFooterText(ex, isNewPrExercise) ? (
-                    <Text
-                      style={
-                        isNewPrExercise
-                          ? styles.exerciseFooterPrText
-                          : styles.exerciseFooterText
-                      }
-                    >
-                      {getExerciseFooterText(ex, isNewPrExercise)}
-                    </Text>
-                  ) : null}
-                </View>
               </View>
             );
           })}
@@ -599,10 +458,7 @@ export default function FinishScreen() {
           <Text style={styles.primaryButtonText}>View Progress</Text>
         </Pressable>
 
-        <Pressable
-          onPress={() => router.replace("/(tabs)")}
-          style={styles.secondaryLink}
-        >
+        <Pressable onPress={() => router.replace("/(tabs)")} style={styles.secondaryLink}>
           <Text style={styles.secondaryLinkText}>Back to Home</Text>
         </Pressable>
       </ScrollView>
@@ -610,53 +466,45 @@ export default function FinishScreen() {
   );
 }
 
-function createStyles(
-  colors: {
-    background: string;
-    surface: string;
-    card: string;
-    text: string;
-    muted: string;
-    border: string;
-    borderSubtle: string;
-    premium: string;
-  },
-  isDark: boolean,
-) {
-  const soft = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)";
-  const goldSoft = isDark ? "rgba(244,200,74,0.14)" : "rgba(244,200,74,0.16)";
-  const goldSoftStrong = isDark
-    ? "rgba(244,200,74,0.18)"
-    : "rgba(244,200,74,0.22)";
-  const greenSoft = isDark
-    ? "rgba(34,197,94,0.16)"
-    : "rgba(34,197,94,0.12)";
-  const amberSoft = isDark
-    ? "rgba(245,158,11,0.18)"
-    : "rgba(245,158,11,0.12)";
-  const graySoft = isDark
-    ? "rgba(255,255,255,0.08)"
-    : "rgba(0,0,0,0.05)";
-  const divider = isDark
-    ? "rgba(255,255,255,0.08)"
-    : "rgba(0,0,0,0.06)";
-
+function createStyles(colors: {
+  surface: string;
+  background: string;
+  text: string;
+  muted: string;
+  subtle: string;
+  border: string;
+  borderSubtle: string;
+  borderStrong: string;
+  hairline: string;
+  fill: string;
+  fillAlt: string;
+  premium: string;
+  danger: string;
+  success: string;
+  warning: string;
+  ink: string;
+  inkSoft: string;
+  card: string;
+  premiumSoft: string;
+  premiumBorder: string;
+  premiumText: string;
+  successSoft: string;
+  successBorder: string;
+  successText: string;
+}) {
   return StyleSheet.create({
     safe: {
       flex: 1,
       backgroundColor: colors.background,
     },
-
     scrollContent: {
       paddingHorizontal: 20,
       paddingTop: 12,
       paddingBottom: 40,
     },
-
     headerBlock: {
       marginTop: 4,
     },
-
     eyebrow: {
       fontSize: 12,
       fontWeight: "900",
@@ -664,7 +512,6 @@ function createStyles(
       letterSpacing: 0.5,
       textTransform: "uppercase",
     },
-
     title: {
       marginTop: 8,
       fontSize: 28,
@@ -672,54 +519,20 @@ function createStyles(
       color: colors.text,
       letterSpacing: -0.5,
     },
-
     subtitle: {
       marginTop: 6,
       fontSize: 14,
       color: colors.muted,
       fontWeight: "600",
     },
-
-    metricsGrid: {
-      marginTop: 20,
-      flexDirection: "row",
-      flexWrap: "wrap",
-      gap: 10,
-    },
-
-    metricCard: {
-      width: "47.5%",
-      padding: 14,
-      borderRadius: 18,
-      backgroundColor: soft,
-    },
-
-    metricLabel: {
-      fontSize: 11,
-      fontWeight: "900",
-      color: colors.muted,
-      letterSpacing: 0.5,
-      textTransform: "uppercase",
-    },
-
-    metricValue: {
-      marginTop: 8,
-      fontSize: 18,
-      fontWeight: "900",
-      color: colors.text,
-    },
-
-    topCards: {
-      marginTop: 20,
-      gap: 12,
-    },
-
     prCard: {
+      marginTop: 20,
       padding: 16,
       borderRadius: 18,
-      backgroundColor: goldSoftStrong,
+      backgroundColor: colors.premiumSoft,
+      borderWidth: BorderWidth.default,
+      borderColor: colors.premiumBorder,
     },
-
     prCardHeader: {
       flexDirection: "row",
       alignItems: "center",
@@ -727,13 +540,14 @@ function createStyles(
       gap: 10,
       marginBottom: 4,
     },
-
     feedbackCard: {
+      marginTop: 12,
       padding: 16,
       borderRadius: 18,
       backgroundColor: colors.card,
+      borderWidth: BorderWidth.default,
+      borderColor: colors.borderSubtle,
     },
-
     cardEyebrow: {
       fontSize: 12,
       fontWeight: "900",
@@ -741,24 +555,20 @@ function createStyles(
       letterSpacing: 0.5,
       textTransform: "uppercase",
     },
-
     prRow: {
       marginTop: 8,
     },
-
     prExercise: {
       fontSize: 16,
       fontWeight: "800",
       color: colors.text,
     },
-
     prValue: {
       marginTop: 2,
       fontSize: 14,
       fontWeight: "700",
       color: colors.text,
     },
-
     feedbackTitle: {
       marginTop: 6,
       fontSize: 18,
@@ -766,7 +576,6 @@ function createStyles(
       color: colors.text,
       lineHeight: 24,
     },
-
     feedbackBody: {
       marginTop: 6,
       fontSize: 14,
@@ -774,49 +583,43 @@ function createStyles(
       color: colors.muted,
       lineHeight: 20,
     },
-
     exerciseList: {
       marginTop: 24,
       gap: 18,
     },
-
     exerciseCard: {
       backgroundColor: colors.card,
       borderRadius: 20,
       padding: 16,
+      borderWidth: BorderWidth.default,
+      borderColor: colors.borderSubtle,
     },
-
     exerciseHeader: {
       flexDirection: "row",
       justifyContent: "space-between",
       alignItems: "flex-start",
       gap: 12,
     },
-
     exerciseHeaderLeft: {
       flex: 1,
     },
-
     exerciseTitleRow: {
       flexDirection: "row",
       alignItems: "center",
       gap: 8,
       flexWrap: "wrap",
     },
-
     exerciseName: {
       fontSize: 16,
       fontWeight: "900",
       color: colors.text,
     },
-
     exerciseMeta: {
       marginTop: 4,
       fontSize: 13,
       fontWeight: "700",
       color: colors.muted,
     },
-
     exerciseBadge: {
       fontSize: 12,
       fontWeight: "800",
@@ -824,98 +627,71 @@ function createStyles(
       paddingVertical: 6,
       borderRadius: 999,
       overflow: "hidden",
+      borderWidth: BorderWidth.default,
     },
-
     exerciseBadgeCompleted: {
-      color: "#22c55e",
-      backgroundColor: greenSoft,
+      color: colors.successText,
+      backgroundColor: colors.successSoft,
+      borderColor: colors.successBorder,
     },
-
     exerciseBadgePartial: {
-      color: "#f59e0b",
-      backgroundColor: amberSoft,
+      color: colors.warningText,
+      backgroundColor: colors.warningSoft,
+      borderColor: colors.warningBorder,
     },
-
     exerciseBadgeSkipped: {
       color: colors.muted,
-      backgroundColor: graySoft,
+      backgroundColor: colors.fillAlt,
+      borderColor: colors.borderSubtle,
     },
-
     tableHeader: {
       flexDirection: "row",
       alignItems: "center",
       marginTop: 14,
       paddingBottom: 8,
       borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: divider,
+      borderBottomColor: colors.hairline,
     },
-
     tableHeaderText: {
       fontSize: 11,
       fontWeight: "900",
       color: colors.muted,
       letterSpacing: 0.5,
     },
-
     setRow: {
       flexDirection: "row",
       alignItems: "center",
       paddingVertical: 10,
       borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: divider,
+      borderBottomColor: colors.hairline,
     },
-
     setCell: {
       fontSize: 14,
       fontWeight: "800",
       color: colors.text,
     },
-
     colSet: {
       width: 44,
     },
-
     colValue: {
       flex: 1,
       textAlign: "left",
     },
-
     colDelta: {
       width: 96,
       textAlign: "right",
     },
-
     deltaText: {
       fontSize: 12,
       fontWeight: "900",
       color: colors.muted,
     },
-
     deltaPositive: {
-      color: "#22c55e",
+      color: colors.successText,
     },
-
     deltaPr: {
-      color: colors.premium,
+      color: colors.premiumText,
     },
-
-    exerciseFooter: {
-      marginTop: 10,
-      minHeight: 16,
-    },
-
-    exerciseFooterText: {
-      fontSize: 12,
-      fontWeight: "700",
-      color: colors.muted,
-    },
-
-    exerciseFooterPrText: {
-      fontSize: 12,
-      fontWeight: "800",
-      color: colors.text,
-    },
-
     primaryButton: {
       marginTop: 24,
       height: 54,
@@ -924,38 +700,32 @@ function createStyles(
       alignItems: "center",
       justifyContent: "center",
     },
-
     primaryButtonText: {
       fontSize: 15,
       fontWeight: "900",
       color: colors.surface,
     },
-
     secondaryLink: {
       marginTop: 14,
       alignItems: "center",
     },
-
     secondaryLinkText: {
       fontSize: 14,
       fontWeight: "700",
       color: colors.muted,
     },
-
     emptyState: {
       flex: 1,
       alignItems: "center",
       justifyContent: "center",
       paddingHorizontal: 24,
     },
-
     emptyTitle: {
       fontSize: 22,
       fontWeight: "900",
       color: colors.text,
       textAlign: "center",
     },
-
     emptyBody: {
       marginTop: 8,
       fontSize: 14,

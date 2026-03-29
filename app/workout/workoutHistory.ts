@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import type { TrackingMode } from "./workout.types";
 
 export const WORKOUT_HISTORY_STORAGE_KEY = "aa_fit_workout_history";
 
@@ -39,6 +40,20 @@ export type WorkoutHistoryEntry = {
     trackedStrengthVolume: number;
   };
   exercises: HistoryWorkoutExercise[];
+};
+
+export type ExerciseHistorySession = {
+  id: string;
+  dateLabel: string;
+  completedAt: string;
+  sets: Array<{
+    set: number;
+    weight: string;
+    reps: string;
+    rest: string;
+    done: boolean;
+    note?: string;
+  }>;
 };
 
 function normalizeExerciseName(value: string) {
@@ -92,7 +107,8 @@ function sanitizeEntry(raw: any): WorkoutHistoryEntry {
     durationSec: typeof raw?.durationSec === "number" ? raw.durationSec : 0,
     status: raw?.status === "partial" ? "partial" : "completed",
     totals: {
-      completedSets: typeof raw?.totals?.completedSets === "number" ? raw.totals.completedSets : 0,
+      completedSets:
+        typeof raw?.totals?.completedSets === "number" ? raw.totals.completedSets : 0,
       totalSets: typeof raw?.totals?.totalSets === "number" ? raw.totals.totalSets : 0,
       completedExercises:
         typeof raw?.totals?.completedExercises === "number"
@@ -258,7 +274,7 @@ export function buildExerciseHistorySessions(
   history: WorkoutHistoryEntry[],
   exerciseId: string,
   exerciseName?: string,
-) {
+): ExerciseHistorySession[] {
   const normalizedExerciseName = exerciseName ? normalizeExerciseName(exerciseName) : null;
 
   return history
@@ -276,14 +292,63 @@ export function buildExerciseHistorySessions(
       return {
         id: `${entry.sessionId}_${exercise.id}`,
         dateLabel: new Date(entry.completedAt).toLocaleDateString(),
+        completedAt: entry.completedAt,
         sets: exercise.sets.map((set) => ({
           set: set.set,
           weight: set.weight,
           reps: set.reps,
           rest: set.rest,
           done: set.done,
+          note: set.note,
         })),
       };
     })
-    .filter(Boolean);
+    .filter(Boolean)
+    .sort(
+      (a, b) =>
+        new Date(b!.completedAt).getTime() - new Date(a!.completedAt).getTime(),
+    ) as ExerciseHistorySession[];
+}
+
+export function formatHistorySetValue(
+  trackingMode: TrackingMode,
+  set: {
+    weight?: string;
+    reps?: string;
+    rest?: string;
+    done?: boolean;
+  },
+) {
+  if (trackingMode === "time") {
+    return {
+      primary: set.weight ? `${set.weight}s` : "—",
+      secondary: set.rest || "—",
+    };
+  }
+
+  if (trackingMode === "reps_only") {
+    return {
+      primary: set.reps || "—",
+      secondary: set.rest || "—",
+    };
+  }
+
+  if (trackingMode === "calories") {
+    return {
+      primary: set.weight ? `${set.weight} cal` : "—",
+      secondary: set.rest || "—",
+    };
+  }
+
+  if (trackingMode === "bodyweight_reps") {
+    return {
+      primary: set.weight || "BW",
+      secondary: set.reps || "—",
+    };
+  }
+
+  return {
+    primary: set.weight || "—",
+    secondary: set.reps || "—",
+  };
 }

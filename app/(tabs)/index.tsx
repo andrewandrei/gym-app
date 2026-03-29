@@ -39,14 +39,6 @@ import {
 
 type CtaState = "start" | "resume";
 
-type PrepCard = {
-  id: string;
-  title: string;
-  subtitle: string;
-  imageUrl: string;
-  badge?: string;
-};
-
 type WorkoutCard = {
   id: string;
   title: string;
@@ -333,26 +325,6 @@ export default function HomeScreen() {
     return getProgramWorkoutTemplate(heroWorkoutParsed.workoutIndex);
   }, [heroWorkoutParsed]);
 
-  const prepCards = useMemo<PrepCard[]>(
-    () => [
-      {
-        id: "warmup-sequence",
-        title: "Upper Body Warm-up Sequence",
-        subtitle: "Mobility · Activation · 8 min",
-        imageUrl: "https://i.ytimg.com/vi/M8M0AgQ8nD8/maxresdefault.jpg",
-        badge: "Warm-up",
-      },
-      {
-        id: "cooldown-sequence",
-        title: "Cooldown & Recovery Flow",
-        subtitle: "Breathing · Stretching · 6 min",
-        imageUrl: "https://i.ytimg.com/vi/2ZgCRBLg2Zs/maxresdefault.jpg",
-        badge: "Cool-down",
-      },
-    ],
-    [],
-  );
-
   const workoutCards = useMemo<WorkoutCard[]>(
     () => [
       {
@@ -510,16 +482,8 @@ export default function HomeScreen() {
     router.push({ pathname: "/program/[id]", params: { id: HERO_PROGRAM_ID } });
   };
 
-  const openAllPrep = () => {
-    router.push("/workouts");
-  };
-
   const openAllHistory = () => {
     router.push("/workout-history");
-  };
-
-  const openPrepCard = (id: string) => {
-    router.push({ pathname: "/workout", params: { workoutId: id, source: "home" } });
   };
 
   const openWorkoutCard = (id: string) => {
@@ -744,41 +708,6 @@ export default function HomeScreen() {
             </View>
           </>
         )}
-
-        <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionTitle}>Prep for today</Text>
-          <TouchableOpacity
-            style={styles.sectionLink}
-            activeOpacity={0.8}
-            onPress={openAllPrep}
-          >
-            <Text style={styles.sectionLinkText}>See all</Text>
-            <ChevronRight size={16} color={colors.muted} />
-          </TouchableOpacity>
-        </View>
-
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.prepRail}
-        >
-          {prepCards.map((card, index) => (
-            <View
-              key={card.id}
-              style={
-                index !== prepCards.length - 1 ? styles.prepCardGap : undefined
-              }
-            >
-              <EditorialCard
-                title={card.title}
-                metaBold={card.subtitle}
-                imageUrl={card.imageUrl}
-                badgeLabel={card.badge}
-                onPress={() => openPrepCard(card.id)}
-              />
-            </View>
-          ))}
-        </ScrollView>
 
         <View style={[styles.sectionHeaderRow, styles.workoutsSectionHeader]}>
           <Text style={styles.sectionTitle}>Try individual workouts</Text>

@@ -322,6 +322,7 @@ export default function WorkoutLogScreen() {
         id: ex.id,
         name: ex.name,
         unitLabel: ex.unitLabel,
+        trackingMode: ex.trackingMode,
         sets: ex.sets.map((s) => ({
           id: s.id,
           weight: s.weight ?? "",
@@ -492,32 +493,37 @@ export default function WorkoutLogScreen() {
     return null;
   };
 
-  const getNextIncompleteSet = (exId: string, currentSetIndex: number) => {
-    const block = getBlockForExercise(exId);
+const getNextIncompleteSet = (exId: string, currentSetIndex: number) => {
+  const block = getBlockForExercise(exId);
 
-    if (block && isGroupedBlock(block.id)) {
-      return getNextSetInGroup(exId, currentSetIndex);
-    }
+  if (block && isGroupedBlock(block.id)) {
+    const nextInGroup = getNextSetInGroup(exId, currentSetIndex);
+    if (nextInGroup) return nextInGroup;
+    // fall through to next blocks if grouped block is exhausted
+  }
 
-    const ex = exercises.find((e) => e.id === exId);
-    if (!ex) return null;
+  const ex = exercises.find((e) => e.id === exId);
+  if (!ex) return null;
 
-    for (let i = currentSetIndex + 1; i < ex.sets.length; i += 1) {
-      if (!ex.sets[i].done) return { exId, setIndex: i };
-    }
+  for (let i = currentSetIndex + 1; i < ex.sets.length; i += 1) {
+    if (!ex.sets[i].done) return { exId, setIndex: i };
+  }
 
-    const currentBlockIndex = blocks.findIndex((b) => b.exerciseIds.includes(exId));
-    for (let i = currentBlockIndex + 1; i < blocks.length; i += 1) {
-      for (const nextExId of blocks[i].exerciseIds) {
-        const nextEx = exercises.find((e) => e.id === nextExId);
-        if (nextEx && nextEx.sets[0] && !nextEx.sets[0].done) {
-          return { exId: nextExId, setIndex: 0 };
-        }
+  const currentBlockIndex = blocks.findIndex((b) => b.exerciseIds.includes(exId));
+  for (let i = currentBlockIndex + 1; i < blocks.length; i += 1) {
+    for (const nextExId of blocks[i].exerciseIds) {
+      const nextEx = exercises.find((e) => e.id === nextExId);
+      if (!nextEx) continue;
+
+      const firstIncompleteSetIndex = nextEx.sets.findIndex((s) => !s.done);
+      if (firstIncompleteSetIndex !== -1) {
+        return { exId: nextExId, setIndex: firstIncompleteSetIndex };
       }
     }
+  }
 
-    return null;
-  };
+  return null;
+};
 
   const isBlockComplete = (blockId: string) => {
     const block = blocks.find((b) => b.id === blockId);
@@ -1092,70 +1098,71 @@ export default function WorkoutLogScreen() {
     return null;
   };
 
-  const goToFinish = useCallback(
-    async (sessionStatus: "partial" | "completed") => {
-      Keyboard.dismiss();
+ const goToFinish = useCallback(
+  async (sessionStatus: "partial" | "completed") => {
+    Keyboard.dismiss();
 
-      if (Platform.OS !== "web") {
-        await Haptics.selectionAsync();
-      }
+    if (Platform.OS !== "web") {
+      await Haptics.selectionAsync();
+    }
 
-      const sessionId =
-        availableDraft?.sessionId ?? makeSessionId(selectedWorkoutId ?? "full-body-foundation");
+    const sessionId =
+      availableDraft?.sessionId ?? makeSessionId(selectedWorkoutId ?? "full-body-foundation");
 
-      const { summary, historyEntry } = buildFinishSummary({
-        sessionId,
-        workoutId: selectedWorkoutId ?? "full-body-foundation",
-        workoutTitle,
-        programId: selectedProgramId ?? undefined,
-        status: sessionStatus,
-        durationSec: workoutDuration,
-        exercises: exercises.map((ex) => ({
-          id: ex.id,
-          name: ex.name,
-          unitLabel: ex.unitLabel,
-          sets: ex.sets.map((s) => ({
-            id: s.id,
-            weight: s.weight ?? "",
-            reps: s.reps ?? "",
-            rest: s.rest ?? "",
-            done: !!s.done,
-            note: s.note ?? "",
-          })),
-        })),
-        history: realWorkoutHistory,
-      });
-
-      await appendWorkoutHistoryEntry(historyEntry);
-      setRealWorkoutHistory((prev) => [historyEntry, ...prev]);
-
-      await AsyncStorage.setItem(
-        FINISH_SUMMARY_STORAGE_KEY,
-        JSON.stringify(summary satisfies FinishSummary),
-      );
-
-      await markDraftCompleted();
-      await clearWorkoutDraft();
-      setAvailableDraft(null);
-
-      setPartialFinishConfirmOpen(false);
-      setCompleteFinishConfirmOpen(false);
-
-      router.replace({
-        pathname: "/workout/finish",
-        params: { sessionStatus },
-      });
-    },
-    [
-      availableDraft?.sessionId,
-      exercises,
-      realWorkoutHistory,
-      selectedProgramId,
-      selectedWorkoutId,
-      workoutDuration,
+    const { summary, historyEntry } = buildFinishSummary({
+      sessionId,
+      workoutId: selectedWorkoutId ?? "full-body-foundation",
       workoutTitle,
-    ],
-  );
+      programId: selectedProgramId ?? undefined,
+      status: sessionStatus,
+      durationSec: workoutDuration,
+      exercises: exercises.map((ex) => ({
+        id: ex.id,
+        name: ex.name,
+        unitLabel: ex.unitLabel,
+        trackingMode: ex.trackingMode,
+        sets: ex.sets.map((s) => ({
+          id: s.id,
+          weight: s.weight ?? "",
+          reps: s.reps ?? "",
+          rest: s.rest ?? "",
+          done: !!s.done,
+          note: s.note ?? "",
+        })),
+      })),
+      history: realWorkoutHistory,
+    });
+
+    await appendWorkoutHistoryEntry(historyEntry);
+    setRealWorkoutHistory((prev) => [historyEntry, ...prev]);
+
+    await AsyncStorage.setItem(
+      FINISH_SUMMARY_STORAGE_KEY,
+      JSON.stringify(summary satisfies FinishSummary),
+    );
+
+    await markDraftCompleted();
+    await clearWorkoutDraft();
+    setAvailableDraft(null);
+
+    setPartialFinishConfirmOpen(false);
+    setCompleteFinishConfirmOpen(false);
+
+    router.replace({
+      pathname: "/workout/finish",
+      params: { sessionStatus },
+    });
+  },
+  [
+    availableDraft?.sessionId,
+    exercises,
+    realWorkoutHistory,
+    selectedProgramId,
+    selectedWorkoutId,
+    workoutDuration,
+    workoutTitle,
+  ],
+);
 
   const handleFinishPress = useCallback(async () => {
     Keyboard.dismiss();
