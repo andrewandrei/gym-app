@@ -1,16 +1,16 @@
 // app/(tabs)/progress.tsx
 //
 // All data comes from useProgressData().
-// To wire Supabase: update the swap points inside useProgressData.ts.
 // This file only handles UI.
 
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
   Easing,
+  Image,
   Modal,
+  PanResponder,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -22,17 +22,19 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Circle, Path } from "react-native-svg";
 
+import { buildMonthData } from "../lib/progress/bodySelectors";
+import { PERFORMANCE_DEMO_CARDS } from "../lib/progress/performanceDemoData";
+import { loadProgressViewState, saveProgressViewState } from "../lib/progress/progressViewState";
+import type { CheckIn, WeekEntry, WeekSession } from "../lib/progress/types";
+import { useProgressData } from "../lib/progress/useProgressData";
+
 import { ScreenHeader } from "@/components/ui/ScreenHeader";
 import { BorderWidth } from "@/styles/hairline";
 import { Spacing } from "@/styles/spacing";
 import { FontSize, FontWeight, Typography } from "@/styles/typography";
 import { useAppTheme } from "../_providers/theme";
-import {
-  useProgressData,
-  type CheckIn,
-  type WeekEntry,
-  type WeekSession,
-} from "./useProgressData";
+
+import { Share2 } from "lucide-react-native";
 
 type TabKey = "program" | "performance" | "body";
 type ProgramView = "week" | "month";
@@ -271,6 +273,8 @@ function WeekDetailPanel({
       : "COMPLETED";
   const statusColor = week.upcoming ? colors.muted : colors.premiumText;
 
+  
+
   return (
     <View
       style={{
@@ -332,7 +336,14 @@ function WeekDetailPanel({
           >
             <View style={[S.row, { alignItems: "flex-start" }]}>
               <View style={{ flex: 1, paddingRight: 10 }}>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 8,
+                    flexWrap: "wrap",
+                  }}
+                >
                   <Text
                     style={[
                       S.finishLikeTitle,
@@ -410,9 +421,7 @@ function WeekDetailPanel({
                 ))}
               </View>
             ) : (
-              <Text style={[S.emptyPrText, { color: colors.muted }]}>
-                No PRs
-              </Text>
+              <Text style={[S.emptyPrText, { color: colors.muted }]}>No PRs</Text>
             )}
 
             <View
@@ -436,92 +445,290 @@ function WeekDetailPanel({
   );
 }
 
+function buildSelectedWeekDays(week: WeekEntry, currentWeek: number) {
+  const now = new Date();
+  const dayOfWeek = (now.getDay() + 6) % 7;
+  const isCurrentWeek = week.n === currentWeek;
+
+  const dayLabels = ["M", "T", "W", "T", "F", "S", "S"];
+
+  const schedule: Array<WeekSession | null> = [
+    week.sessions[0] ?? null,
+    week.sessions[1] ?? null,
+    null,
+    week.sessions[2] ?? null,
+    week.sessions[3] ?? null,
+    null,
+    null,
+  ];
+
+  return dayLabels.map((d, i) => {
+    const session = schedule[i];
+
+    if (!session) {
+      return {
+        d,
+        type: "Rest",
+        status: "rest" as const,
+      };
+    }
+
+    const shortType = session.type.includes("Upper")
+      ? "Upper"
+      : session.type.includes("Lower")
+        ? "Lower"
+        : session.type.includes("Full")
+          ? "Full"
+          : session.type.includes("Test")
+            ? "Test"
+            : session.type;
+
+    let status: "done" | "today" | "planned" | "rest" = "planned";
+
+    if (session.complete) {
+      status = "done";
+    } else if (isCurrentWeek && i === dayOfWeek && !week.upcoming) {
+      status = "today";
+    } else {
+      status = "planned";
+    }
+
+    return {
+      d,
+      type: shortType,
+      status,
+    };
+  });
+}
+
+function buildMonthDayDetails(
+  dayNum: number | null,
+  monthData: ReturnType<typeof useProgressData>["monthData"],
+  colors: any,
+) {
+  if (!dayNum) return null;
+
+  const cell = monthData.days.find((d) => d.dayNum === dayNum);
+  if (!cell) return null;
+
+  let title = `Day ${dayNum}`;
+  let subtitle = "No session logged";
+  let status: "trained" | "today" | "rest" | "future" = "rest";
+
+  if (cell.future) {
+    status = "future";
+    subtitle = "Upcoming day";
+  } else if (cell.trained) {
+    status = "trained";
+    title = cell.type === "U" ? "Upper session" : cell.type === "L" ? "Lower session" : "Session";
+    subtitle = "Training day logged";
+  } else if (cell.isToday) {
+    status = "today";
+    subtitle = "Today";
+  }
+
+  return {
+    dayNum,
+    title,
+    subtitle,
+    status,
+    accentColor:
+      status === "trained"
+        ? colors.premiumText
+        : status === "today"
+          ? colors.premiumText
+          : colors.muted,
+  };
+}
+
+function monthKeyFromDate(date: Date) {
+  const y = date.getFullYear();
+  const m = `${date.getMonth() + 1}`.padStart(2, "0");
+  return `${y}-${m}`;
+}
+
+function dateFromMonthKey(key: string) {
+  const [y, m] = key.split("-").map(Number);
+  return new Date(y, (m ?? 1) - 1, 1);
+}
+
 function ProgramTab({
   router,
   colors,
   isDark,
   data,
+  programId,
 }: {
   router: any;
   colors: any;
   isDark: boolean;
   data: ReturnType<typeof useProgressData>;
+  programId: string;
 }) {
   const [view, setView] = useState<ProgramView>("week");
-  const [selWeek, setSelWeek] = useState<number | null>(data.currentWeek);
-  const soft = getSoft(isDark);
+const [selWeek, setSelWeek] = useState<number>(data.currentWeek);
+const [visibleMonth, setVisibleMonth] = useState<Date>(new Date());
+const [selectedMonthDay, setSelectedMonthDay] = useState<number | null>(null);
 
-  const {
-    currentWeek,
-    totalWeeks,
-    phaseLabel,
-    thisWeekDays,
-    thisWeekDone,
-    thisWeekTotal,
-    weekHistory,
+const soft = getSoft(isDark);
+
+const { currentWeek, totalWeeks, weekHistory, rawHistory } = data;
+const monthData = buildMonthData(rawHistory, visibleMonth);
+
+ 
+
+  useEffect(() => {
+    let mounted = true;
+
+    (async () => {
+      const saved = await loadProgressViewState(programId);
+      if (!mounted) return;
+
+      if (saved?.selectedWeek) {
+        setSelWeek(saved.selectedWeek);
+      } else {
+        setSelWeek(data.currentWeek);
+      }
+
+      if (saved?.visibleMonthKey) {
+        setVisibleMonth(dateFromMonthKey(saved.visibleMonthKey));
+      }
+
+      if (saved?.selectedMonthDay !== undefined) {
+        setSelectedMonthDay(saved.selectedMonthDay ?? null);
+      } else {
+        const now = new Date();
+        const sameMonth =
+          now.getFullYear() === visibleMonth.getFullYear() &&
+          now.getMonth() === visibleMonth.getMonth();
+
+        setSelectedMonthDay(sameMonth ? now.getDate() : 1);
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, [data.currentWeek, programId]);
+
+  useEffect(() => {
+    if (selectedMonthDay == null) {
+      const now = new Date();
+      const sameMonth =
+        now.getFullYear() === visibleMonth.getFullYear() &&
+        now.getMonth() === visibleMonth.getMonth();
+
+      setSelectedMonthDay(sameMonth ? now.getDate() : 1);
+    }
+  }, [visibleMonth, selectedMonthDay]);
+
+  const selectedWeek =
+    weekHistory.find((w) => w.n === selWeek) ??
+    weekHistory.find((w) => w.n === currentWeek) ??
+    weekHistory[0];
+
+  const selectedWeekDays = buildSelectedWeekDays(selectedWeek, currentWeek);
+  const selectedWeekDone = selectedWeek.sessions.filter(
+    (s) => !s.planned && s.complete,
+  ).length;
+  const selectedWeekTotal = selectedWeek.sessions.length;
+  const selectedIsCurrent = selectedWeek.n === currentWeek;
+
+  const selectedMonthDayDetails = buildMonthDayDetails(
+    selectedMonthDay,
     monthData,
-  } = data;
+    colors,
+  );
 
-  const selectedWk =
-    selWeek !== null ? weekHistory.find((w) => w.n === selWeek) ?? null : null;
+  const railScrollRef = useRef<ScrollView | null>(null);
+
+  useEffect(() => {
+    const dotWidth = 58;
+    const x = Math.max(0, (selWeek - 1) * dotWidth - 120);
+    const t = setTimeout(() => {
+      railScrollRef.current?.scrollTo({ x, animated: true });
+    }, 60);
+
+    return () => clearTimeout(t);
+  }, [selWeek]);
+
+  const goToWeek = async (nextWeek: number) => {
+    const clamped = Math.max(1, Math.min(totalWeeks, nextWeek));
+    setSelWeek(clamped);
+
+    await saveProgressViewState({
+      programId,
+      selectedWeek: clamped,
+      visibleMonthKey: monthKeyFromDate(visibleMonth),
+      selectedMonthDay,
+    });
+  };
+
+  const goToMonth = async (direction: -1 | 1) => {
+    const next = new Date(
+      visibleMonth.getFullYear(),
+      visibleMonth.getMonth() + direction,
+      1,
+    );
+
+    setVisibleMonth(next);
+
+    const now = new Date();
+    const nextSelectedDay =
+      next.getFullYear() === now.getFullYear() &&
+      next.getMonth() === now.getMonth()
+        ? now.getDate()
+        : 1;
+
+    setSelectedMonthDay(nextSelectedDay);
+
+    await saveProgressViewState({
+      programId,
+      selectedWeek: selWeek,
+      visibleMonthKey: monthKeyFromDate(next),
+      selectedMonthDay: nextSelectedDay,
+    });
+  };
+
+  const weekSwipeResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (_, gestureState) =>
+          Math.abs(gestureState.dx) > 18 && Math.abs(gestureState.dy) < 12,
+        onPanResponderRelease: (_, gestureState) => {
+          if (gestureState.dx < -40) {
+            void goToWeek(selWeek + 1);
+          } else if (gestureState.dx > 40) {
+            void goToWeek(selWeek - 1);
+          }
+        },
+      }),
+    [selWeek, totalWeeks, visibleMonth, selectedMonthDay],
+  );
+
+  const monthSwipeResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (_, gestureState) =>
+          Math.abs(gestureState.dx) > 18 && Math.abs(gestureState.dy) < 12,
+        onPanResponderRelease: (_, gestureState) => {
+          if (gestureState.dx < -40) {
+            void goToMonth(1);
+          } else if (gestureState.dx > 40) {
+            void goToMonth(-1);
+          }
+        },
+      }),
+    [visibleMonth, selWeek, selectedMonthDay],
+  );
 
   async function handleSessionPress(s: WeekSession) {
-    const prs = s.lifts
-      .filter((l) => l.includes("🏆"))
-      .map((l, i) => ({
-        exerciseId: `ex-${i}`,
-        exerciseName: l.split(" ").slice(0, 2).join(" "),
-        weight: l.match(/[\d.]+kg/)?.[0]?.replace("kg", "") ?? "0",
-        reps: l.match(/×(\d+)/)?.[1] ?? "3",
-        type: "weight",
-      }));
+    if (s.planned) return;
 
-    const summary = {
-      workoutTitle: s.type,
-      durationSec: 2700,
-      status: s.complete ? "completed" : "partial",
-      totals: {
-        completedSets: s.complete ? 12 : 7,
-        totalSets: 12,
-        completedExercises: s.complete ? 4 : 3,
-        totalExercises: 4,
-        totalVolume: 4200,
-        trackedStrengthVolume: 4200,
-      },
-      insights: {
-        completionRate: s.complete ? 1 : 0.58,
-        prCount: prs.length,
-        missingLoadCount: 0,
-        strengthSetCount: 12,
-        avgTrackedLoad: 85,
-        improvedExerciseCount: Math.max(prs.length, 1),
-        matchedExerciseCount: 1,
-        previousSessionFound: true,
-      },
-      prs,
-      wins: [],
-      exercises: [
-        {
-          id: "ex-1",
-          name: s.type.includes("Upper") ? "Bench Press" : "Back Squat",
-          completedSets: s.complete ? 4 : 3,
-          totalSetsPlanned: 4,
-          unitLabel: "KG",
-          sessionVolume: 1200,
-          comparedToLast: { result: prs.length > 0 ? "better" : "same" },
-          sets: Array.from({ length: s.complete ? 4 : 3 }, (_, i) => ({
-            set: i + 1,
-            weight: String(80 + i * 2.5),
-            reps: "5",
-            rest: "2:00",
-            done: true,
-          })),
-        },
-      ],
-    };
-
-    await AsyncStorage.setItem("aa_fit_finish_summary", JSON.stringify(summary));
-    router.push("/workout/finish");
+    router.push({
+      pathname: "/workout-history",
+      params: { workoutTitle: s.type },
+    });
   }
 
   return (
@@ -566,6 +773,117 @@ function ProgramTab({
               {
                 backgroundColor: colors.card,
                 borderColor: colors.borderSubtle,
+                marginBottom: 12,
+              },
+            ]}
+          >
+            <View style={[S.row, { marginBottom: 12 }]}>
+              <Text style={[S.caption, { color: colors.muted }]}>Block progress</Text>
+              <Text style={[S.eyebrow, { color: colors.muted }]}>Tap a week</Text>
+            </View>
+
+            <ScrollView
+              ref={(ref) => {
+                railScrollRef.current = ref;
+              }}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ paddingHorizontal: 2, paddingBottom: 4 }}
+            >
+              <View style={{ position: "relative", minWidth: totalWeeks * 58 }}>
+                <View
+                  style={[
+                    S.dotTrackBg,
+                    {
+                      backgroundColor: colors.borderSubtle,
+                      left: 18,
+                      right: 18,
+                      top: 6,
+                    },
+                  ]}
+                />
+                <View
+                  style={[
+                    S.dotTrackFg,
+                    {
+                      backgroundColor: colors.premium,
+                      left: 18,
+                      top: 6,
+                      width: Math.max(12, (selWeek - 1) * 58 + 12),
+                    },
+                  ]}
+                />
+
+                <View style={{ flexDirection: "row" }}>
+                  {weekHistory.map((w, i) => {
+                    const done = w.n < currentWeek;
+                    const current = w.n === currentWeek;
+                    const selected = w.n === selWeek;
+                    const upcoming = w.n > currentWeek;
+
+                    return (
+                      <Pressable
+                        key={i}
+                        onPress={() => {
+                          void goToWeek(w.n);
+                        }}
+                        style={[S.dotCol, { width: 58, flex: undefined }]}
+                      >
+                        <View
+                          style={[
+                            S.dot,
+                            {
+                              width: current || selected ? 13 : 9,
+                              height: current || selected ? 13 : 9,
+                              borderRadius: 7,
+                              backgroundColor: selected
+                                ? colors.background
+                                : done
+                                  ? colors.premium
+                                  : current
+                                    ? colors.background
+                                    : upcoming
+                                      ? isDark
+                                        ? "rgba(255,255,255,0.10)"
+                                        : "rgba(0,0,0,0.08)"
+                                      : colors.premium,
+                              borderWidth: current || selected ? 2.2 : 0,
+                              borderColor: colors.premium,
+                            },
+                          ]}
+                        />
+                        <Text
+                          style={[
+                            S.dotLabel,
+                            {
+                              color:
+                                selected || done || current
+                                  ? colors.premiumText
+                                  : colors.muted,
+                              fontWeight:
+                                selected || current
+                                  ? FontWeight.black
+                                  : FontWeight.bold,
+                            },
+                          ]}
+                        >
+                          W{w.n}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
+            </ScrollView>
+          </View>
+
+          <View
+            {...weekSwipeResponder.panHandlers}
+            style={[
+              S.programHeroCard,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.borderSubtle,
                 marginBottom: 20,
               },
             ]}
@@ -573,10 +891,13 @@ function ProgramTab({
             <View style={[S.row, { marginBottom: 12 }]}>
               <View>
                 <Text style={[S.caption, { color: colors.muted }]}>
-                  Week {currentWeek} · {phaseLabel} phase
+                  Week {selectedWeek.n} · {selectedWeek.label} phase
                 </Text>
                 <Text style={[S.title3, { color: colors.text, marginTop: 4 }]}>
-                  {thisWeekDone}/{thisWeekTotal} sessions
+                  {selectedWeekDone}/{selectedWeekTotal} sessions
+                </Text>
+                <Text style={[S.caption, { color: colors.muted, marginTop: 4 }]}>
+                  Swipe left or right to browse weeks
                 </Text>
               </View>
 
@@ -590,13 +911,13 @@ function ProgramTab({
                 ]}
               >
                 <Text style={[S.prMiniBadgeText, { color: colors.premiumText }]}>
-                  Current
+                  {selectedIsCurrent ? "Current" : `W${selectedWeek.n}`}
                 </Text>
               </View>
             </View>
 
             <View style={[S.daysRow, { marginBottom: 16 }]}>
-              {thisWeekDays.map((s, i) => {
+              {selectedWeekDays.map((s, i) => {
                 const isRest = s.status === "rest";
                 const isDone = s.status === "done";
                 const isToday = s.status === "today";
@@ -655,7 +976,7 @@ function ProgramTab({
                           }}
                         />
                       )}
-                      {s.status === "planned" && (
+                      {s.status === "planned" && !isToday && (
                         <View
                           style={{
                             width: 4,
@@ -687,92 +1008,14 @@ function ProgramTab({
                 );
               })}
             </View>
-
-            <View
-              style={[
-                S.divider,
-                { backgroundColor: colors.borderSubtle, marginBottom: 12 },
-              ]}
-            />
-
-            <View style={[S.row, { marginBottom: 12 }]}>
-              <Text style={[S.caption, { color: colors.muted }]}>
-                Block progress
-              </Text>
-              <Text style={[S.eyebrow, { color: colors.muted }]}>Tap a week</Text>
-            </View>
-
-            <View style={{ position: "relative", paddingBottom: 4 }}>
-              <View style={[S.dotTrackBg, { backgroundColor: colors.borderSubtle }]} />
-              <View
-                style={[
-                  S.dotTrackFg,
-                  {
-                    backgroundColor: colors.premium,
-                    width: `${((currentWeek - 1) / (totalWeeks - 1)) * 88 + 6}%`,
-                  },
-                ]}
-              />
-              <View style={{ flexDirection: "row" }}>
-                {weekHistory.map((w, i) => {
-                  const done = w.n < currentWeek;
-                  const current = w.n === currentWeek;
-                  const sel = selWeek === w.n;
-
-                  return (
-                    <Pressable
-                      key={i}
-                      onPress={() =>
-                        done || current ? setSelWeek(sel ? null : w.n) : null
-                      }
-                      style={S.dotCol}
-                    >
-                      <View
-                        style={[
-                          S.dot,
-                          {
-                            width: current || sel ? 13 : 9,
-                            height: current || sel ? 13 : 9,
-                            borderRadius: 7,
-                            backgroundColor: done
-                              ? colors.premium
-                              : current
-                                ? colors.background
-                                : isDark
-                                  ? "rgba(255,255,255,0.10)"
-                                  : "rgba(0,0,0,0.08)",
-                            borderWidth: current || sel ? 2.2 : 0,
-                            borderColor: colors.premium,
-                          },
-                        ]}
-                      />
-                      <Text
-                        style={[
-                          S.dotLabel,
-                          {
-                            color: done || current ? colors.premiumText : colors.muted,
-                            fontWeight:
-                              current || sel ? FontWeight.black : FontWeight.bold,
-                          },
-                        ]}
-                      >
-                        W{w.n}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </View>
           </View>
 
-          {selWeek !== null && selectedWk && (
-            <WeekDetailPanel
-              week={selectedWk}
-              colors={colors}
-              isDark={isDark}
-              onSessionPress={handleSessionPress}
-            />
-          )}
+          <WeekDetailPanel
+            week={selectedWeek}
+            colors={colors}
+            isDark={isDark}
+            onSessionPress={handleSessionPress}
+          />
 
           <Pressable
             onPress={() => router.push("/workout-history")}
@@ -805,6 +1048,7 @@ function ProgramTab({
       {view === "month" && (
         <View>
           <View
+            {...monthSwipeResponder.panHandlers}
             style={[
               S.programHeroCard,
               {
@@ -859,9 +1103,33 @@ function ProgramTab({
               ))}
             </View>
 
-            <Text style={[S.subhead, { color: colors.text, marginBottom: 12 }]}>
-              {monthData.label}
-            </Text>
+            <View style={[S.row, { marginBottom: 12 }]}>
+              <Pressable
+                onPress={() => {
+                  void goToMonth(-1);
+                }}
+                style={[
+                  S.closeBtn,
+                  { backgroundColor: soft, borderColor: colors.borderSubtle },
+                ]}
+              >
+                <Text style={[S.body, { color: colors.text }]}>‹</Text>
+              </Pressable>
+
+              <Text style={[S.subhead, { color: colors.text }]}>{monthData.label}</Text>
+
+              <Pressable
+                onPress={() => {
+                  void goToMonth(1);
+                }}
+                style={[
+                  S.closeBtn,
+                  { backgroundColor: soft, borderColor: colors.borderSubtle },
+                ]}
+              >
+                <Text style={[S.body, { color: colors.text }]}>›</Text>
+              </Pressable>
+            </View>
 
             <View style={{ flexDirection: "row", marginBottom: 5 }}>
               {["M", "T", "W", "T", "F", "S", "S"].map((d, i) => (
@@ -893,10 +1161,20 @@ function ProgramTab({
                     const tr = cell?.trained ?? false;
                     const isT = cell?.isToday ?? false;
                     const fut = cell?.future ?? false;
+                    const isSelected = selectedMonthDay === d;
 
                     return (
-                      <View
+                      <Pressable
                         key={ci}
+                        onPress={() => {
+                          setSelectedMonthDay(d);
+                          void saveProgressViewState({
+                            programId,
+                            selectedWeek: selWeek,
+                            visibleMonthKey: monthKeyFromDate(visibleMonth),
+                            selectedMonthDay: d,
+                          });
+                        }}
                         style={[
                           S.calCircle,
                           {
@@ -905,8 +1183,10 @@ function ProgramTab({
                               : isT
                                 ? colors.premiumSoft
                                 : soft,
-                            borderWidth: isT && !tr ? 0.5 : 0,
-                            borderColor: colors.premiumBorder,
+                            borderWidth: isSelected ? 1.6 : isT && !tr ? 0.5 : 0,
+                            borderColor: isSelected
+                              ? colors.premium
+                              : colors.premiumBorder,
                             opacity: fut ? 0.3 : 1,
                           },
                         ]}
@@ -916,7 +1196,8 @@ function ProgramTab({
                             S.calNum,
                             {
                               color: tr ? "#111111" : isT ? colors.premiumText : colors.muted,
-                              fontWeight: tr || isT ? FontWeight.bold : FontWeight.medium,
+                              fontWeight:
+                                tr || isT || isSelected ? FontWeight.bold : FontWeight.medium,
                               fontSize: 9,
                             },
                           ]}
@@ -935,7 +1216,7 @@ function ProgramTab({
                             {cell.type}
                           </Text>
                         )}
-                      </View>
+                      </Pressable>
                     );
                   })}
                 </View>
@@ -967,11 +1248,70 @@ function ProgramTab({
               ))}
             </View>
           </View>
+
+          {selectedMonthDayDetails && (
+            <View
+              style={[
+                S.finishLikeCard,
+                {
+                  backgroundColor: colors.card,
+                  borderColor: colors.borderSubtle,
+                  marginBottom: 12,
+                },
+              ]}
+            >
+              <View style={[S.row, { alignItems: "flex-start" }]}>
+                <View>
+                  <Text style={[S.eyebrow, { color: colors.muted, marginBottom: 4 }]}>
+                    SELECTED DAY
+                  </Text>
+                  <Text style={[S.title3, { color: colors.text }]}>
+                    {monthData.label} {selectedMonthDayDetails.dayNum}
+                  </Text>
+                  <Text style={[S.caption, { color: colors.muted, marginTop: 4 }]}>
+                    {selectedMonthDayDetails.subtitle}
+                  </Text>
+                </View>
+
+                <View
+                  style={[
+                    S.prMiniBadge,
+                    {
+                      backgroundColor: colors.premiumSoft,
+                      borderColor: colors.premiumBorder,
+                    },
+                  ]}
+                >
+                  <Text style={[S.prMiniBadgeText, { color: selectedMonthDayDetails.accentColor }]}>
+                    {selectedMonthDayDetails.status === "trained"
+                      ? "Logged"
+                      : selectedMonthDayDetails.status === "today"
+                        ? "Today"
+                        : selectedMonthDayDetails.status === "future"
+                          ? "Upcoming"
+                          : "Rest"}
+                  </Text>
+                </View>
+              </View>
+
+              <View
+                style={[
+                  S.divider,
+                  { backgroundColor: colors.borderSubtle, marginTop: 12, marginBottom: 12 },
+                ]}
+              />
+
+              <Text style={[S.body, { color: colors.text }]}>
+                {selectedMonthDayDetails.title}
+              </Text>
+            </View>
+          )}
         </View>
       )}
     </View>
   );
 }
+
 
 function PerformanceTab({
   exerciseCards,
@@ -1213,6 +1553,26 @@ function PerformanceTab({
     </View>
   );
 }
+const DEMO_PROGRESS_PHOTOS = {
+  Front: {
+    before:
+      "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=900&q=80",
+    now:
+      "https://images.unsplash.com/photo-1546483875-ad9014c88eba?auto=format&fit=crop&w=900&q=80",
+  },
+  Side: {
+    before:
+      "https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=900&q=80",
+    now:
+      "https://images.unsplash.com/photo-1517838277536-f5f99be501cd?auto=format&fit=crop&w=900&q=80",
+  },
+  Back: {
+    before:
+      "https://images.unsplash.com/photo-1517838277536-f5f99be501cd?auto=format&fit=crop&w=900&q=80",
+    now:
+      "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=900&q=80",
+  },
+} as const;
 
 function BodyTab({
   checkins,
@@ -1234,6 +1594,7 @@ function BodyTab({
   const negativeBorder = getNegativeBorder(isDark);
 
   const latest = checkins[checkins.length - 1];
+  const currentAngle = ANGLES[angleIdx] as keyof typeof DEMO_PROGRESS_PHOTOS;
   const first = checkins[0];
   const wDelta = +(latest.weight - first.weight).toFixed(1);
   const wDown = wDelta < 0;
@@ -1426,122 +1787,91 @@ function BodyTab({
           ))}
         </View>
 
-        <View style={{ flexDirection: "row", gap: 10, marginBottom: 12 }}>
-          {([
-            { label: "BEFORE", accent: false },
-            { label: "NOW", accent: true },
-          ] as const).map((slot, j) => (
-            <View key={j} style={{ flex: 1 }}>
-              <Text
-                style={[
-                  S.eyebrow,
-                  {
-                    textAlign: "center",
-                    color: slot.accent ? colors.premiumText : colors.muted,
-                    marginBottom: 8,
-                  },
-                ]}
-              >
-                {slot.label}
-              </Text>
+<View style={{ flexDirection: "row", gap: 10, marginBottom: 12 }}>
+  {([
+    {
+      label: "BEFORE",
+      accent: false,
+      uri: DEMO_PROGRESS_PHOTOS[currentAngle].before,
+      dateText: compareIdx !== null ? checkins[compareIdx]?.date ?? "" : "Demo",
+    },
+    {
+      label: "NOW",
+      accent: true,
+      uri: DEMO_PROGRESS_PHOTOS[currentAngle].now,
+      dateText: latest.date,
+    },
+  ] as const).map((slot, j) => (
+    <View key={j} style={{ flex: 1 }}>
+      <Text
+        style={[
+          S.eyebrow,
+          {
+            textAlign: "center",
+            color: slot.accent ? colors.premiumText : colors.muted,
+            marginBottom: 8,
+          },
+        ]}
+      >
+        {slot.label}
+      </Text>
 
-              <View
-                style={[
-                  S.photoSlot,
-                  {
-                    backgroundColor: soft,
-                    borderColor:
-                      j === 0
-                        ? compareIdx !== null
-                          ? colors.borderSubtle
-                          : colors.premiumBorder
-                        : colors.premiumBorder,
-                  },
-                ]}
-              >
-                {j === 0 && compareIdx === null ? (
-                  <>
-                    <Svg width={22} height={22} viewBox="0 0 24 24" opacity={0.45}>
-                      <Path
-                        d="M14.5 4h-5L8 7H4a1 1 0 00-1 1v10a1 1 0 001 1h16a1 1 0 001-1V8a1 1 0 00-1-1h-4l-1.5-3z"
-                        stroke={colors.premiumText}
-                        strokeWidth={1.6}
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        fill="none"
-                      />
-                      <Circle
-                        cx={12}
-                        cy={13}
-                        r={3}
-                        stroke={colors.premiumText}
-                        strokeWidth={1.6}
-                        fill="none"
-                      />
-                    </Svg>
-                    <Text
-                      style={[
-                        S.caption,
-                        {
-                          color: colors.premiumText,
-                          fontWeight: FontWeight.bold,
-                          textAlign: "center",
-                          paddingHorizontal: 8,
-                        },
-                      ]}
-                    >
-                      Pick a date below
-                    </Text>
-                  </>
-                ) : (
-                  <>
-                    <Svg width={22} height={22} viewBox="0 0 24 24" opacity={0.28}>
-                      <Path
-                        d="M14.5 4h-5L8 7H4a1 1 0 00-1 1v10a1 1 0 001 1h16a1 1 0 001-1V8a1 1 0 00-1-1h-4l-1.5-3z"
-                        stroke={colors.muted}
-                        strokeWidth={1.6}
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        fill="none"
-                      />
-                      <Circle
-                        cx={12}
-                        cy={13}
-                        r={3}
-                        stroke={colors.muted}
-                        strokeWidth={1.6}
-                        fill="none"
-                      />
-                    </Svg>
-                    <Text
-                      style={[
-                        S.caption,
-                        {
-                          color: colors.muted,
-                          textAlign: "center",
-                          paddingHorizontal: 10,
-                        },
-                      ]}
-                    >
-                      {j === 0
-                        ? `No photo\n${checkins[compareIdx!]?.date ?? ""}`
-                        : "No photo yet\nadd in check-in"}
-                    </Text>
-                    <Text
-                      style={{
-                        fontSize: 9,
-                        color: colors.muted,
-                        marginTop: 2,
-                      }}
-                    >
-                      {j === 0 ? checkins[compareIdx!]?.date ?? "" : latest.date}
-                    </Text>
-                  </>
-                )}
-              </View>
-            </View>
-          ))}
+      <View
+        style={[
+          S.photoSlot,
+          {
+            backgroundColor: soft,
+            borderColor:
+              j === 0
+                ? compareIdx !== null
+                  ? colors.borderSubtle
+                  : colors.premiumBorder
+                : colors.premiumBorder,
+          },
+        ]}
+      >
+        <Image
+          source={{ uri: slot.uri }}
+          style={StyleSheet.absoluteFillObject}
+          resizeMode="cover"
+        />
+
+        <View
+          style={[
+            StyleSheet.absoluteFillObject,
+            {
+              backgroundColor: "rgba(0,0,0,0.16)",
+            },
+          ]}
+        />
+
+        <View
+          style={{
+            position: "absolute",
+            left: 8,
+            right: 8,
+            bottom: 8,
+            paddingVertical: 6,
+            paddingHorizontal: 8,
+            borderRadius: 10,
+            backgroundColor: "rgba(0,0,0,0.36)",
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 10,
+              color: "#FFFFFF",
+              fontWeight: FontWeight.heavy,
+              textAlign: "center",
+            }}
+          >
+            {slot.dateText}
+          </Text>
         </View>
+      </View>
+    </View>
+  ))}
+</View>
 
         <View style={[S.row, { marginBottom: 8 }]}>
           <Text style={[S.subhead, { fontSize: 13, color: colors.text }]}>
@@ -2017,8 +2347,6 @@ function ShareModal({
   const [note, setNote] = useState("");
   const soft = getSoft(isDark);
   const negativeColor = getNegativeColor(colors, isDark);
-  const negativeSoft = getNegativeSoft(isDark);
-  const negativeBorder = getNegativeBorder(isDark);
 
   const { checkins, weekHistory, programTitle, programSubtitle } = data;
   const first = checkins[0];
@@ -2378,18 +2706,17 @@ export default function ProgressScreen() {
   const [tab, setTab] = useState<TabKey>("program");
   const [showCheckin, setShowCheckin] = useState(false);
   const [showShare, setShowShare] = useState(false);
-  const [prToast, setPrToast] = useState<{ name: string; gain: string } | null>(
-    null,
-  );
 
-  const data = useProgressData("strength-foundations");
-  const { checkins, addCheckin, loading, refresh, programTitle, programSubtitle } =
-    data;
 
-  useEffect(() => {
-    const t = setTimeout(() => setPrToast({ name: "Back Squat", gain: "7.5" }), 1600);
-    return () => clearTimeout(t);
-  }, []);
+  const programId = "strength-foundations";
+  const data = useProgressData(programId);
+  const { checkins, addCheckin, loading, refresh, programTitle, programSubtitle } = data;
+
+  const performanceCards =
+  data.exerciseCards && data.exerciseCards.length >= 3
+    ? data.exerciseCards
+    : PERFORMANCE_DEMO_CARDS;
+
 
   const TABS: Array<{ key: TabKey; label: string }> = [
     { key: "program", label: "Program" },
@@ -2399,13 +2726,7 @@ export default function ProgressScreen() {
 
   return (
     <SafeAreaView style={[S.safe, { backgroundColor: colors.background }]} edges={["top"]}>
-      {prToast && (
-        <PRToast
-          name={prToast.name}
-          gain={prToast.gain}
-          onDone={() => setPrToast(null)}
-        />
-      )}
+     
 
       <CheckInSheet
         visible={showCheckin}
@@ -2427,21 +2748,33 @@ export default function ProgressScreen() {
         isDark={isDark}
       />
 
-      <View style={[S.row, { paddingHorizontal: Spacing.md, paddingBottom: 4 }]}>
-        <ScreenHeader title={programTitle} subtitle={programSubtitle} />
-        <Pressable
-          onPress={() => setShowShare(true)}
-          style={[
-            S.shareBtn,
-            {
-              backgroundColor: isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.05)",
-              borderColor: colors.borderSubtle,
-            },
-          ]}
+     <View
+          style={{
+             flexDirection: "row",
+              alignItems: "center",
+              paddingHorizontal: Spacing.md,
+              paddingBottom: 6,
+              gap: 12,
+          }}
         >
-          <Text style={[S.body, { color: colors.muted }]}>↑</Text>
-        </Pressable>
-      </View>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <ScreenHeader title={programTitle} subtitle={programSubtitle} />
+          </View>
+
+          <Pressable
+            onPress={() => setShowShare(true)}
+            style={[
+              S.shareBtn,
+              {
+                backgroundColor: isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.05)",
+                borderColor: colors.borderSubtle,
+                
+              },
+            ]}
+          >
+            <Share2 size={16} color={colors.muted} strokeWidth={2} />
+          </Pressable>
+        </View>
 
       <View
         style={[
@@ -2487,10 +2820,16 @@ export default function ProgressScreen() {
         }
       >
         {tab === "program" && (
-          <ProgramTab router={router} colors={colors} isDark={isDark} data={data} />
+          <ProgramTab
+            router={router}
+            colors={colors}
+            isDark={isDark}
+            data={data}
+            programId={programId}
+          />
         )}
         {tab === "performance" && (
-          <PerformanceTab exerciseCards={data.exerciseCards} colors={colors} isDark={isDark} />
+         <PerformanceTab exerciseCards={performanceCards} colors={colors} isDark={isDark} />
         )}
         {tab === "body" && (
           <BodyTab
@@ -2525,13 +2864,13 @@ const S = StyleSheet.create({
   tabText: { ...Typography.subhead },
 
   shareBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     borderWidth: BorderWidth.default,
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 4,
+    flexShrink: 0,
   },
 
   toast: {

@@ -1,202 +1,25 @@
-// app/(tabs)/progressEngine.ts
+// app/lib/progress/progressEngine.ts
 
-import type { WorkoutHistoryEntry } from "../workout/workoutHistory";
-
-export type ProgressRange = "7D" | "30D" | "ALL";
-
-export type ProgressScreenData = {
-  range: ProgressRange;
-  overview: ProgressOverview;
-  charts: ProgressCharts;
-  calendar: ProgressWeekCalendar;
-  highlights: ProgressHighlights;
-  exercises: ExerciseProgressCard[];
-  recentSessions: ProgressSessionRow[];
-  bodyMetrics: ProgressBodyMetricsBlock;
-  emptyState: ProgressEmptyState;
-};
-
-export type ProgressOverview = {
-  totalSessions: number;
-  completedSessions: number;
-  partialSessions: number;
-
-  completedSets: number;
-  totalPlannedSets: number;
-
-  totalVolume: number;
-  totalDurationSec: number;
-
-  completionRate: number; // 0..1
-  averageSessionDurationSec: number;
-
-  activeDays: number;
-  currentStreakDays: number;
-};
-
-export type ProgressChartPoint = {
-  key: string;
-  label: string;
-  value: number;
-  secondaryValue?: number;
-  date: string;
-};
-
-export type ProgressChart = {
-  id: "workouts" | "volume" | "completion";
-  title: string;
-  subtitle: string;
-  points: ProgressChartPoint[];
-  trend: "up" | "down" | "flat";
-  summaryLabel: string;
-  empty: boolean;
-};
-
-export type ProgressCharts = {
-  workouts: ProgressChart;
-  volume: ProgressChart;
-  completion: ProgressChart;
-};
-
-export type ProgressWeekCalendar = {
-  weekLabel: string;
-  days: ProgressWeekDay[];
-  selectedDayKey: string;
-  selectedDaySummary: ProgressSelectedDaySummary | null;
-};
-
-export type ProgressWeekDay = {
-  key: string;
-  label: string;
-  dateLabel: string;
-  isToday: boolean;
-  sessionCount: number;
-  status: "none" | "partial" | "completed" | "mixed";
-};
-
-export type ProgressSelectedDaySummary = {
-  key: string;
-  dateLabel: string;
-  sessionCount: number;
-  primaryStatus: "none" | "partial" | "completed" | "mixed";
-  title: string;
-  subtitle: string;
-  note?: string;
-
-  latestSessionId?: string;
-  latestWorkoutId?: string;
-};
-
-export type ProgressHighlights = {
-  latestPR: ProgressHighlightPR | null;
-  strongestSession: ProgressHighlightSession | null;
-  mostImprovedExercise: ProgressHighlightExercise | null;
-};
-
-export type ProgressHighlightPR = {
-  exerciseId: string;
-  exerciseName: string;
-  type: "weight" | "reps" | "volume";
-  valueLabel: string;
-  achievedAt: string;
-  sessionId: string;
-};
-
-export type ProgressHighlightSession = {
-  sessionId: string;
-  workoutId: string;
-  workoutTitle: string;
-  totalVolume: number;
-  completedAt: string;
-  status: "partial" | "completed";
-};
-
-export type ProgressHighlightExercise = {
-  exerciseId: string;
-  exerciseName: string;
-  result: "better" | "same" | "mixed";
-  improvedSets: number;
-  prCount: number;
-  lastTrainedAt: string;
-};
-
-export type ExerciseProgressCard = {
-  exerciseId: string;
-  exerciseName: string;
-  unitLabel: string;
-
-  sessionsLogged: number;
-  lastTrainedAt: string;
-
-  bestWeight?: number;
-  bestReps?: number;
-  bestVolume?: number;
-
-  latestSession: {
-    sessionId: string;
-    completedAt: string;
-    status: "partial" | "completed";
-    completedSets: number;
-    totalSetsPlanned: number;
-    sessionVolume: number;
-  } | null;
-
-  trend: {
-    result: "better" | "same" | "mixed" | "no_data";
-    improvedSets: number;
-    matchedSets: number;
-    belowSets: number;
-    prCount: number;
-  };
-
-  recentDelta?: {
-    weight?: number;
-    reps?: number;
-    volume?: number;
-  };
-};
-
-export type ProgressSessionRow = {
-  sessionId: string;
-  workoutId: string;
-  workoutTitle: string;
-
-  completedAt: string;
-  dateLabel: string;
-
-  durationSec: number;
-  completedSets: number;
-  totalSets: number;
-  completionRate: number;
-
-  totalVolume: number;
-  status: "partial" | "completed";
-};
-
-export type ProgressBodyMetricTrend = "down" | "up" | "flat" | "no_data";
-
-export type ProgressBodyMetricItem = {
-  label: string;
-  valueLabel: string;
-  trend: ProgressBodyMetricTrend;
-  trendLabel: string;
-  updatedAtLabel: string;
-  isPlaceholder: boolean;
-};
-
-export type ProgressBodyMetricsBlock = {
-  weight: ProgressBodyMetricItem | null;
-  waist: ProgressBodyMetricItem | null;
-  hasRealData: boolean;
-};
-
-export type ProgressEmptyState = {
-  hasAnyHistory: boolean;
-  hasEnoughDataForCharts: boolean;
-  hasEnoughDataForComparisons: boolean;
-  hasAnyVolumeData: boolean;
-  hasAnyPRData: boolean;
-};
+import type { WorkoutHistoryEntry } from "../../workout/workoutHistory";
+import type {
+  ExerciseProgressCard,
+  ProgressBodyMetricsBlock,
+  ProgressChart,
+  ProgressChartPoint,
+  ProgressCharts,
+  ProgressEmptyState,
+  ProgressHighlightExercise,
+  ProgressHighlightPR,
+  ProgressHighlightSession,
+  ProgressHighlights,
+  ProgressOverview,
+  ProgressRange,
+  ProgressScreenData,
+  ProgressSelectedDaySummary,
+  ProgressSessionRow,
+  ProgressWeekCalendar,
+  ProgressWeekDay,
+} from "./types";
 
 type HistoryExercise = WorkoutHistoryEntry["exercises"][number];
 type HistorySet = HistoryExercise["sets"][number];
@@ -359,7 +182,8 @@ function getRangeSubtitle(range: ProgressRange) {
 }
 
 function buildDailyBuckets(now: Date, days: number) {
-  const buckets: Array<{ key: string; label: string; start: Date; end: Date; date: string }> = [];
+  const buckets: Array<{ key: string; label: string; start: Date; end: Date; date: string }> =
+    [];
 
   for (let i = days - 1; i >= 0; i -= 1) {
     const current = addDays(startOfDay(now), -i);
@@ -379,7 +203,8 @@ function buildWeeklyBuckets(now: Date, daysBack: number) {
   const start = startOfDay(addDays(now, -(daysBack - 1)));
   const end = endOfDay(now);
 
-  const buckets: Array<{ key: string; label: string; start: Date; end: Date; date: string }> = [];
+  const buckets: Array<{ key: string; label: string; start: Date; end: Date; date: string }> =
+    [];
   let cursor = startOfWeek(start);
 
   while (cursor <= end) {
@@ -405,7 +230,8 @@ function buildMonthlyBuckets(history: WorkoutHistoryEntry[], now: Date) {
   const start = oldest ? startOfMonth(new Date(oldest.completedAt)) : startOfMonth(now);
   const end = endOfMonth(now);
 
-  const buckets: Array<{ key: string; label: string; start: Date; end: Date; date: string }> = [];
+  const buckets: Array<{ key: string; label: string; start: Date; end: Date; date: string }> =
+    [];
   let cursor = new Date(start);
 
   while (cursor <= end) {
@@ -589,7 +415,7 @@ function compareExerciseSessions(
   }, 0);
 
   const previousVolume = previousDoneSets.reduce((sum, set) => {
-    return sum + getSetVolume(set.weight, set.reps);
+    return sum + getSetVolume(prev.weight, prev.reps);
   }, 0);
 
   return {

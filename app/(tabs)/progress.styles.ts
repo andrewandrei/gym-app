@@ -3,6 +3,8 @@ import { BorderWidth } from "@/styles/hairline";
 import { Spacing } from "@/styles/spacing";
 import { StyleSheet } from "react-native";
 
+
+
 export function createProgressStyles(
   colors: {
     background: string;
