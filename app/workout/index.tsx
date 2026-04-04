@@ -48,6 +48,7 @@ import {
   getWorkoutHistoryByWorkoutId,
   type WorkoutHistoryEntry,
 } from "../../features/workout/workoutHistory";
+import WorkoutPlayer from "../../features/workout/WorkoutPlayer";
 import {
   WorkoutPreview,
   type Exercise,
@@ -60,7 +61,6 @@ import {
   formatStoredWeightStringForDisplay,
 } from "../../lib/weightUnits";
 import type { SetRow as SetRowLocal } from "./SetRowItem";
-import WorkoutPlayer from "./WorkoutPlayer";
 
 
 

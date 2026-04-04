@@ -6,11 +6,11 @@ import { Image, Pressable, ScrollView, Text, View } from "react-native";
 
 import { useAppTheme } from "@/providers/theme";
 import { BorderWidth } from "@/styles/hairline";
+import SetRowItem, { SetRow as SetRowLocal } from "../../features/workout/SetRowItem";
 import { createWorkoutStyles } from "../../features/workout/workout.styles";
 import type { TrackingMode } from "../../features/workout/workout.types";
 import { getTrackingModeConfig } from "../../features/workout/workout.types";
 import type { Exercise, StrengthBlock } from "../../features/workout/WorkoutPreview";
-import SetRowItem, { SetRow as SetRowLocal } from "./SetRowItem";
 
 type Props = {
   workoutTitle: string;
