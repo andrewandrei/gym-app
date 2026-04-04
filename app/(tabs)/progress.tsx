@@ -22,17 +22,17 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Circle, Path } from "react-native-svg";
 
-import { buildMonthData } from "../lib/progress/bodySelectors";
-import { PERFORMANCE_DEMO_CARDS } from "../lib/progress/performanceDemoData";
-import { loadProgressViewState, saveProgressViewState } from "../lib/progress/progressViewState";
-import type { CheckIn, WeekEntry, WeekSession } from "../lib/progress/types";
-import { useProgressData } from "../lib/progress/useProgressData";
+import { buildMonthData } from "../../lib/progress/bodySelectors";
+import { PERFORMANCE_DEMO_CARDS } from "../../lib/progress/performanceDemoData";
+import { loadProgressViewState, saveProgressViewState } from "../../lib/progress/progressViewState";
+import type { CheckIn, WeekEntry, WeekSession } from "../../lib/progress/types";
+import { useProgressData } from "../../lib/progress/useProgressData";
 
 import { ScreenHeader } from "@/components/ui/ScreenHeader";
 import { BorderWidth } from "@/styles/hairline";
 import { Spacing } from "@/styles/spacing";
 import { FontSize, FontWeight, Typography } from "@/styles/typography";
-import { useAppTheme } from "../_providers/theme";
+import { useAppTheme } from "../../providers/theme";
 
 import { Share2 } from "lucide-react-native";
 

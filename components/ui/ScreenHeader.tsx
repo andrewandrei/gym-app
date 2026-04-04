@@ -3,7 +3,7 @@ import { ChevronLeft } from "lucide-react-native";
 import React, { useMemo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { useAppTheme } from "@/app/_providers/theme";
+import { useAppTheme } from "@/providers/theme";
 import { Spacing } from "@/styles/spacing";
 
 type Props = {

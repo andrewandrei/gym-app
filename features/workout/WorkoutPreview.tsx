@@ -1,6 +1,6 @@
 
 //app/workout/WorkoutPreview.tsx
-import { useAppTheme } from "@/app/_providers/theme";
+import { useAppTheme } from "@/providers/theme";
 import { BorderWidth } from "@/styles/hairline";
 
 import {

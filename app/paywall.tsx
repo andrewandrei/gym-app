@@ -4,12 +4,12 @@ import React from "react";
 import { Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { useEntitlements } from "./_providers/entitlements";
+import { useEntitlements } from "../providers/entitlements";
 
 import { PressableScale } from "@/components/ui/PressableScale";
 import { Colors } from "@/styles/colors";
 
-import { styles } from "./paywall.styles";
+import { styles } from "../styles/screens/paywall.styles";
 
 export default function PaywallScreen() {
   const insets = useSafeAreaInsets();

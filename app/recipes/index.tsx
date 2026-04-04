@@ -4,27 +4,27 @@ import { useRouter } from "expo-router";
 import { ChevronLeft } from "lucide-react-native";
 import React, { useMemo, useState } from "react";
 import {
-    Image,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View,
+  Image,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { useAppTheme } from "@/app/_providers/theme";
 import { PressableScale } from "@/components/ui/PressableScale";
 import { ScreenHeader } from "@/components/ui/ScreenHeader";
+import { useAppTheme } from "@/providers/theme";
 import { BorderWidth } from "@/styles/hairline";
 import { Spacing } from "@/styles/spacing";
 
 import {
-    getAllRecipes,
-    RECIPE_CATEGORIES,
-    type Recipe,
-    type RecipeCategory,
-} from "./recipe.data";
+  getAllRecipes,
+  RECIPE_CATEGORIES,
+  type Recipe,
+  type RecipeCategory,
+} from "../../features/programs/recipe.data";
 
 // ─── Category pill ───────────────────────────────────────────────────────────
 

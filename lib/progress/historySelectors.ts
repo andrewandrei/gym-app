@@ -1,6 +1,6 @@
 // app/lib/progress/historySelectors.ts
 
-import { parseProgramWorkoutId } from "../../program/programWorkouts";
+import { parseProgramWorkoutId } from "../../features/programs/programWorkouts";
 import type { WeekEntry, WeekSession } from "./types";
 
 export function mergeHistory(rawHistory: any[], base: WeekEntry[]): WeekEntry[] {

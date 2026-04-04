@@ -18,11 +18,11 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { ScreenHeader } from "@/components/ui/ScreenHeader";
 
-import { useAppSettings } from "../_providers/appSettings";
-import { useAppTheme } from "../_providers/theme";
-import { clearWorkoutDraft } from "../workout/workoutDraft";
-import { clearWorkoutHistory } from "../workout/workoutHistory";
-import { createProfileStyles } from "./profile.styles";
+import { useAppSettings } from "@/providers/appSettings";
+import { useAppTheme } from "@/providers/theme";
+import { clearWorkoutDraft } from "../../features/workout/workoutDraft";
+import { clearWorkoutHistory } from "../../features/workout/workoutHistory";
+import { createProfileStyles } from "../../styles/screens/profile.styles";
 
 type RowIcon =
   | "crown"

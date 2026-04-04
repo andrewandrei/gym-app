@@ -19,23 +19,23 @@ import { ScreenHeader } from "@/components/ui/ScreenHeader";
 import { BorderWidth } from "@/styles/hairline";
 import { Spacing } from "@/styles/spacing";
 
-import { useAppSettings } from "../_providers/appSettings";
-import { useAppTheme } from "../_providers/theme";
-import { getProgram } from "../program/program.data";
+import { getProgram } from "../../features/programs/program.data";
 import {
   getProgramWorkoutTemplate,
   getWorkoutCountForWeek,
   parseProgramWorkoutId,
-} from "../program/programWorkouts";
+} from "../../features/programs/programWorkouts";
 import {
   clearWorkoutDraft,
   loadWorkoutDraft,
   type WorkoutDraft,
-} from "../workout/workoutDraft";
+} from "../../features/workout/workoutDraft";
 import {
   getWorkoutHistory,
   type WorkoutHistoryEntry,
-} from "../workout/workoutHistory";
+} from "../../features/workout/workoutHistory";
+import { useAppSettings } from "../../providers/appSettings";
+import { useAppTheme } from "../../providers/theme";
 
 type CtaState = "start" | "resume";
 

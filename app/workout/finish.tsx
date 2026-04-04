@@ -7,10 +7,10 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
 
-import { useAppTheme } from "@/app/_providers/theme";
+import { useAppTheme } from "@/providers/theme";
 import { BorderWidth } from "@/styles/hairline";
-import { getFinishFeedback, type FinishSummary } from "./finishFeedback";
-import { formatSecondsToClock, type TrackingMode } from "./workout.types";
+import { getFinishFeedback, type FinishSummary } from "../../features/workout/finishFeedback";
+import { formatSecondsToClock, type TrackingMode } from "../../features/workout/workout.types";
 
 const FINISH_SUMMARY_STORAGE_KEY = "aa_fit_finish_summary";
 

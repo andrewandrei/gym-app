@@ -16,7 +16,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { BorderWidth } from "@/styles/hairline";
 import { Spacing } from "@/styles/spacing";
 import { FontWeight, Typography } from "@/styles/typography";
-import { useAppTheme } from "./_providers/theme";
+import { useAppTheme } from "../providers/theme";
 
 import Svg, { Path } from "react-native-svg";
 

@@ -18,8 +18,8 @@ import { EditorialCard } from "@/components/ui/EditorialCard";
 import { ScreenHeader } from "@/components/ui/ScreenHeader";
 import { Spacing } from "@/styles/spacing";
 
-import { useAppTheme } from "../_providers/theme";
-import { createExploreStyles } from "./explore.styles";
+import { useAppTheme } from "../../providers/theme";
+import { createExploreStyles } from "../../styles/screens/explore.styles";
 
 const RAIL_GAP = Spacing.md;
 

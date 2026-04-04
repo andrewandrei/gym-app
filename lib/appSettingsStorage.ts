@@ -14,13 +14,13 @@ export type AppSettings = {
 export const APP_SETTINGS_STORAGE_KEY = "aa_fit_app_settings";
 
 export const DEFAULT_APP_SETTINGS: AppSettings = {
-  appearance: "light",
+  appearance: "dark",
   weightUnit: "kg",
   notificationsEnabled: true,
 };
 
 function normalizeAppearance(value: unknown): AppAppearance {
-  return value === "dark" ? "dark" : "light";
+  return value === "light" ? "light" : "dark";
 }
 
 function normalizeNotificationsEnabled(value: unknown): boolean {

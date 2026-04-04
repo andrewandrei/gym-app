@@ -21,15 +21,10 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { useAppSettings } from "@/app/_providers/appSettings";
-import { useAppTheme } from "@/app/_providers/theme";
-import {
-  convertInputWeightStringToStoredKgString,
-  formatStoredWeightStringForDisplay,
-} from "@/app/lib/weightUnits";
-import type { SetRow as SetRowLocal } from "./SetRowItem";
-import { getWorkoutConfig } from "./workout.data";
-import { createWorkoutStyles } from "./workout.styles";
+import { useAppSettings } from "@/providers/appSettings";
+import { useAppTheme } from "@/providers/theme";
+import { getWorkoutConfig } from "../../features/workout/workout.data";
+import { createWorkoutStyles } from "../../features/workout/workout.styles";
 import {
   clearWorkoutDraft,
   discardWorkoutDraft,
@@ -41,26 +36,31 @@ import {
   saveWorkoutDraft,
   shouldShowResumeModal,
   type WorkoutDraft,
-} from "./workoutDraft";
+} from "../../features/workout/workoutDraft";
 import {
   buildFinishSummary,
   makeSessionId,
   type FinishSummary,
-} from "./workoutEngine";
+} from "../../features/workout/workoutEngine";
 import {
   appendWorkoutHistoryEntry,
   buildExerciseHistorySessions,
   getWorkoutHistoryByWorkoutId,
   type WorkoutHistoryEntry,
-} from "./workoutHistory";
-import WorkoutPlayer from "./WorkoutPlayer";
+} from "../../features/workout/workoutHistory";
 import {
   WorkoutPreview,
   type Exercise,
   type ExerciseAlternative,
   type ExerciseHistorySession,
   type StrengthBlock,
-} from "./WorkoutPreview";
+} from "../../features/workout/WorkoutPreview";
+import {
+  convertInputWeightStringToStoredKgString,
+  formatStoredWeightStringForDisplay,
+} from "../../lib/weightUnits";
+import type { SetRow as SetRowLocal } from "./SetRowItem";
+import WorkoutPlayer from "./WorkoutPlayer";
 
 
 

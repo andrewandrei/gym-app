@@ -5,9 +5,21 @@ import { Platform, StyleSheet, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
-import { AppSettingsProvider } from "./_providers/appSettings";
-import { EntitlementsProvider } from "./_providers/entitlements";
-import { ThemeProvider, useAppTheme } from "./_providers/theme";
+import BarbataLoadingScreen from "@/components/BarbataLoadingScreen";
+
+import { AppSettingsProvider, useAppSettings } from "@/providers/appSettings";
+import { EntitlementsProvider } from "@/providers/entitlements";
+import { ThemeProvider, useAppTheme } from "@/providers/theme";
+
+function AppShell() {
+  const { isHydrated } = useAppSettings();
+
+  if (!isHydrated) {
+    return <BarbataLoadingScreen />;
+  }
+
+  return <RootNavigator />;
+}
 
 function RootNavigator() {
   const { colors } = useAppTheme();
@@ -52,7 +64,7 @@ export default function RootLayout() {
   return (
     <AppSettingsProvider>
       <ThemeProvider>
-        <RootNavigator />
+        <AppShell />
       </ThemeProvider>
     </AppSettingsProvider>
   );

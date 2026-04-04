@@ -5,9 +5,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Animated, Pressable, Text, TextInput, View } from "react-native";
 import { Swipeable } from "react-native-gesture-handler";
 
-import { useAppTheme } from "@/app/_providers/theme";
-import { formatStoredWeightStringForDisplay } from "@/app/lib/weightUnits";
-import { createWorkoutStyles } from "./workout.styles";
+import { useAppTheme } from "@/providers/theme";
+import { createWorkoutStyles } from "../../features/workout/workout.styles";
 import {
   formatSecondsToClock,
   getTrackingModeConfig,
@@ -15,7 +14,8 @@ import {
   parseClockToSeconds,
   sanitizeNumericInput,
   type TrackingMode,
-} from "./workout.types";
+} from "../../features/workout/workout.types";
+import { formatStoredWeightStringForDisplay } from "../../lib/weightUnits";
 
 export type SetRow = {
   id: string;

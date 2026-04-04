@@ -1,23 +1,23 @@
-// app/_providers/appSettings.tsx
+// providers/appSettings.tsx
 
 import React, {
-    createContext,
-    useCallback,
-    useContext,
-    useEffect,
-    useMemo,
-    useState,
-    type ReactNode,
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
 } from "react";
 
 import {
-    DEFAULT_APP_SETTINGS,
-    loadAppSettings,
-    updateAppSettings,
-    type AppAppearance,
-    type AppSettings,
-} from "@/app/lib/appSettingsStorage";
-import type { WeightUnit } from "@/app/lib/weightUnits";
+  DEFAULT_APP_SETTINGS,
+  loadAppSettings,
+  updateAppSettings,
+  type AppAppearance,
+  type AppSettings,
+} from "../lib/appSettingsStorage";
+import type { WeightUnit } from "../lib/weightUnits";
 
 export type AppSettingsContextValue = {
   settings: AppSettings;
@@ -49,7 +49,6 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
       try {
         const next = await loadAppSettings();
         if (!mounted) return;
-
         setSettings(next);
       } finally {
         if (mounted) {
@@ -99,7 +98,11 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
     ],
   );
 
-  return <AppSettingsContext.Provider value={value}>{children}</AppSettingsContext.Provider>;
+  return (
+    <AppSettingsContext.Provider value={value}>
+      {children}
+    </AppSettingsContext.Provider>
+  );
 }
 
 export function useAppSettings(): AppSettingsContextValue {

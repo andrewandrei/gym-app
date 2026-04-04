@@ -5,7 +5,7 @@ import React, { useMemo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { useAppTheme } from "../_providers/theme";
+import { useAppTheme } from "../../providers/theme";
 
 /* ---------------------------------- */
 /* LABEL MAP                          */
@@ -16,6 +16,61 @@ const LABELS: Record<string, string> = {
   progress: "Progress",
   profile: "Profile",
 };
+
+/* ---------------------------------- */
+/* BARBATA HOME MARK                  */
+/* ---------------------------------- */
+function BarbataTabMark({
+  focused,
+  textColor,
+  mutedColor,
+}: {
+  focused: boolean;
+  textColor: string;
+  mutedColor: string;
+}) {
+  const color = focused ? textColor : mutedColor;
+
+  return (
+    <View style={stylesStatic.brandMarkWrap}>
+      <Text
+        style={[
+          stylesStatic.brandMarkTop,
+          {
+            color,
+            opacity: focused ? 1 : 0.78,
+          },
+        ]}
+        allowFontScaling={false}
+      >
+        BAR
+      </Text>
+
+      <View
+        style={[
+          stylesStatic.brandMarkLine,
+          {
+            backgroundColor: color,
+            opacity: focused ? 1 : 0.78,
+          },
+        ]}
+      />
+
+      <Text
+        style={[
+          stylesStatic.brandMarkBottom,
+          {
+            color,
+            opacity: focused ? 1 : 0.78,
+          },
+        ]}
+        allowFontScaling={false}
+      >
+        BATA
+      </Text>
+    </View>
+  );
+}
 
 /* ---------------------------------- */
 /* TAB CONTENT                        */
@@ -50,21 +105,18 @@ function TabContent({ state, navigation }: { state: any; navigation: any }) {
 
         if (route.name === "index") {
           icon = (
-            <View
-              style={[
-                styles.homeDot,
-                {
-                  backgroundColor: focused ? colors.text : colors.muted,
-                },
-              ]}
+            <BarbataTabMark
+              focused={focused}
+              textColor={colors.text}
+              mutedColor={colors.muted}
             />
           );
         } else if (route.name === "explore") {
-          icon = <LayoutGrid size={20} color={iconColor} />;
+          icon = <LayoutGrid size={20} color={iconColor} strokeWidth={2} />;
         } else if (route.name === "progress") {
-          icon = <BarChart3 size={20} color={iconColor} />;
+          icon = <BarChart3 size={20} color={iconColor} strokeWidth={2} />;
         } else {
-          icon = <User size={20} color={iconColor} />;
+          icon = <User size={20} color={iconColor} strokeWidth={2} />;
         }
 
         return (
@@ -154,12 +206,6 @@ function createStyles(
       opacity: 0.8,
     },
 
-    homeDot: {
-      width: 26,
-      height: 26,
-      borderRadius: 13,
-    },
-
     tabLabel: {
       fontSize: 11,
       fontWeight: "500",
@@ -167,3 +213,35 @@ function createStyles(
     },
   });
 }
+
+const stylesStatic = StyleSheet.create({
+  brandMarkWrap: {
+    width: 28,
+    height: 22,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  brandMarkTop: {
+    fontSize: 7,
+    lineHeight: 7,
+    fontWeight: "900",
+    letterSpacing: 1.1,
+    textAlign: "center",
+  },
+
+  brandMarkLine: {
+    width: 18,
+    height: 1.6,
+    borderRadius: 99,
+    marginVertical: 2.5,
+  },
+
+  brandMarkBottom: {
+    fontSize: 7,
+    lineHeight: 7,
+    fontWeight: "900",
+    letterSpacing: 1.1,
+    textAlign: "center",
+  },
+});

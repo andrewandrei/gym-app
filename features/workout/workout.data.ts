@@ -1,6 +1,6 @@
 // app/workout/workout.data.ts
 
-import { getProgramWorkoutTemplate, parseProgramWorkoutId } from "../program/programWorkouts";
+import { getProgramWorkoutTemplate, parseProgramWorkoutId } from "../../features/programs/programWorkouts";
 import type {
   Exercise,
   ExerciseAlternative,

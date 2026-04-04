@@ -18,16 +18,16 @@ import {
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { useAppTheme } from "@/app/_providers/theme";
 import { PressableScale } from "@/components/ui/PressableScale";
+import { useAppTheme } from "../../../providers/theme";
 
-import { getProgram } from "../program.data";
-import { createProgramDetailStyles } from "../programDetail.styles";
+import { getProgram } from "../../../features/programs/program.data";
+import { createProgramDetailStyles } from "../../../features/programs/programDetail.styles";
 import {
   buildProgramWorkoutId,
   getProgramWorkoutTemplate,
   getWorkoutCountForWeek,
-} from "../programWorkouts";
+} from "../../../features/programs/programWorkouts";
 
 type WorkoutStatus = "next" | "done" | "available" | "locked";
 

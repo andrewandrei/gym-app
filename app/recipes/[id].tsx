@@ -4,20 +4,20 @@ import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import { ChevronLeft, Clock } from "lucide-react-native";
 import React, { useMemo, useRef } from "react";
 import {
-    Animated,
-    Pressable,
-    StyleSheet,
-    Text,
-    View,
-    useWindowDimensions,
+  Animated,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { useAppTheme } from "@/app/_providers/theme";
+import { useAppTheme } from "@/providers/theme";
 import { BorderWidth } from "@/styles/hairline";
 import { Spacing } from "@/styles/spacing";
 
-import { getRecipe } from "./recipe.data";
+import { getRecipe } from "../../features/programs/recipe.data";
 
 const HERO_HEIGHT = 400;
 

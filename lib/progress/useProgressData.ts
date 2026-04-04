@@ -9,7 +9,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { getProgram } from "../../program/program.data";
+import { getProgram } from "../../features/programs/program.data";
 import { buildMonthData } from "./bodySelectors";
 import { SEED_CHECKINS } from "./checkinDemoData";
 import { mergeHistory } from "./historySelectors";

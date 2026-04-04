@@ -4,13 +4,13 @@ import { MoreVertical, Share2 } from "lucide-react-native";
 import React, { useMemo } from "react";
 import { Image, Pressable, ScrollView, Text, View } from "react-native";
 
-import { useAppTheme } from "@/app/_providers/theme";
+import { useAppTheme } from "@/providers/theme";
 import { BorderWidth } from "@/styles/hairline";
+import { createWorkoutStyles } from "../../features/workout/workout.styles";
+import type { TrackingMode } from "../../features/workout/workout.types";
+import { getTrackingModeConfig } from "../../features/workout/workout.types";
+import type { Exercise, StrengthBlock } from "../../features/workout/WorkoutPreview";
 import SetRowItem, { SetRow as SetRowLocal } from "./SetRowItem";
-import { createWorkoutStyles } from "./workout.styles";
-import type { TrackingMode } from "./workout.types";
-import { getTrackingModeConfig } from "./workout.types";
-import type { Exercise, StrengthBlock } from "./WorkoutPreview";
 
 type Props = {
   workoutTitle: string;
