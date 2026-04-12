@@ -3,6 +3,7 @@
 import React from "react";
 import {
   Image,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -98,14 +99,20 @@ const styles = StyleSheet.create({
 
   media: {
     borderRadius: 18,
-  overflow: "hidden",
-  backgroundColor: Colors.card,
+    overflow: "hidden",
+    backgroundColor: Colors.card,
 
-  shadowColor: "#000",
-  shadowOpacity: 0.12,
-  shadowRadius: 16,
-  shadowOffset: { width: 0, height: 6 },
-  elevation: 4,
+    ...(Platform.OS === "web"
+      ? {
+          boxShadow: "0px 6px 16px rgba(0,0,0,0.12)",
+        }
+      : {
+          shadowColor: "#000",
+          shadowOpacity: 0.12,
+          shadowRadius: 16,
+          shadowOffset: { width: 0, height: 6 },
+          elevation: 4,
+        }),
   },
 
   image: {
@@ -149,29 +156,29 @@ const styles = StyleSheet.create({
   },
 
   titleOnImage: {
-      color: "#fff",
-      fontSize: 16,
-      lineHeight: 20,
-      fontWeight: "900",
-      letterSpacing: -0.2,
+    color: "#fff",
+    fontSize: 16,
+    lineHeight: 20,
+    fontWeight: "900",
+    letterSpacing: -0.2,
   },
 
   below: {
-  paddingTop: 10,
-    },
+    paddingTop: 10,
+  },
 
-    belowBold: {
-      color: Colors.text,
-      fontSize: 15,
-      fontWeight: "700",
-      letterSpacing: -0.1,
-    },
+  belowBold: {
+    color: Colors.text,
+    fontSize: 15,
+    fontWeight: "700",
+    letterSpacing: -0.1,
+  },
 
-    belowMuted: {
-      marginTop: 4,
-      color: Colors.muted,
-      fontSize: 13,
-      lineHeight: 16,
-      fontWeight: "600",
-    },
+  belowMuted: {
+    marginTop: 4,
+    color: Colors.muted,
+    fontSize: 13,
+    lineHeight: 16,
+    fontWeight: "600",
+  },
 });

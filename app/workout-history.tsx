@@ -13,6 +13,8 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { getWorkoutHistory } from "@/features/workout/workoutHistory";
+
 import { BorderWidth } from "@/styles/hairline";
 import { Spacing } from "@/styles/spacing";
 import { FontWeight, Typography } from "@/styles/typography";
@@ -498,17 +500,10 @@ export default function WorkoutHistoryScreen() {
 
   const [realHistory, setRealHistory] = useState<any[]>([]);
 
-  useEffect(() => {
-    try {
-      const { loadWorkoutHistory } = require("./workout/workoutHistory");
-      if (typeof loadWorkoutHistory === "function") {
-        loadWorkoutHistory()
-          .then((h: any[]) => setRealHistory(h ?? []))
-          .catch(() => setRealHistory([]));
-      }
-    } catch {
-      setRealHistory([]);
-    }
+    useEffect(() => {
+    getWorkoutHistory()
+      .then((h: any[]) => setRealHistory(h ?? []))
+      .catch(() => setRealHistory([]));
   }, []);
 
   const mergedData = useMemo(() => mergeRealHistory(realHistory), [realHistory]);

@@ -23,6 +23,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useAppSettings } from "@/providers/appSettings";
 import { useAppTheme } from "@/providers/theme";
+import type { SetRow as SetRowLocal } from "../../features/workout/SetRowItem";
 import { getWorkoutConfig } from "../../features/workout/workout.data";
 import { createWorkoutStyles } from "../../features/workout/workout.styles";
 import {
@@ -60,7 +61,6 @@ import {
   convertInputWeightStringToStoredKgString,
   formatStoredWeightStringForDisplay,
 } from "../../lib/weightUnits";
-import type { SetRow as SetRowLocal } from "./SetRowItem";
 
 
 

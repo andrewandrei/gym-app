@@ -1,11 +1,16 @@
 //gidhub
 cd Desktop/gym-app
 git add .
-git commit -m "workout screen update 1"
+git commit -m "reorganizing the files"
 git push
 
 
 npx expo start -c
+
+
+Cmd + Shift + H
+npx expo run:ios
+
 
 YOUR MODEL: "Try Before You Buy"
 Free users get:
