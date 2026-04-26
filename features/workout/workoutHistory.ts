@@ -16,6 +16,7 @@ export type HistoryWorkoutExercise = {
   id: string;
   name: string;
   unitLabel: string;
+  trackingMode?: TrackingMode;
   completedSets: number;
   totalSetsPlanned: number;
   sessionVolume: number;
@@ -46,6 +47,7 @@ export type ExerciseHistorySession = {
   id: string;
   dateLabel: string;
   completedAt: string;
+  trackingMode?: TrackingMode;
   sets: Array<{
     set: number;
     weight: string;
@@ -62,6 +64,17 @@ function normalizeExerciseName(value: string) {
 
 function safeArray<T>(value: unknown): T[] {
   return Array.isArray(value) ? (value as T[]) : [];
+}
+
+function sanitizeTrackingMode(value: unknown): TrackingMode | undefined {
+  return value === "weight_reps" ||
+    value === "bodyweight_reps" ||
+    value === "time" ||
+    value === "reps_only" ||
+    value === "calories" ||
+    value === "time_speed"
+    ? value
+    : undefined;
 }
 
 function sanitizeSet(raw: any): HistoryWorkoutSet {
@@ -82,6 +95,7 @@ function sanitizeExercise(raw: any): HistoryWorkoutExercise {
     id: typeof raw?.id === "string" ? raw.id : "",
     name: typeof raw?.name === "string" ? raw.name : "",
     unitLabel: typeof raw?.unitLabel === "string" ? raw.unitLabel : "LBS",
+    trackingMode: sanitizeTrackingMode(raw?.trackingMode),
     completedSets:
       typeof raw?.completedSets === "number"
         ? raw.completedSets
@@ -293,6 +307,7 @@ export function buildExerciseHistorySessions(
         id: `${entry.sessionId}_${exercise.id}`,
         dateLabel: new Date(entry.completedAt).toLocaleDateString(),
         completedAt: entry.completedAt,
+        trackingMode: exercise.trackingMode,
         sets: exercise.sets.map((set) => ({
           set: set.set,
           weight: set.weight,
@@ -323,6 +338,15 @@ export function formatHistorySetValue(
     return {
       primary: set.weight ? `${set.weight}s` : "—",
       secondary: set.rest || "—",
+      tertiary: "",
+    };
+  }
+
+  if (trackingMode === "time_speed") {
+    return {
+      primary: set.weight ? `${set.weight}s` : "—",
+      secondary: set.reps || "—",
+      tertiary: set.rest || "—",
     };
   }
 
@@ -330,6 +354,7 @@ export function formatHistorySetValue(
     return {
       primary: set.reps || "—",
       secondary: set.rest || "—",
+      tertiary: "",
     };
   }
 
@@ -337,6 +362,7 @@ export function formatHistorySetValue(
     return {
       primary: set.weight ? `${set.weight} cal` : "—",
       secondary: set.rest || "—",
+      tertiary: "",
     };
   }
 
@@ -344,11 +370,13 @@ export function formatHistorySetValue(
     return {
       primary: set.weight || "BW",
       secondary: set.reps || "—",
+      tertiary: set.rest || "—",
     };
   }
 
   return {
     primary: set.weight || "—",
     secondary: set.reps || "—",
+    tertiary: set.rest || "—",
   };
 }

@@ -374,11 +374,11 @@ export function createWorkoutStyles(
     },
 
     blockTitle: {
-      fontSize: 18,
-      lineHeight: 26,
+      fontSize: 16,
+      lineHeight: 22,
       fontWeight: "900",
       color: colors.text,
-      letterSpacing: -0.2,
+      letterSpacing: -0.15,
     },
 
     blockMeta: {
@@ -398,18 +398,18 @@ export function createWorkoutStyles(
     },
 
     exerciseHeader: {
-      flexDirection: "row",
-      alignItems: "flex-start",
-      paddingHorizontal: 14,
-      gap: 12,
-    },
+        flexDirection: "row",
+        alignItems: "flex-start",
+        paddingHorizontal: 14,
+        gap: 10,
+      },
 
-    thumb: {
-      width: 72,
-      height: 72,
-      borderRadius: 18,
-      backgroundColor: SOFT_2,
-    },
+      thumb: {
+        width: 64,
+        height: 64,
+        borderRadius: 16,
+        backgroundColor: SOFT_2,
+      },
 
     exerciseText: {
       flex: 1,
@@ -425,16 +425,16 @@ export function createWorkoutStyles(
 
     exerciseTitle: {
       flex: 1,
-      fontSize: 18,
-      lineHeight: 22,
+      fontSize: 15,
+      lineHeight: 19,
       fontWeight: "900",
       color: colors.text,
-      letterSpacing: -0.2,
+      letterSpacing: -0.12,
     },
 
     exerciseSub: {
-      marginTop: 6,
-      fontSize: 13,
+      marginTop: 4,
+      fontSize: 12,
       fontWeight: "700",
       color: colors.muted,
     },

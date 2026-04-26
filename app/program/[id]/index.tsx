@@ -1,18 +1,15 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
-import { Check, ChevronLeft, Info, Lock, X } from "lucide-react-native";
+import { Check, ChevronLeft, Info, Lock } from "lucide-react-native";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
-  Easing,
   Image,
-  Modal,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
-  useWindowDimensions,
+  useWindowDimensions
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -51,11 +48,7 @@ export default function ProgramDetailScreen() {
   const program = useMemo(() => getProgram(id), [id]);
 
   const [activeWeekIndex, setActiveWeekIndex] = useState(0);
-  const [infoMounted, setInfoMounted] = useState(false);
-
-  const backdropOpacity = useRef(new Animated.Value(0)).current;
-  const sheetTranslateY = useRef(new Animated.Value(42)).current;
-  const sheetScale = useRef(new Animated.Value(0.985)).current;
+  
 
   const weeksScrollRef = useRef<ScrollView | null>(null);
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -172,32 +165,7 @@ export default function ProgramDetailScreen() {
     return () => clearTimeout(timer);
   }, [activeWeekIndex]);
 
-  useEffect(() => {
-    if (!infoMounted) return;
 
-    Animated.parallel([
-      Animated.timing(backdropOpacity, {
-        toValue: 1,
-        duration: 220,
-        easing: Easing.out(Easing.quad),
-        useNativeDriver: true,
-      }),
-      Animated.spring(sheetTranslateY, {
-        toValue: 0,
-        damping: 18,
-        mass: 0.85,
-        stiffness: 180,
-        useNativeDriver: true,
-      }),
-      Animated.spring(sheetScale, {
-        toValue: 1,
-        damping: 18,
-        mass: 0.9,
-        stiffness: 200,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [backdropOpacity, infoMounted, sheetScale, sheetTranslateY]);
 
   const handleBack = () => {
     if (navigation.canGoBack()) {
@@ -207,34 +175,14 @@ export default function ProgramDetailScreen() {
     router.replace("/(tabs)");
   };
 
-  const openInfoModal = () => {
-    setInfoMounted(true);
-  };
+ const openInfoModal = () => {
+  router.push({
+    pathname: "/program-info",
+    params: { id: program.id },
+  });
+};
 
-  const closeInfoModal = () => {
-    Animated.parallel([
-      Animated.timing(backdropOpacity, {
-        toValue: 0,
-        duration: 180,
-        easing: Easing.inOut(Easing.quad),
-        useNativeDriver: true,
-      }),
-      Animated.timing(sheetTranslateY, {
-        toValue: 28,
-        duration: 180,
-        easing: Easing.inOut(Easing.quad),
-        useNativeDriver: true,
-      }),
-      Animated.timing(sheetScale, {
-        toValue: 0.992,
-        duration: 180,
-        easing: Easing.inOut(Easing.quad),
-        useNativeDriver: true,
-      }),
-    ]).start(({ finished }) => {
-      if (finished) setInfoMounted(false);
-    });
-  };
+
 
   const onPressWorkout = (workout: Workout) => {
     if (!program) return;
@@ -631,82 +579,7 @@ export default function ProgramDetailScreen() {
           </View>
         </Animated.View>
 
-        <Modal
-          visible={infoMounted}
-          animationType="none"
-          transparent
-          statusBarTranslucent
-          onRequestClose={closeInfoModal}
-        >
-          <View style={styles.modalRoot}>
-            <Animated.View style={[styles.modalDim, { opacity: backdropOpacity }]} />
-            <Pressable style={styles.modalBackdropTouch} onPress={closeInfoModal} />
-
-            <Animated.View
-              style={[
-                styles.infoModalOuter,
-                {
-                  paddingBottom: Math.max(insets.bottom, 18),
-                  transform: [{ translateY: sheetTranslateY }, { scale: sheetScale }],
-                },
-              ]}
-            >
-              <View style={styles.infoGrabber} />
-
-              <View style={styles.infoModalTop}>
-                <View style={styles.infoModalTitleWrap}>
-                  <Text style={styles.infoModalEyebrow}>Program overview</Text>
-                  <Text style={styles.infoModalTitle}>{program.title}</Text>
-                </View>
-
-                <PressableScale
-                  onPress={closeInfoModal}
-                  style={styles.infoCloseBtn}
-                  accessibilityRole="button"
-                  accessibilityLabel="Close program information"
-                >
-                  <X size={18} color={colors.text} />
-                </PressableScale>
-              </View>
-
-              <Text style={styles.infoModalBody}>{program.description}</Text>
-
-              <View style={styles.infoBulletsCard}>
-                {program.bullets.map((item, index) => (
-                  <View
-                    key={item}
-                    style={[
-                      styles.infoBulletRow,
-                      index !== program.bullets.length - 1 && styles.infoBulletRowSpaced,
-                    ]}
-                  >
-                    <View style={styles.infoBulletDotWrap}>
-                      <View style={styles.infoBulletDot} />
-                    </View>
-                    <View style={styles.infoBulletTextWrap}>
-                      <Text style={styles.infoBulletText}>{item}</Text>
-                    </View>
-                  </View>
-                ))}
-              </View>
-
-              <View style={styles.infoMetaRow}>
-                <Text style={styles.infoMetaText}>
-                  {completedCount}/{totalWorkouts} workouts completed
-                </Text>
-              </View>
-
-              <PressableScale
-                onPress={closeInfoModal}
-                style={styles.infoModalButton}
-                accessibilityRole="button"
-                accessibilityLabel="Close"
-              >
-                <Text style={styles.infoModalButtonText}>Got it</Text>
-              </PressableScale>
-            </Animated.View>
-          </View>
-        </Modal>
+ 
       </View>
     </SafeAreaView>
   );
@@ -1152,154 +1025,166 @@ function createStyles(
       backgroundColor: colors.borderSubtle,
     },
 
-    modalRoot: {
-      flex: 1,
-      justifyContent: "flex-end",
-    },
+modalRoot: {
+  flex: 1,
+  justifyContent: "flex-end",
+},
 
-    modalDim: {
-      ...StyleSheet.absoluteFillObject,
-      backgroundColor: "rgba(0,0,0,0.34)",
-    },
+modalDim: {
+  ...StyleSheet.absoluteFillObject,
+  backgroundColor: "rgba(0,0,0,0.38)",
+},
 
-    modalBackdropTouch: {
-      ...StyleSheet.absoluteFillObject,
-    },
+modalBackdropTouch: {
+  ...StyleSheet.absoluteFillObject,
+},
 
-    infoModalOuter: {
-      backgroundColor: colors.background,
-      borderTopLeftRadius: 28,
-      borderTopRightRadius: 28,
-      paddingHorizontal: 18,
-      paddingTop: 10,
-    },
+infoModalOuter: {
+  backgroundColor: colors.background,
+  borderTopLeftRadius: 28,
+  borderTopRightRadius: 28,
+  paddingHorizontal: 18,
+},
 
-    infoGrabber: {
-      alignSelf: "center",
-      width: 42,
-      height: 5,
-      borderRadius: 999,
-      backgroundColor: colors.borderSubtle,
-      marginBottom: 16,
-    },
+infoGrabber: {
+  alignSelf: "center",
+  width: 42,
+  height: 5,
+  borderRadius: 999,
+  backgroundColor: colors.borderSubtle,
+  marginBottom: 16,
+},
 
-    infoModalTop: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "flex-start",
-      gap: 16,
-    },
+infoModalTop: {
+  flexDirection: "row",
+  justifyContent: "space-between",
+  alignItems: "flex-start",
+  gap: 16,
+  paddingBottom: 14,
+  borderBottomWidth: BorderWidth.default,
+  borderBottomColor: colors.borderSubtle,
+},
 
-    infoModalTitleWrap: {
-      flex: 1,
-    },
+infoModalTitleWrap: {
+  flex: 1,
+  paddingRight: 8,
+},
 
-    infoModalEyebrow: {
-      fontSize: 11,
-      fontWeight: "900",
-      color: colors.muted,
-      letterSpacing: 0.55,
-      textTransform: "uppercase",
-      marginBottom: 6,
-    },
+infoModalEyebrow: {
+  fontSize: 11,
+  fontWeight: "900",
+  color: colors.muted,
+  letterSpacing: 0.55,
+  textTransform: "uppercase",
+  marginBottom: 6,
+},
 
-    infoModalTitle: {
-      fontSize: 24,
-      lineHeight: 28,
-      fontWeight: "900",
-      color: colors.text,
-      letterSpacing: -0.3,
-    },
+infoModalTitle: {
+  fontSize: 24,
+  lineHeight: 28,
+  fontWeight: "900",
+  color: colors.text,
+  letterSpacing: -0.3,
+},
 
-    infoCloseBtn: {
-      width: 38,
-      height: 38,
-      borderRadius: 19,
-      alignItems: "center",
-      justifyContent: "center",
-      backgroundColor: soft,
-      borderWidth: BorderWidth.default,
-      borderColor: colors.borderSubtle,
-    },
+infoCloseBtn: {
+  width: 38,
+  height: 38,
+  borderRadius: 19,
+  alignItems: "center",
+  justifyContent: "center",
+  backgroundColor: soft,
+  borderWidth: BorderWidth.default,
+  borderColor: colors.borderSubtle,
+},
 
-    infoModalBody: {
-      marginTop: 14,
-      fontSize: 15,
-      lineHeight: 22,
-      fontWeight: "600",
-      color: colors.muted,
-    },
+infoScroll: {
+  flexGrow: 0,
+},
 
-    infoBulletsCard: {
-      marginTop: 18,
-      backgroundColor: colors.card,
-      borderRadius: 22,
-      borderWidth: BorderWidth.default,
-      borderColor: colors.borderSubtle,
-      padding: 16,
-    },
+infoScrollContent: {
+  paddingTop: 16,
+  paddingBottom: 4,
+},
 
-    infoBulletRow: {
-      flexDirection: "row",
-      alignItems: "flex-start",
-      gap: 10,
-    },
+infoModalBody: {
+  fontSize: 15,
+  lineHeight: 22,
+  fontWeight: "600",
+  color: colors.muted,
+},
 
-    infoBulletRowSpaced: {
-      marginBottom: 14,
-    },
+infoBulletsCard: {
+  marginTop: 18,
+  backgroundColor: colors.card,
+  borderRadius: 22,
+  borderWidth: BorderWidth.default,
+  borderColor: colors.borderSubtle,
+  padding: 16,
+},
 
-    infoBulletDotWrap: {
-      width: 12,
-      alignItems: "center",
-      paddingTop: 6,
-    },
+infoBulletRow: {
+  flexDirection: "row",
+  alignItems: "flex-start",
+  gap: 10,
+},
 
-    infoBulletDot: {
-      width: 6,
-      height: 6,
-      borderRadius: 3,
-      backgroundColor: colors.premium,
-    },
+infoBulletRowSpaced: {
+  marginBottom: 14,
+},
 
-    infoBulletTextWrap: {
-      flex: 1,
-    },
+infoBulletDotWrap: {
+  width: 12,
+  alignItems: "center",
+  paddingTop: 6,
+},
 
-    infoBulletText: {
-      fontSize: 15,
-      lineHeight: 22,
-      fontWeight: "600",
-      color: colors.text,
-    },
+infoBulletDot: {
+  width: 6,
+  height: 6,
+  borderRadius: 3,
+  backgroundColor: colors.premium,
+},
 
-    infoMetaRow: {
-      marginTop: 16,
-      alignItems: "center",
-    },
+infoBulletTextWrap: {
+  flex: 1,
+},
 
-    infoMetaText: {
-      fontSize: 13,
-      fontWeight: "800",
-      color: colors.muted,
-      letterSpacing: -0.05,
-    },
+infoBulletText: {
+  fontSize: 15,
+  lineHeight: 22,
+  fontWeight: "600",
+  color: colors.text,
+},
 
-    infoModalButton: {
-      marginTop: 18,
-      height: 54,
-      borderRadius: 999,
-      backgroundColor: colors.text,
-      alignItems: "center",
-      justifyContent: "center",
-    },
+infoMetaRow: {
+  marginTop: 16,
+  alignItems: "center",
+},
 
-    infoModalButtonText: {
-      fontSize: 15,
-      fontWeight: "900",
-      color: colors.surface,
-      letterSpacing: -0.1,
-    },
+infoMetaText: {
+  fontSize: 13,
+  fontWeight: "800",
+  color: colors.muted,
+  letterSpacing: -0.05,
+},
+
+infoModalButton: {
+  marginTop: 18,
+  height: 54,
+  borderRadius: 999,
+  backgroundColor: colors.text,
+  alignItems: "center",
+  justifyContent: "center",
+},
+
+infoModalButtonText: {
+  fontSize: 15,
+  fontWeight: "900",
+  color: colors.surface,
+  letterSpacing: -0.1,
+},
+   
 
     emptyState: {
       flex: 1,

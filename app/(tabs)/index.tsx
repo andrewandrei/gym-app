@@ -1,8 +1,6 @@
-// app/(tabs)/index.tsx
-
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect, useRouter } from "expo-router";
-import { ChevronRight, Clock, Moon, Sun } from "lucide-react-native";
+import { ChevronRight, Clock, Lock, Moon, Sun } from "lucide-react-native";
 import React, { useCallback, useMemo, useState } from "react";
 import {
   ImageBackground,
@@ -16,6 +14,10 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { EditorialCard } from "@/components/ui/EditorialCard";
 import { ScreenHeader } from "@/components/ui/ScreenHeader";
+import {
+  getLatestIndividualWorkouts,
+  type IndividualWorkout,
+} from "@/features/workouts/individualWorkouts.data";
 import { BorderWidth } from "@/styles/hairline";
 import { Spacing } from "@/styles/spacing";
 
@@ -35,17 +37,10 @@ import {
   type WorkoutHistoryEntry,
 } from "../../features/workout/workoutHistory";
 import { useAppSettings } from "../../providers/appSettings";
+import { useEntitlements } from "../../providers/entitlements";
 import { useAppTheme } from "../../providers/theme";
 
 type CtaState = "start" | "resume";
-
-type WorkoutCard = {
-  id: string;
-  title: string;
-  subtitle: string;
-  imageUrl: string;
-  badge?: string;
-};
 
 type RecipeCard = {
   id: string;
@@ -59,8 +54,6 @@ const HERO_PROGRAM_ID = "strength-foundations";
 const HERO_WORKOUT_ID = "strength-foundations-week-2-workout-1";
 const WEEKLY_TOTAL = 3;
 const FINISH_SUMMARY_STORAGE_KEY = "aa_fit_finish_summary";
-
-// ─── Helpers ────────────────────────────────────────────────────────────────
 
 function calcStreak(history: WorkoutHistoryEntry[]): number {
   if (!history.length) return 0;
@@ -145,7 +138,32 @@ function formatMinutes(sec: number): string {
   return `${min} min`;
 }
 
-// ─── Recent session card ─────────────────────────────────────────────────────
+function LockedChip({ isDark }: { isDark: boolean }) {
+  return (
+    <View
+      style={{
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: "rgba(0,0,0,0.28)",
+        borderWidth: 1,
+        borderColor: "rgba(255,255,255,0.18)",
+        alignItems: "center",
+        justifyContent: "center",
+        shadowColor: "#000",
+        shadowOpacity: 0.1,
+        shadowRadius: 10,
+        shadowOffset: { width: 0, height: 6 },
+        elevation: 2,
+      }}
+    >
+      <Lock
+        size={14}
+        color={isDark ? "rgba(255,255,255,0.46)" : "rgba(17,17,17,0.40)"}
+      />
+    </View>
+  );
+}
 
 function RecentSessionCard({
   entry,
@@ -295,12 +313,11 @@ const sessionCardStyles = StyleSheet.create({
   },
 });
 
-// ─── Main screen ─────────────────────────────────────────────────────────────
-
 export default function HomeScreen() {
   const router = useRouter();
   const { colors, isDark } = useAppTheme();
   const { settings, setAppearance } = useAppSettings();
+  const { isPro } = useEntitlements();
 
   const [workoutDraft, setWorkoutDraft] = useState<WorkoutDraft | null>(null);
   const [history, setHistory] = useState<WorkoutHistoryEntry[]>([]);
@@ -325,33 +342,7 @@ export default function HomeScreen() {
     return getProgramWorkoutTemplate(heroWorkoutParsed.workoutIndex);
   }, [heroWorkoutParsed]);
 
-  const workoutCards = useMemo<WorkoutCard[]>(
-    () => [
-      {
-        id: "w-001",
-        title: "Arms & Shoulders Minimum Equipment",
-        subtitle: "HIIT · 30 min",
-        imageUrl:
-          "https://i.ytimg.com/vi/w0zPgPkx8yI/hq720.jpg?sqp=-oaymwEhCK4FEIIDSFryq4qpAxMIARUAAAAAGAElAADIQj0AgKJD&rs=AOn4CLCB-fSirLZ7-OC0R2z5r58bt-aUvQ",
-        badge: "Arms",
-      },
-      {
-        id: "w-002",
-        title: "Legs Strength Session",
-        subtitle: "Strength · 42 min",
-        imageUrl: "https://i.ytimg.com/vi/6O8SRDEK5F4/maxresdefault.jpg",
-        badge: "Legs",
-      },
-      {
-        id: "w-003",
-        title: "Upper Body Hypertrophy",
-        subtitle: "Hypertrophy · 45 min",
-        imageUrl: "https://i.ytimg.com/vi/2ZgCRBLg2Zs/maxresdefault.jpg",
-        badge: "Upper",
-      },
-    ],
-    [],
-  );
+  const workoutCards = useMemo(() => getLatestIndividualWorkouts(4), []);
 
   const recipeCards = useMemo<RecipeCard[]>(
     () => [
@@ -487,7 +478,10 @@ export default function HomeScreen() {
   };
 
   const openWorkoutCard = (id: string) => {
-    router.push({ pathname: "/workout", params: { workoutId: id, source: "home" } });
+    router.push({
+      pathname: "/workout",
+      params: { workoutId: id, source: "home" },
+    });
   };
 
   const openRecipe = (id: string) => {
@@ -520,7 +514,7 @@ export default function HomeScreen() {
         prs: [],
         wins: [],
         exercises:
-          entry.exercises?.map((ex) => ({
+          entry.exercises?.map((ex: any) => ({
             id: ex.id,
             name: ex.name,
             completedSets: ex.completedSets,
@@ -726,24 +720,38 @@ export default function HomeScreen() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.prepRail}
         >
-          {workoutCards.map((card, index) => (
-            <View
-              key={card.id}
-              style={
-                index !== workoutCards.length - 1
-                  ? styles.prepCardGap
-                  : undefined
-              }
-            >
-              <EditorialCard
-                title={card.title}
-                metaBold={card.subtitle}
-                imageUrl={card.imageUrl}
-                badgeLabel={card.badge}
-                onPress={() => openWorkoutCard(card.id)}
-              />
-            </View>
-          ))}
+          {workoutCards.map((card: IndividualWorkout, index) => {
+            const isLocked = card.access === "premium" && !isPro;
+
+            return (
+              <View
+                key={card.id}
+                style={
+                  index !== workoutCards.length - 1
+                    ? styles.prepCardGap
+                    : undefined
+                }
+              >
+                <EditorialCard
+                  title={card.title}
+                  metaBold={`${card.type} ~${card.durationMin} min`}
+                  metaMuted={card.meta}
+                  imageUrl={card.imageUrl}
+                  active={!!card.isActive}
+                  topRightAccessory={
+                    isLocked ? <LockedChip isDark={isDark} /> : undefined
+                  }
+                  onPress={() => {
+                    if (isLocked) {
+                      router.push("/paywall");
+                      return;
+                    }
+                    openWorkoutCard(card.id);
+                  }}
+                />
+              </View>
+            );
+          })}
         </ScrollView>
 
         <View style={[styles.sectionHeaderRow, styles.recipesSectionHeader]}>
@@ -790,8 +798,6 @@ export default function HomeScreen() {
     </SafeAreaView>
   );
 }
-
-// ─── Styles ──────────────────────────────────────────────────────────────────
 
 function createStyles(colors: {
   background: string;

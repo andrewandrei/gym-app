@@ -1,23 +1,21 @@
-// app/(tabs)/explore.tsx
-import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import { ChevronRight, Info } from "lucide-react-native";
-import React, { useMemo, useState } from "react";
-import {
-  FlatList,
-  Image,
-  Modal,
-  Pressable,
-  ScrollView,
-  Text,
-  View,
-} from "react-native";
+import { ChevronRight, Info, Lock } from "lucide-react-native";
+import React, { useMemo } from "react";
+import { FlatList, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+
+import { LinearGradient } from "expo-linear-gradient";
+import { Image } from "react-native";
 
 import { EditorialCard } from "@/components/ui/EditorialCard";
 import { ScreenHeader } from "@/components/ui/ScreenHeader";
+import {
+  getLatestIndividualWorkouts,
+  type IndividualWorkout,
+} from "@/features/workouts/individualWorkouts.data";
 import { Spacing } from "@/styles/spacing";
 
+import { useEntitlements } from "../../providers/entitlements";
 import { useAppTheme } from "../../providers/theme";
 import { createExploreStyles } from "../../styles/screens/explore.styles";
 
@@ -36,16 +34,6 @@ type Program = {
   description: string;
   isActive?: boolean;
   isFeatured?: boolean;
-};
-
-type Workout = {
-  id: string;
-  title: string;
-  type: string;
-  durationMin: number;
-  imageUrl: string;
-  meta: string;
-  isActive?: boolean;
 };
 
 type Recipe = {
@@ -121,6 +109,33 @@ function LevelChip({
   );
 }
 
+function LockedChip({ isDark }: { isDark: boolean }) {
+  return (
+    <View
+      style={{
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: "rgba(0,0,0,0.28)",
+        borderWidth: 1,
+        borderColor: "rgba(255,255,255,0.18)",
+        alignItems: "center",
+        justifyContent: "center",
+        shadowColor: "#000",
+        shadowOpacity: 0.1,
+        shadowRadius: 10,
+        shadowOffset: { width: 0, height: 6 },
+        elevation: 2,
+      }}
+    >
+      <Lock
+        size={14}
+        color={isDark ? "rgba(255,255,255,0.46)" : "rgba(17,17,17,0.40)"}
+      />
+    </View>
+  );
+}
+
 function ProgramCard({
   program,
   onPress,
@@ -173,7 +188,7 @@ function ProgramCard({
           accessibilityRole="button"
           accessibilityLabel={`Program info: ${program.title}`}
         >
-          <Info size={14} color="rgba(255,255,255,0.92)" />
+          <Info size={18} color="#FFFFFF" />
         </Pressable>
 
         <View style={styles.programBottomRight}>
@@ -201,19 +216,14 @@ function ProgramCard({
 export default function ExploreScreen() {
   const insets = useSafeAreaInsets();
   const { colors, isDark } = useAppTheme();
+  const { isPro } = useEntitlements();
   const styles = useMemo(() => createExploreStyles(colors, isDark), [colors, isDark]);
 
-  const [infoOpen, setInfoOpen] = useState(false);
-  const [selectedProgram, setSelectedProgram] = useState<Program | null>(null);
-
   const openInfo = (p: Program) => {
-    setSelectedProgram(p);
-    setInfoOpen(true);
-  };
-
-  const closeInfo = () => {
-    setInfoOpen(false);
-    setSelectedProgram(null);
+    router.push({
+      pathname: "/program-info",
+      params: { id: p.id },
+    });
   };
 
   const ACTIVE_PROGRAM_IMAGE =
@@ -223,13 +233,6 @@ export default function ExploreScreen() {
     "https://cdn.prod.website-files.com/6442b6aa142c4cb61a9a549d/690f57910b105d3dea2f1eb9_Strength%20%26%20Symmetry.jpg",
     "https://cdn.prod.website-files.com/6442b6aa142c4cb61a9a549d/690f510381f5fead2d6257b8_c7d8a728-2fde-4254-a1a7-a505e1a4cf3e.jpeg",
     "https://cdn.prod.website-files.com/6442b6aa142c4cb61a9a549d/6784fa945db9e2462bde508b_675b0276e2206c6b6a37ff0c_Hybrid%20Athlete%20(1)-p-800.jpg",
-  ];
-
-  const WORKOUT_IMAGES = [
-    "https://i.ytimg.com/vi/w0zPgPkx8yI/hq720.jpg?sqp=-oaymwEhCK4FEIIDSFryq4qpAxMIARUAAAAAGAElAADIQj0AgKJD&rs=AOn4CLCB-fSirLZ7-OC0R2z5r58bt-aUvQ",
-    "https://i.ytimg.com/vi/6O8SRDEK5F4/maxresdefault.jpg",
-    "https://i.ytimg.com/vi/2ZgCRBLg2Zs/maxresdefault.jpg",
-    "https://i.ytimg.com/vi/M8M0AgQ8nD8/maxresdefault.jpg",
   ];
 
   const programs = useMemo<Program[]>(
@@ -285,44 +288,10 @@ export default function ExploreScreen() {
     [ACTIVE_PROGRAM_IMAGE, PROGRAM_IMAGES],
   );
 
-  const workouts = useMemo<Workout[]>(
-    () => [
-      {
-        id: "w-001",
-        title: "Arms & Shoulders Minimum Equipment",
-        type: "HIIT",
-        durationMin: 30,
-        meta: "Arms · Shoulders",
-        imageUrl: WORKOUT_IMAGES[0],
-        isActive: true,
-      },
-      {
-        id: "w-002",
-        title: "Legs Strength Session",
-        type: "Strength",
-        durationMin: 42,
-        meta: "Legs · Glutes",
-        imageUrl: WORKOUT_IMAGES[1],
-      },
-      {
-        id: "w-003",
-        title: "Upper Body Hypertrophy",
-        type: "Hypertrophy",
-        durationMin: 45,
-        meta: "Chest · Back",
-        imageUrl: WORKOUT_IMAGES[2],
-      },
-      {
-        id: "w-004",
-        title: "Conditioning Finisher",
-        type: "Conditioning",
-        durationMin: 25,
-        meta: "Full body",
-        imageUrl: WORKOUT_IMAGES[3],
-      },
-    ],
-    [WORKOUT_IMAGES],
-  );
+  const workouts = useMemo<IndividualWorkout[]>(
+      () => getLatestIndividualWorkouts(4),
+      [],
+    );
 
   const recipes = useMemo<Recipe[]>(
     () => [
@@ -354,7 +323,7 @@ export default function ExploreScreen() {
     [],
   );
 
-  const rails = useMemo<Array<Rail<Program> | Rail<Workout> | Rail<Recipe>>>(() => {
+  const rails = useMemo<Array<Rail<Program> | Rail<IndividualWorkout> | Rail<Recipe>>>(() => {
     return [
       { id: "programs", title: "Programs", kind: "program", items: programs },
       { id: "workouts", title: "Individual workouts", kind: "workout", items: workouts },
@@ -364,14 +333,22 @@ export default function ExploreScreen() {
 
   const onPressProgram = (id: string) => router.push(`/program/${id}`);
 
-  const onPressWorkout = (id: string) =>
+  const onPressWorkout = (workout: IndividualWorkout) => {
+    const isLocked = workout.access === "premium" && !isPro;
+
+    if (isLocked) {
+      router.push("/paywall");
+      return;
+    }
+
     router.push({
       pathname: "/workout",
       params: {
-        workoutId: id,
+        workoutId: workout.id,
         source: "explore",
       },
     });
+  };
 
   const onPressRecipe = (_id: string) => router.push("/recipes");
 
@@ -435,7 +412,9 @@ export default function ExploreScreen() {
                   }
 
                   if (rail.kind === "workout") {
-                    const w = item as Workout;
+                    const w = item as IndividualWorkout;
+                    const isLocked = w.access === "premium" && !isPro;
+
                     return (
                       <EditorialCard
                         title={w.title}
@@ -443,7 +422,10 @@ export default function ExploreScreen() {
                         metaMuted={w.meta}
                         imageUrl={w.imageUrl}
                         active={!!w.isActive}
-                        onPress={() => onPressWorkout(w.id)}
+                        topRightAccessory={
+                          isLocked ? <LockedChip isDark={isDark} /> : undefined
+                        }
+                        onPress={() => onPressWorkout(w)}
                       />
                     );
                   }
@@ -468,41 +450,6 @@ export default function ExploreScreen() {
 
         <View style={styles.bottomSpacer} />
       </ScrollView>
-
-      <Modal visible={infoOpen} transparent animationType="fade" onRequestClose={closeInfo}>
-        <Pressable style={styles.modalOverlay} onPress={closeInfo} />
-        <View style={styles.modalSheet}>
-          <View style={styles.modalTopRow}>
-            <Text style={styles.modalTitle} numberOfLines={2}>
-              {selectedProgram?.title ?? ""}
-            </Text>
-            <Pressable onPress={closeInfo} style={styles.modalClose} hitSlop={10}>
-              <Text style={styles.modalCloseText}>Close</Text>
-            </Pressable>
-          </View>
-
-          <Text style={styles.modalMeta}>
-            {selectedProgram
-              ? `${selectedProgram.duration} · ${selectedProgram.workoutsPerWeek} / week · ${selectedProgram.tag} · ${selectedProgram.level}`
-              : ""}
-          </Text>
-
-          <Text style={styles.modalBody}>{selectedProgram?.description ?? ""}</Text>
-
-          <View style={styles.modalActionsRow}>
-            <Pressable
-              onPress={() => {
-                const id = selectedProgram?.id;
-                closeInfo();
-                if (id) onPressProgram(id);
-              }}
-              style={styles.modalPrimary}
-            >
-              <Text style={styles.modalPrimaryText}>View program</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
     </SafeAreaView>
   );
 }

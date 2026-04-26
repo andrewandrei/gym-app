@@ -1,12 +1,8 @@
-
-//app/workout/WorkoutPreview.tsx
+import SubpageHeader from "@/components/SubpageHeader";
 import { useAppTheme } from "@/providers/theme";
 import { BorderWidth } from "@/styles/hairline";
 
-import {
-  ChevronLeft,
-  X,
-} from "lucide-react-native";
+import { X } from "lucide-react-native";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
@@ -768,17 +764,11 @@ export function WorkoutPreview({
         showsVerticalScrollIndicator={false}
         bounces
       >
-        <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) + 4 }]}>
-          <Pressable onPress={onBack} style={styles.backBtn} hitSlop={12}>
-            <ChevronLeft size={20} color={colors.text} />
-          </Pressable>
-          <View style={styles.headerText}>
-            <Text style={styles.headerTitle} numberOfLines={2}>
-              {workoutTitle}
-            </Text>
-            <Text style={styles.headerMeta}>{sessionMeta}</Text>
-          </View>
-        </View>
+        <SubpageHeader
+          title={workoutTitle}
+          subtitle={sessionMeta}
+          onBack={onBack}
+        />
 
         <View style={styles.headerDivider} />
 
@@ -877,44 +867,14 @@ function createStyles(
 ) {
   const BORDER = colors.borderSubtle ?? colors.border;
   const SOFT = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)";
+  const TAG_BG = isDark ? "rgba(255,255,255,0.92)" : "rgba(17,17,17,0.88)";
+  const TAG_BORDER = isDark ? "rgba(255,255,255,0.92)" : "rgba(17,17,17,0.88)";
+  const TAG_TEXT = isDark ? "#111111" : "#FFFFFF";
 
   return StyleSheet.create({
     page: { flex: 1, backgroundColor: colors.background },
     scroll: { flex: 1 },
 
-    header: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 12,
-      paddingHorizontal: 16,
-      paddingBottom: 16,
-    },
-    backBtn: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      borderWidth: 1,
-      borderColor: BORDER,
-      backgroundColor: SOFT,
-      alignItems: "center",
-      justifyContent: "center",
-      flexShrink: 0,
-    },
-    headerText: { flex: 1, minWidth: 0 },
-    headerTitle: {
-      fontSize: 20,
-      lineHeight: 25,
-      fontWeight: "900",
-      color: colors.text,
-      letterSpacing: -0.3,
-    },
-    headerMeta: {
-      marginTop: 3,
-      fontSize: 12,
-      fontWeight: "700",
-      color: colors.muted,
-      letterSpacing: 0.1,
-    },
     headerDivider: {
       height: BorderWidth.default,
       backgroundColor: BORDER,
@@ -981,27 +941,29 @@ function createStyles(
       position: "absolute",
       bottom: -3,
       right: -3,
-      width: 20,
-      height: 20,
-      borderRadius: 10,
-      backgroundColor: colors.text,
+      minWidth: 15,
+      height: 15,
+      paddingHorizontal: 3,
+      borderRadius: 7.5,
+      backgroundColor: TAG_BG,
+      borderWidth: BorderWidth.default,
+      borderColor: TAG_BORDER,
       alignItems: "center",
       justifyContent: "center",
-      borderWidth: 2,
-      borderColor: colors.background,
     },
     tagBadgeText: {
-      fontSize: 10,
+      fontSize: 8,
       fontWeight: "900",
-      color: colors.surface,
+      color: TAG_TEXT,
+      letterSpacing: 0,
     },
-
     exerciseText: { flex: 1, minWidth: 0 },
     exerciseName: {
-      fontSize: 15,
+      fontSize: 14,
       fontWeight: "900",
       color: colors.text,
-      letterSpacing: -0.15,
+      letterSpacing: -0.1,
+      lineHeight: 18,
     },
     exerciseMeta: {
       marginTop: 2,

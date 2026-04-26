@@ -5,7 +5,8 @@ export type TrackingMode =
   | "bodyweight_reps"
   | "time"
   | "reps_only"
-  | "calories";
+  | "calories"
+  | "time_speed";
 
 export type TrackingModeConfig = {
   primaryLabel: string;
@@ -40,6 +41,22 @@ export function getTrackingModeConfig(
         primaryPlaceholder: "0:00",
         secondaryPlaceholder: "—",
         thirdPlaceholder: "",
+      };
+
+    case "time_speed":
+      return {
+        primaryLabel: "TIME",
+        secondaryLabel: "SPEED",
+        thirdLabel: "INCLINE",
+        hideThirdField: false,
+        primaryUsesWeightField: true,
+        primaryUsesClockInput: true,
+        isWeightBased: false,
+        comparisonEnabled: false,
+        prEnabled: false,
+        primaryPlaceholder: "0:00",
+        secondaryPlaceholder: "0.0",
+        thirdPlaceholder: "0",
       };
 
     case "reps_only":
@@ -129,42 +146,47 @@ export function formatSecondsToClock(value?: string | number | null) {
         ? value
         : null;
 
-  if (sec == null || Number.isNaN(sec) || sec <= 0) return "";
+  if (!Number.isFinite(sec) || sec === null || sec <= 0) return "";
+
   const minutes = Math.floor(sec / 60);
   const seconds = sec % 60;
+
   return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }
 
-export function parseClockToSeconds(value: string) {
-  const raw = value.trim();
+export function parseClockToSeconds(value?: string | null) {
+  const raw = (value ?? "").trim();
   if (!raw) return "";
 
-  if (raw.includes(":")) {
-    const [m, s] = raw.split(":");
-    const minutes = parseInt(m || "0", 10);
-    const seconds = parseInt(s || "0", 10);
-    if (Number.isNaN(minutes) || Number.isNaN(seconds)) return "";
-    return String(minutes * 60 + seconds);
+  const parts = raw.split(":");
+
+  if (parts.length === 1) {
+    const sec = parseInt(parts[0], 10);
+    return Number.isFinite(sec) ? String(sec) : "";
   }
 
-  const digits = raw.replace(/[^\d]/g, "");
-  if (!digits) return "";
-  return digits;
+  const minutes = parseInt(parts[0], 10);
+  const seconds = parseInt(parts[1], 10);
+
+  if (!Number.isFinite(minutes) || !Number.isFinite(seconds)) return "";
+
+  return String(minutes * 60 + seconds);
 }
 
-export function normalizeTimeInput(raw: string) {
-  const digits = raw.replace(/[^\d]/g, "").slice(0, 4);
+export function normalizeTimeInput(value: string) {
+  const digits = value.replace(/[^\d]/g, "").slice(0, 4);
   if (!digits) return "";
 
   if (digits.length <= 2) {
-    return `0:${digits.padStart(2, "0")}`;
+    return digits;
   }
 
   const minutes = digits.slice(0, digits.length - 2);
   const seconds = digits.slice(-2);
+
   return `${parseInt(minutes, 10)}:${seconds}`;
 }
 
-export function sanitizeNumericInput(raw: string) {
-  return raw.replace(/[^\d.]/g, "");
+export function sanitizeNumericInput(value: string) {
+  return value.replace(/[^0-9.]/g, "").replace(/(\..*)\./g, "$1");
 }

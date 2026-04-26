@@ -1,6 +1,6 @@
 // app/workout/WorkoutPlayer.tsx
 
-import { MoreVertical, Share2 } from "lucide-react-native";
+import { Repeat, Share2 } from "lucide-react-native";
 import React, { useMemo } from "react";
 import { Image, Pressable, ScrollView, Text, View } from "react-native";
 
@@ -39,7 +39,7 @@ type Props = {
   formatDuration: (sec: number) => string;
 
   shareWorkout: () => void;
-  openMenu: (exId: string) => void;
+  openSwap: (exId: string) => void;
   openHistory: (exId: string) => void;
   addSet: (exId: string) => void;
   openFinish: () => void;
@@ -135,7 +135,7 @@ export default function WorkoutPlayer({
   iosAccessoryProps,
   formatDuration,
   shareWorkout,
-  openMenu,
+  openSwap,
   openHistory,
   addSet,
   openFinish,
@@ -193,11 +193,11 @@ export default function WorkoutPlayer({
           <View style={{ flex: 1, paddingRight: 6 }}>
             <Text
               style={{
-                fontSize: 24,
-                lineHeight: 29,
+                fontSize: 20,
+                lineHeight: 24,
                 fontWeight: "900",
                 color: colors.text,
-                letterSpacing: -0.7,
+                letterSpacing: -0.35,
               }}
             >
               {workoutTitle}
@@ -385,8 +385,8 @@ export default function WorkoutPlayer({
                           </Text>
                         </View>
 
-                        <Pressable style={S.menuBtn} onPress={() => openMenu(ex.id)}>
-                          <MoreVertical size={18} color={colors.text} />
+                       <Pressable style={S.menuBtn} onPress={() => openSwap(ex.id)}>
+                          <Repeat size={18} color={colors.text} />
                         </Pressable>
                       </View>
 

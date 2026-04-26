@@ -1,18 +1,18 @@
-import { Colors } from "@/styles/colors";
+import SubpageHeader from "@/components/SubpageHeader";
+import { useAppTheme } from "@/providers/theme";
+import { BorderWidth } from "@/styles/hairline";
+import { Spacing } from "@/styles/spacing";
 import { useRouter } from "expo-router";
-import { ArrowLeft, Moon } from "lucide-react-native";
+import React, { useMemo } from "react";
 import {
   Image,
-  Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-
-/* ───────────────────────── DATA ───────────────────────── */
 
 const programs = [
   {
@@ -45,146 +45,130 @@ const programs = [
   },
 ];
 
-/* ───────────────────────── SCREEN ───────────────────────── */
-
 export default function AllProgramsScreen() {
   const router = useRouter();
+  const { colors, isDark } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
+
+  const handleBack = () => {
+    if (router.canGoBack()) router.back();
+    else router.replace("/(tabs)");
+  };
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <View style={styles.container}>
-          {/* HEADER */}
-          <View style={styles.header}>
-            <TouchableOpacity style={styles.back} onPress={() => router.back()}>
-              <ArrowLeft size={22} color={Colors.text} />
-              <Text style={styles.backText}>Back</Text>
-            </TouchableOpacity>
+    <SafeAreaView style={styles.safe} edges={["top"]}>
+      <SubpageHeader
+        title="All Programs"
+        subtitle="Find the perfect program for your goals"
+        onBack={handleBack}
+      />
 
-            <TouchableOpacity style={styles.iconButton}>
-              <Moon size={18} color={Colors.text} />
-            </TouchableOpacity>
-          </View>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        {programs.map((program) => (
+          <Pressable
+            key={program.id}
+            style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+          >
+            <Image
+              source={{ uri: program.image }}
+              style={styles.image}
+              resizeMode="cover"
+            />
 
-          <Text style={styles.title}>All Programs</Text>
-          <Text style={styles.subtitle}>
-            Find the perfect program for your goals
-          </Text>
-
-          {/* LIST */}
-          {programs.map((program) => (
-            <View key={program.id} style={styles.card}>
-              <Image
-                source={{ uri: program.image }}
-                style={styles.image}
-                resizeMode="cover"
-              />
-
-              <View style={styles.cardBody}>
-                <Text style={styles.cardTitle}>{program.title}</Text>
-
-                <Text style={styles.cardMeta}>{program.meta}</Text>
-
-                <Text style={styles.cardSub}>{program.workouts}</Text>
-              </View>
+            <View style={styles.cardBody}>
+              <Text style={styles.cardTitle}>{program.title}</Text>
+              <Text style={styles.cardMeta}>{program.meta}</Text>
+              <Text style={styles.cardSub}>{program.workouts}</Text>
             </View>
-          ))}
-        </View>
+          </Pressable>
+        ))}
+
+        <View style={styles.bottomSpacer} />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-/* ───────────────────────── STYLES ───────────────────────── */
+function createStyles(
+  colors: {
+    background: string;
+    card: string;
+    text: string;
+    muted: string;
+    border: string;
+    borderSubtle: string;
+  },
+  isDark: boolean,
+) {
+  return StyleSheet.create({
+    safe: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
 
-const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: Colors.bg,
-  },
-  container: {
-    paddingHorizontal: 24,
-    paddingBottom: 56,
-  },
+    scroll: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
 
-  /* Header */
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: 8,
-    marginBottom: 24,
-  },
-  back: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  backText: {
-    fontSize: 16,
-    color: Colors.text,
-    marginLeft: 6,
-  },
-  iconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: Colors.card,
-    borderWidth: 0.5,
-    borderColor: Colors.border,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+    content: {
+      paddingHorizontal: Spacing.md,
+      paddingTop: 4,
+      paddingBottom: 40,
+    },
 
-  title: {
-    fontSize: 32,
-    fontWeight: "700",
-    color: Colors.text,
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: Colors.muted,
-    marginBottom: 28,
-  },
+    card: {
+      backgroundColor: colors.card,
+      borderRadius: 24,
+      overflow: "hidden",
+      marginBottom: 16,
+      borderWidth: BorderWidth.default,
+      borderColor: colors.borderSubtle,
+    },
 
-  /* Program Card */
-  card: {
-    backgroundColor: Colors.card,
-    borderRadius: 24,
-    overflow: "hidden",
-    marginBottom: 24,
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOpacity: 0.05,
-        shadowRadius: 14,
-        shadowOffset: { width: 0, height: 8 },
-      },
-      android: {
-        elevation: 2,
-      },
-    }),
-  },
-  image: {
-    width: "100%",
-    height: 200,
-  },
-  cardBody: {
-    padding: 20,
-  },
-  cardTitle: {
-    fontSize: 22,
-    fontWeight: "600",
-    color: Colors.text,
-    marginBottom: 6,
-  },
-  cardMeta: {
-    fontSize: 16,
-    color: Colors.muted,
-    marginBottom: 4,
-  },
-  cardSub: {
-    fontSize: 15,
-    color: Colors.muted,
-  },
-});
+    cardPressed: {
+      opacity: 0.94,
+    },
+
+    image: {
+      width: "100%",
+      height: 200,
+    },
+
+    cardBody: {
+      padding: 18,
+    },
+
+    cardTitle: {
+      fontSize: 20,
+      lineHeight: 24,
+      fontWeight: "900",
+      color: colors.text,
+      letterSpacing: -0.25,
+      marginBottom: 6,
+    },
+
+    cardMeta: {
+      fontSize: 14,
+      lineHeight: 18,
+      color: colors.muted,
+      fontWeight: "700",
+      marginBottom: 4,
+    },
+
+    cardSub: {
+      fontSize: 13,
+      lineHeight: 17,
+      color: colors.muted,
+      fontWeight: "700",
+    },
+
+    bottomSpacer: {
+      height: 16,
+    },
+  });
+}

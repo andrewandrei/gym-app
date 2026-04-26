@@ -209,6 +209,7 @@ export function buildHistoryExerciseFromInput(
     id: exercise.id,
     name: exercise.name,
     unitLabel: exercise.unitLabel,
+    trackingMode: exercise.trackingMode ?? "weight_reps",
     completedSets: doneSets.length,
     totalSetsPlanned: sets.length,
     sessionVolume,

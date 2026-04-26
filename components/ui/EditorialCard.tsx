@@ -1,18 +1,15 @@
-// components/ui/EditorialCard.tsx
-
+import { LinearGradient } from "expo-linear-gradient";
 import React from "react";
 import {
   Image,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from "react-native";
 
-import { Colors } from "@/styles/colors";
+import { useAppTheme } from "@/providers/theme";
 import { BorderWidth } from "@/styles/hairline";
-import { LinearGradient } from "expo-linear-gradient";
 
 type Props = {
   title: string;
@@ -23,7 +20,9 @@ type Props = {
   badgeLabel?: string;
   width?: number;
   mediaHeight?: number;
+  metaTopSpacing?: number;
   onPress: () => void;
+  topRightAccessory?: React.ReactNode;
 };
 
 export function EditorialCard({
@@ -35,8 +34,11 @@ export function EditorialCard({
   badgeLabel,
   width = 332,
   mediaHeight = 214,
+  metaTopSpacing = 2,
   onPress,
+  topRightAccessory,
 }: Props) {
+  const { colors } = useAppTheme();
   const resolvedBadge = badgeLabel ?? (active ? "Active" : undefined);
 
   return (
@@ -50,7 +52,16 @@ export function EditorialCard({
       accessibilityRole="button"
       accessibilityLabel={title}
     >
-      <View style={[styles.media, { height: mediaHeight }]}>
+      <View
+        style={[
+          styles.media,
+          {
+            height: mediaHeight,
+            backgroundColor: colors.card,
+            borderColor: colors.borderSubtle,
+          },
+        ]}
+      >
         <Image source={{ uri: imageUrl }} style={styles.image} resizeMode="cover" />
 
         <LinearGradient
@@ -67,6 +78,10 @@ export function EditorialCard({
           </View>
         ) : null}
 
+        {topRightAccessory ? (
+          <View style={styles.topRightAccessoryWrap}>{topRightAccessory}</View>
+        ) : null}
+
         <View style={styles.titleOverlay}>
           <Text style={styles.titleOnImage} numberOfLines={2}>
             {title}
@@ -74,13 +89,13 @@ export function EditorialCard({
         </View>
       </View>
 
-      <View style={styles.below}>
-        <Text style={styles.belowBold} numberOfLines={1}>
+      <View style={[styles.below, { paddingTop: metaTopSpacing }]}>
+        <Text style={[styles.belowBold, { color: colors.text }]} numberOfLines={1}>
           {metaBold}
         </Text>
 
         {!!metaMuted && (
-          <Text style={styles.belowMuted} numberOfLines={1}>
+          <Text style={[styles.belowMuted, { color: colors.muted }]} numberOfLines={1}>
             {metaMuted}
           </Text>
         )}
@@ -100,19 +115,12 @@ const styles = StyleSheet.create({
   media: {
     borderRadius: 18,
     overflow: "hidden",
-    backgroundColor: Colors.card,
-
-    ...(Platform.OS === "web"
-      ? {
-          boxShadow: "0px 6px 16px rgba(0,0,0,0.12)",
-        }
-      : {
-          shadowColor: "#000",
-          shadowOpacity: 0.12,
-          shadowRadius: 16,
-          shadowOffset: { width: 0, height: 6 },
-          elevation: 4,
-        }),
+    borderWidth: BorderWidth.default,
+    shadowColor: "#000",
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 4,
   },
 
   image: {
@@ -122,8 +130,11 @@ const styles = StyleSheet.create({
   },
 
   bottomScrim: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.32)",
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: "60%",
   },
 
   badgeWrap: {
@@ -144,8 +155,14 @@ const styles = StyleSheet.create({
   badgeText: {
     fontSize: 12,
     fontWeight: "900",
-    color: Colors.text,
+    color: "#111111",
     letterSpacing: -0.1,
+  },
+
+  topRightAccessoryWrap: {
+    position: "absolute",
+    top: 12,
+    right: 12,
   },
 
   titleOverlay: {
@@ -156,19 +173,18 @@ const styles = StyleSheet.create({
   },
 
   titleOnImage: {
-    color: "#fff",
+    color: "#FFFFFF",
     fontSize: 16,
     lineHeight: 20,
-    fontWeight: "900",
+    fontWeight: "800",
     letterSpacing: -0.2,
   },
 
   below: {
-    paddingTop: 10,
+    paddingHorizontal: 2,
   },
 
   belowBold: {
-    color: Colors.text,
     fontSize: 15,
     fontWeight: "700",
     letterSpacing: -0.1,
@@ -176,7 +192,6 @@ const styles = StyleSheet.create({
 
   belowMuted: {
     marginTop: 4,
-    color: Colors.muted,
     fontSize: 13,
     lineHeight: 16,
     fontWeight: "600",

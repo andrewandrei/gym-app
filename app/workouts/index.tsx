@@ -1,322 +1,215 @@
 import { useRouter } from "expo-router";
+import { ChevronRight, Lock } from "lucide-react-native";
 import React, { useMemo } from "react";
-import {
-    ImageBackground,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
-} from "react-native";
+import { Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import ScreenHeader from "@/components/ui/ScreenHeader";
-import { Colors } from "@/styles/colors";
-import { GlobalStyles } from "@/styles/global";
+import SubpageHeader from "@/components/SubpageHeader";
+import { EditorialCard } from "@/components/ui/EditorialCard";
+import {
+  getWorkoutsForCategory,
+  type IndividualWorkout,
+} from "@/features/workouts/individualWorkouts.data";
+import { useEntitlements } from "@/providers/entitlements";
+import { useAppTheme } from "@/providers/theme";
+import { createExploreStyles } from "@/styles/screens/explore.styles";
 import { Spacing } from "@/styles/spacing";
 
-type WorkoutStatus = "New" | "Done" | undefined;
+const RAIL_GAP = Spacing.md;
 
-type WorkoutItem = {
-  id: string;
+type WorkoutRail = {
+  id: "upper" | "lower" | "bodyweight" | "dumbbells" | "conditioning";
   title: string;
-  programTitle?: string;
-  durationMin?: number;
-  level?: string; // "Beginner" | "Intermediate" | ...
-  weeks?: number; // e.g. 12
-  image: string;
-  status?: WorkoutStatus;
-  // later: tags, equipment, calories, etc.
+  items: IndividualWorkout[];
 };
 
-function formatMeta(w: WorkoutItem) {
-  const parts: string[] = [];
-  if (typeof w.durationMin === "number") parts.push(`${w.durationMin} min`);
-  if (w.level) parts.push(w.level);
-  if (typeof w.weeks === "number") parts.push(`${w.weeks} weeks`);
-  return parts.join(" • ");
-}
-
-function WorkoutCard({
-  item,
-  onPress,
+function RailHeader({
+  title,
+  mutedColor,
+  styles,
+  showAll,
+  onPressAll,
 }: {
-  item: WorkoutItem;
-  onPress: () => void;
+  title: string;
+  mutedColor: string;
+  styles: ReturnType<typeof createExploreStyles>;
+  showAll: boolean;
+  onPressAll?: () => void;
 }) {
   return (
-    <TouchableOpacity activeOpacity={0.9} onPress={onPress} style={S.card}>
-      <ImageBackground
-        source={{ uri: item.image }}
-        style={S.cardImage}
-        imageStyle={S.cardImageRadius}
-      >
-        {/* Subtle dark gradient substitute (no libs): bottom overlay */}
-        <View style={S.cardBottomFade} />
+    <View style={styles.railHeaderRow}>
+      <Text style={styles.railTitle}>{title}</Text>
 
-        <View style={S.cardContent}>
-          <View style={S.cardTopRow}>
-            {item.status ? (
-              <View
-                style={[
-                  S.statusPill,
-                  item.status === "Done" ? S.statusPillDone : S.statusPillNew,
-                ]}
-              >
-                <Text allowFontScaling={false} style={S.statusPillText}>
-                  {item.status}
-                </Text>
-              </View>
-            ) : (
-              <View />
-            )}
+      {showAll && !!onPressAll && (
+        <Pressable onPress={onPressAll} style={styles.railAll} hitSlop={10}>
+          <Text style={styles.railAllText}>See all</Text>
+          <ChevronRight size={16} color={mutedColor} />
+        </Pressable>
+      )}
+    </View>
+  );
+}
 
-            {/* quiet right-side micro label (optional) */}
-            {item.programTitle ? (
-              <Text
-                allowFontScaling={false}
-                style={S.programLabel}
-                numberOfLines={1}
-              >
-                {item.programTitle}
-              </Text>
-            ) : null}
-          </View>
-
-          <View style={S.cardBottomBlock}>
-            <Text
-              allowFontScaling={false}
-              style={S.cardTitle}
-              numberOfLines={2}
-            >
-              {item.title}
-            </Text>
-
-            <Text
-              allowFontScaling={false}
-              style={S.cardMeta}
-              numberOfLines={1}
-            >
-              {formatMeta(item)}
-            </Text>
-          </View>
-        </View>
-      </ImageBackground>
-    </TouchableOpacity>
+function LockedChip({ isDark }: { isDark: boolean }) {
+  return (
+    <View
+      style={{
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: "rgba(0,0,0,0.28)",
+        borderWidth: 1,
+        borderColor: "rgba(255,255,255,0.18)",
+        alignItems: "center",
+        justifyContent: "center",
+        shadowColor: "#000",
+        shadowOpacity: 0.1,
+        shadowRadius: 10,
+        shadowOffset: { width: 0, height: 6 },
+        elevation: 2,
+      }}
+    >
+      <Lock
+        size={14}
+        color={isDark ? "rgba(255,255,255,0.46)" : "rgba(17,17,17,0.40)"}
+      />
+    </View>
   );
 }
 
 export default function WorkoutsIndexScreen() {
   const router = useRouter();
+  const { colors, isDark } = useAppTheme();
+  const { isPro } = useEntitlements();
+  const styles = useMemo(() => createExploreStyles(colors, isDark), [colors, isDark]);
 
-  // Demo data — replace with real query later (Supabase / local cache)
-  const workouts = useMemo<WorkoutItem[]>(
+  const rails = useMemo<WorkoutRail[]>(
     () => [
       {
-        id: "w1",
-        title: "Upper Body Strength A",
-        programTitle: "Hypertrophy Foundations",
-        durationMin: 52,
-        level: "Intermediate",
-        weeks: 12,
-        status: "New",
-        image:
-          "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=1800&q=80",
+        id: "upper",
+        title: "Upper body",
+        items: getWorkoutsForCategory("upper"),
       },
       {
-        id: "w2",
-        title: "Lower Body Strength A",
-        programTitle: "Hypertrophy Foundations",
-        durationMin: 55,
-        level: "Intermediate",
-        weeks: 12,
-        status: undefined,
-        image:
-          "https://images.unsplash.com/photo-1599058918144-1ffabb6ab9a0?auto=format&fit=crop&w=1800&q=80",
+        id: "lower",
+        title: "Lower body",
+        items: getWorkoutsForCategory("lower"),
       },
       {
-        id: "w3",
-        title: "Full Body Density",
-        programTitle: "Busy Athlete",
-        durationMin: 38,
-        level: "Intermediate",
-        weeks: 8,
-        status: "Done",
-        image:
-          "https://images.unsplash.com/photo-1576678927484-cc907957088c?auto=format&fit=crop&w=1800&q=80",
+        id: "bodyweight",
+        title: "Bodyweight",
+        items: getWorkoutsForCategory("bodyweight"),
       },
       {
-        id: "w4",
-        title: "Shoulders & Arms Pump",
-        programTitle: "Aesthetics Block",
-        durationMin: 44,
-        level: "Beginner",
-        weeks: 6,
-        status: undefined,
-        image:
-          "https://images.unsplash.com/photo-1518310383802-640c2de311b2?auto=format&fit=crop&w=1800&q=80",
+        id: "dumbbells",
+        title: "Dumbbells",
+        items: getWorkoutsForCategory("dumbbells"),
+      },
+      {
+        id: "conditioning",
+        title: "Conditioning",
+        items: getWorkoutsForCategory("conditioning"),
       },
     ],
-    []
+    [],
   );
 
-  const handleOpenWorkout = (workoutId: string) => {
-    // Adjust if your workout screen expects different params.
-    // This routes to: app/workout/index.tsx
-    router.push({ pathname: "/workout", params: { id: workoutId } });
+  const handleBack = () => {
+    if (router.canGoBack()) router.back();
+    else router.replace("/explore");
+  };
+
+  const handleOpenWorkout = (item: IndividualWorkout) => {
+    const isLocked = item.access === "premium" && !isPro;
+
+    if (isLocked) {
+      router.push("/paywall");
+      return;
+    }
+
+    router.push({
+      pathname: "/workout",
+      params: { workoutId: item.id, source: "workouts" },
+    });
+  };
+
+  const handleSeeAll = (rail: WorkoutRail) => {
+    router.push({
+      pathname: "/workouts/category",
+      params: { category: rail.id, title: rail.title },
+    });
   };
 
   return (
-    <SafeAreaView style={GlobalStyles.screen} edges={["top"]}>
+    <SafeAreaView style={styles.safe} edges={["top"]}>
+      <SubpageHeader
+        title="Workouts"
+        subtitle="Browse by equipment, split, or muscle group"
+        onBack={handleBack}
+      />
+
       <ScrollView
-        style={S.scroll}
-        contentContainerStyle={S.content}
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        contentInsetAdjustmentBehavior="never"
       >
-        <ScreenHeader
-          variant="page"
-          title="Workouts"
-          subtitle="Pick a session and start logging"
-        />
-
-        <View style={S.section}>
-          <Text allowFontScaling={false} style={S.sectionTitle}>
-            All workouts
-          </Text>
-
-          <View style={S.list}>
-            {workouts.map((w, idx) => (
-              <View key={w.id} style={idx !== 0 ? S.listGap : undefined}>
-                <WorkoutCard item={w} onPress={() => handleOpenWorkout(w.id)} />
+        <View style={styles.rails}>
+          {rails.map((rail, index) => (
+            <View
+              key={rail.id}
+              style={[styles.rail, index !== 0 && { marginTop: Spacing.xl }]}
+            >
+              <View style={styles.pad}>
+                <RailHeader
+                  title={rail.title}
+                  mutedColor={colors.muted}
+                  styles={styles}
+                  showAll={rail.items.length > 4}
+                  onPressAll={() => handleSeeAll(rail)}
+                />
               </View>
-            ))}
-          </View>
+
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.railListContent}
+                decelerationRate={0.998}
+                scrollEventThrottle={16}
+                bounces
+                alwaysBounceHorizontal={false}
+              >
+                {rail.items.map((item, idx) => {
+                  const isLocked = item.access === "premium" && !isPro;
+
+                  return (
+                    <View
+                      key={`${rail.id}_${item.id}`}
+                      style={idx !== rail.items.length - 1 ? { marginRight: RAIL_GAP } : undefined}
+                    >
+                      <EditorialCard
+                        title={item.title}
+                        metaBold={`${item.type} ~${item.durationMin} min`}
+                        metaMuted={item.meta}
+                        imageUrl={item.imageUrl}
+                        active={!!item.isActive}
+                        metaTopSpacing={10}
+                        topRightAccessory={
+                          isLocked ? <LockedChip isDark={isDark} /> : undefined
+                        }
+                        onPress={() => handleOpenWorkout(item)}
+                      />
+                    </View>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          ))}
         </View>
 
-        {/* Future (quiet, premium): filters row, “Recently logged”, etc. */}
+        <View style={styles.bottomSpacer} />
       </ScrollView>
     </SafeAreaView>
   );
 }
-
-const CARD_H = 190;
-
-const S = StyleSheet.create({
-  scroll: { backgroundColor: Colors.surface },
-
-  content: {
-    paddingTop: 4,
-    paddingHorizontal: Spacing.md, // 18 gutter (LOCKED)
-    paddingBottom: Spacing.xl,
-  },
-
-  section: {
-    marginTop: Spacing.lg,
-  },
-
-  sectionTitle: {
-    fontSize: 15,
-    lineHeight: 20,
-    color: Colors.text,
-    fontWeight: "600",
-    letterSpacing: -0.2,
-    marginBottom: Spacing.sm,
-  },
-
-  list: {},
-  listGap: { marginTop: Spacing.md },
-
-  card: {
-    height: CARD_H,
-    borderRadius: 18,
-    overflow: "hidden",
-    backgroundColor: Colors.card,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Colors.border,
-  },
-
-  cardImage: {
-    flex: 1,
-    justifyContent: "flex-end",
-  },
-
-  cardImageRadius: {
-    borderRadius: 18,
-  },
-
-  cardBottomFade: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: 120,
-    backgroundColor: "rgba(0,0,0,0.35)",
-  },
-
-  cardContent: {
-    padding: Spacing.md,
-    gap: Spacing.sm,
-  },
-
-  cardTopRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: Spacing.sm,
-  },
-
-  statusPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-
-  statusPillNew: {
-    backgroundColor: "rgba(255,255,255,0.14)",
-    borderColor: "rgba(255,255,255,0.22)",
-  },
-
-  statusPillDone: {
-    backgroundColor: "rgba(255,255,255,0.10)",
-    borderColor: "rgba(255,255,255,0.18)",
-  },
-
-  statusPillText: {
-    fontSize: 12,
-    lineHeight: 14,
-    color: "#fff",
-    fontWeight: "700",
-    letterSpacing: -0.2,
-  },
-
-  programLabel: {
-    flex: 1,
-    textAlign: "right",
-    fontSize: 12,
-    lineHeight: 14,
-    color: "rgba(255,255,255,0.88)",
-    fontWeight: "600",
-    letterSpacing: -0.15,
-  },
-
-  cardBottomBlock: {
-    gap: 6,
-  },
-
-  cardTitle: {
-    fontSize: 20,
-    lineHeight: 24,
-    color: "#fff",
-    fontWeight: "800",
-    letterSpacing: -0.4,
-  },
-
-  cardMeta: {
-    fontSize: 13,
-    lineHeight: 16,
-    color: "rgba(255,255,255,0.86)",
-    fontWeight: "600",
-    letterSpacing: -0.15,
-  },
-});

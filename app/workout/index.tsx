@@ -1,5 +1,4 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { ResizeMode, Video } from "expo-av";
 import * as Haptics from "expo-haptics";
 import * as Notifications from "expo-notifications";
 import { router, useLocalSearchParams } from "expo-router";
@@ -7,19 +6,24 @@ import * as Sharing from "expo-sharing";
 import { Check, Repeat, Trophy, X } from "lucide-react-native";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  Animated,
   AppState,
+  Easing,
   Image,
   InputAccessoryView,
   Keyboard,
+  Linking,
   Modal,
   Platform,
   Pressable,
   ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   View,
+  useWindowDimensions,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAppSettings } from "@/providers/appSettings";
 import { useAppTheme } from "@/providers/theme";
@@ -62,8 +66,6 @@ import {
   formatStoredWeightStringForDisplay,
 } from "../../lib/weightUnits";
 
-
-
 const IOS_ACCESSORY_ID = "workoutAccessoryDone";
 const FINISH_SUMMARY_STORAGE_KEY = "aa_fit_finish_summary";
 
@@ -78,15 +80,637 @@ type UndoAction = {
   index: number;
 };
 
+type VideoSource = {
+  type: "youtube" | "vimeo" | "mp4";
+  uri: string;
+  useHtml: boolean;
+  html?: string;
+  youtubeId?: string;
+};
+
+function parseVideoUrl(url?: string): VideoSource | null {
+  if (!url) return null;
+
+  const ytLong = url.match(
+    /(?:youtube\.com\/watch\?.*v=|youtube\.com\/embed\/|youtube\.com\/v\/)([a-zA-Z0-9_-]{11})/,
+  );
+  const ytShort = url.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/);
+  const ytId = ytLong?.[1] ?? ytShort?.[1];
+
+  if (ytId) {
+    const embedUrl = `https://www.youtube.com/embed/${ytId}?autoplay=1&playsinline=1&controls=1&rel=0&modestbranding=1`;
+
+    return {
+      type: "youtube",
+      uri: embedUrl,
+      useHtml: true,
+      youtubeId: ytId,
+      html: `<!DOCTYPE html>
+<html>
+<head>
+  <meta
+    name="viewport"
+    content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"
+  />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      background: #000;
+      overflow: hidden;
+    }
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .wrap {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      background: #000;
+    }
+    iframe {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <iframe
+      src="${embedUrl}"
+      title="Exercise demo"
+      allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+      allowfullscreen
+      referrerpolicy="origin"
+    ></iframe>
+  </div>
+</body>
+</html>`,
+    };
+  }
+
+ const vimeoMatch = url.match(/(?:vimeo\.com\/|player\.vimeo\.com\/video\/)(\d+)/);
+if (vimeoMatch) {
+  const embedUrl = `https://player.vimeo.com/video/${vimeoMatch[1]}?autoplay=1&title=0&byline=0&portrait=0`;
+
+  return {
+    type: "vimeo",
+    uri: embedUrl,
+    useHtml: true,
+    html: `<!DOCTYPE html>
+<html>
+<head>
+  <meta
+    name="viewport"
+    content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"
+  />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      background: #000;
+      overflow: hidden;
+    }
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .wrap {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      background: #000;
+    }
+    iframe {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <iframe
+      src="${embedUrl}"
+      title="Exercise demo"
+      allow="autoplay; fullscreen; picture-in-picture"
+      allowfullscreen
+    ></iframe>
+  </div>
+</body>
+</html>`,
+  };
+}
+
+  if (url.match(/\.(mp4|m4v|mov|webm)(\?.*)?$/i)) {
+    return {
+      type: "mp4",
+      uri: url,
+      useHtml: true,
+      html: `<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    width: 100%;
+    height: 100%;
+    background: #000;
+    overflow: hidden;
+  }
+  body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  video {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    background: #000;
+  }
+</style>
+</head>
+<body>
+  <video src="${url}" autoplay playsinline controls></video>
+</body>
+</html>`,
+    };
+  }
+
+  return null;
+}
+
+let WebViewComponent: any = null;
+try {
+  WebViewComponent = require("react-native-webview").WebView;
+} catch {}
+
+function ExerciseDemoModal({
+  visible,
+  exercise,
+  onClose,
+  colors,
+  isDark,
+}: {
+  visible: boolean;
+  exercise: Exercise | null;
+  onClose: () => void;
+  colors: any;
+  isDark: boolean;
+}) {
+  const insets = useSafeAreaInsets();
+  const { height: screenHeight } = useWindowDimensions();
+
+  const translateY = useRef(new Animated.Value(screenHeight)).current;
+  const backdropOpacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (!visible) {
+      translateY.setValue(screenHeight);
+      backdropOpacity.setValue(0);
+      return;
+    }
+
+    Animated.parallel([
+      Animated.timing(backdropOpacity, {
+        toValue: 1,
+        duration: 220,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: true,
+      }),
+      Animated.spring(translateY, {
+        toValue: 0,
+        damping: 22,
+        mass: 0.95,
+        stiffness: 210,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [visible, translateY, backdropOpacity, screenHeight]);
+
+  const handleClose = () => {
+    Animated.parallel([
+      Animated.timing(backdropOpacity, {
+        toValue: 0,
+        duration: 160,
+        easing: Easing.inOut(Easing.quad),
+        useNativeDriver: true,
+      }),
+      Animated.timing(translateY, {
+        toValue: screenHeight,
+        duration: 220,
+        easing: Easing.inOut(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]).start(() => onClose());
+  };
+
+  if (!exercise) return null;
+
+  const BORDER = colors.borderSubtle ?? colors.border;
+  const SOFT = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)";
+  const videoSource = parseVideoUrl(exercise.videoUrl);
+
+const openExternalVideo = async () => {
+  if (!videoSource) return;
+
+  try {
+    if (videoSource.type === "youtube" && videoSource.youtubeId) {
+      const appUrl = `youtube://${videoSource.youtubeId}`;
+      const webUrl = `https://www.youtube.com/watch?v=${videoSource.youtubeId}`;
+
+      const canOpenApp = await Linking.canOpenURL(appUrl);
+      await Linking.openURL(canOpenApp ? appUrl : webUrl);
+      return;
+    }
+
+    await Linking.openURL(videoSource.uri);
+  } catch {}
+};
+
+
+  const hasDescription = !!exercise.description;
+  const hasTutorial = exercise.tutorial && exercise.tutorial.length > 0;
+  const hasMuscles = exercise.musclesWorked && exercise.musclesWorked.length > 0;
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="none"
+      transparent
+      statusBarTranslucent
+      onRequestClose={handleClose}
+    >
+      <View style={{ flex: 1, justifyContent: "flex-end" }}>
+        <Animated.View
+          style={[
+            {
+              ...StyleSheet.absoluteFillObject,
+              backgroundColor: isDark ? "rgba(0,0,0,0.80)" : "rgba(0,0,0,0.50)",
+            },
+            { opacity: backdropOpacity },
+          ]}
+        >
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={handleClose} />
+        </Animated.View>
+
+        <Animated.View
+          style={{
+            marginTop: Math.max(insets.top, 10),
+            backgroundColor: colors.background,
+            borderTopLeftRadius: 24,
+            borderTopRightRadius: 24,
+            maxHeight: screenHeight - Math.max(insets.top, 10),
+            transform: [{ translateY }],
+          }}
+        >
+          <View
+            style={{
+              alignSelf: "center",
+              width: 42,
+              height: 5,
+              borderRadius: 999,
+              backgroundColor: isDark ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.12)",
+              marginTop: 10,
+              marginBottom: 12,
+            }}
+          />
+
+          <View
+            style={{
+              paddingHorizontal: 16,
+              paddingBottom: 14,
+              flexDirection: "row",
+              alignItems: "flex-start",
+              justifyContent: "space-between",
+              gap: 12,
+              borderBottomWidth: 1,
+              borderBottomColor: BORDER,
+            }}
+          >
+            <View style={{ flex: 1, paddingRight: 8 }}>
+              <Text
+                style={{
+                  fontSize: 24,
+                  lineHeight: 28,
+                  fontWeight: "900",
+                  color: colors.text,
+                  letterSpacing: -0.3,
+                }}
+                numberOfLines={2}
+              >
+                {exercise.name}
+              </Text>
+              <Text
+                style={{
+                  marginTop: 6,
+                  fontSize: 14,
+                  fontWeight: "700",
+                  color: colors.muted,
+                }}
+              >
+                Tempo {exercise.tempo} · {exercise.sets.length} sets
+              </Text>
+            </View>
+
+            <Pressable
+              onPress={handleClose}
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: 19,
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor: SOFT,
+                borderWidth: 1,
+                borderColor: BORDER,
+              }}
+              hitSlop={8}
+            >
+              <X size={18} color={colors.text} />
+            </Pressable>
+          </View>
+
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{
+              paddingHorizontal: 16,
+              paddingTop: 16,
+              paddingBottom: Math.max(insets.bottom, 20) + 16,
+            }}
+            bounces
+          >
+            <View
+  style={{
+    height: 220,
+    borderRadius: 18,
+    overflow: "hidden",
+    backgroundColor: "#000",
+  }}
+>
+  {videoSource ? (
+    Platform.OS !== "web" && videoSource.type === "youtube" ? (
+      <Pressable
+        onPress={openExternalVideo}
+        style={{ flex: 1 }}
+      >
+        <Image
+          source={{ uri: exercise.image }}
+          style={{ width: "100%", height: "100%" }}
+          resizeMode="cover"
+        />
+        <View
+          style={{
+            ...StyleSheet.absoluteFillObject,
+            backgroundColor: "rgba(0,0,0,0.38)",
+            alignItems: "center",
+            justifyContent: "center",
+            paddingHorizontal: 24,
+          }}
+        >
+          <View
+            style={{
+              width: 62,
+              height: 62,
+              borderRadius: 31,
+              backgroundColor: "rgba(255,255,255,0.96)",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <View
+              style={{
+                width: 0,
+                height: 0,
+                marginLeft: 3,
+                borderLeftWidth: 18,
+                borderTopWidth: 11,
+                borderBottomWidth: 11,
+                borderLeftColor: "#111",
+                borderTopColor: "transparent",
+                borderBottomColor: "transparent",
+              }}
+            />
+          </View>
+
+          <Text
+            style={{
+              marginTop: 14,
+              fontSize: 16,
+              fontWeight: "900",
+              color: "#FFFFFF",
+              textAlign: "center",
+            }}
+          >
+            Watch Exercise Demo
+          </Text>
+
+          <Text
+            style={{
+              marginTop: 6,
+              fontSize: 13,
+              fontWeight: "700",
+              color: "rgba(255,255,255,0.82)",
+              textAlign: "center",
+            }}
+          >
+            Opens in YouTube for reliable playback
+          </Text>
+        </View>
+      </Pressable>
+    ) : Platform.OS === "web" ? (
+      <iframe
+        src={videoSource.uri}
+        style={{ width: "100%", height: "100%", border: "none" } as any}
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowFullScreen
+      />
+    ) : WebViewComponent ? (
+      <WebViewComponent
+        source={
+          videoSource.useHtml
+            ? { html: videoSource.html!, baseUrl: "https://player.vimeo.com" }
+            : { uri: videoSource.uri }
+        }
+        style={{ flex: 1, backgroundColor: "#000" }}
+        allowsInlineMediaPlayback
+        mediaPlaybackRequiresUserAction={false}
+        allowsFullscreenVideo
+        javaScriptEnabled
+        domStorageEnabled
+        scrollEnabled={false}
+        bounces={false}
+        originWhitelist={["*"]}
+      />
+    ) : (
+      <Image
+        source={{ uri: exercise.image }}
+        style={{ width: "100%", height: "100%" }}
+        resizeMode="cover"
+      />
+    )
+  ) : (
+    <Image
+      source={{ uri: exercise.image }}
+      style={{ width: "100%", height: "100%" }}
+      resizeMode="cover"
+    />
+  )}
+</View>
+
+            {hasDescription ? (
+              <View style={{ marginTop: 18 }}>
+                <Text
+                  style={{
+                    fontSize: 11,
+                    fontWeight: "900",
+                    color: colors.muted,
+                    letterSpacing: 0.55,
+                    textTransform: "uppercase",
+                    marginBottom: 8,
+                  }}
+                >
+                  Description
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 15,
+                    lineHeight: 22,
+                    fontWeight: "600",
+                    color: colors.text,
+                  }}
+                >
+                  {exercise.description}
+                </Text>
+              </View>
+            ) : null}
+
+            {hasTutorial ? (
+              <View style={{ marginTop: 22 }}>
+                <Text
+                  style={{
+                    fontSize: 11,
+                    fontWeight: "900",
+                    color: colors.muted,
+                    letterSpacing: 0.55,
+                    textTransform: "uppercase",
+                    marginBottom: 12,
+                  }}
+                >
+                  How to perform
+                </Text>
+
+                {exercise.tutorial!.map((step, i) => (
+                  <View
+                    key={i}
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "flex-start",
+                      gap: 12,
+                      marginBottom: i < exercise.tutorial!.length - 1 ? 14 : 0,
+                    }}
+                  >
+                    <View
+                      style={{
+                        width: 28,
+                        height: 28,
+                        borderRadius: 14,
+                        backgroundColor: colors.text,
+                        alignItems: "center",
+                        justifyContent: "center",
+                        marginTop: 1,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 12,
+                          fontWeight: "900",
+                          color: colors.surface,
+                        }}
+                      >
+                        {i + 1}
+                      </Text>
+                    </View>
+
+                    <Text
+                      style={{
+                        flex: 1,
+                        fontSize: 15,
+                        lineHeight: 22,
+                        fontWeight: "600",
+                        color: colors.text,
+                      }}
+                    >
+                      {step}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            ) : null}
+
+            {hasMuscles ? (
+              <View style={{ marginTop: 22 }}>
+                <Text
+                  style={{
+                    fontSize: 11,
+                    fontWeight: "900",
+                    color: colors.muted,
+                    letterSpacing: 0.55,
+                    textTransform: "uppercase",
+                    marginBottom: 12,
+                  }}
+                >
+                  Muscles worked
+                </Text>
+
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+                  {exercise.musclesWorked!.map((m) => (
+                    <View
+                      key={m}
+                      style={{
+                        paddingHorizontal: 14,
+                        paddingVertical: 8,
+                        borderRadius: 999,
+                        backgroundColor: SOFT,
+                        borderWidth: 1,
+                        borderColor: BORDER,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 14,
+                          fontWeight: "800",
+                          color: colors.text,
+                        }}
+                      >
+                        {m}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            ) : null}
+          </ScrollView>
+        </Animated.View>
+      </View>
+    </Modal>
+  );
+}
+
 export default function WorkoutLogScreen() {
   const { colors, isDark } = useAppTheme();
-    console.log("DEBUG workout imports", {
-      WorkoutPreview,
-      WorkoutPlayer,
-      Video,
-      SafeAreaView,
-    });
-
   const { settings } = useAppSettings();
   const weightUnit = settings.weightUnit;
   const S = useMemo(() => createWorkoutStyles(colors, isDark), [colors, isDark]);
@@ -237,8 +861,8 @@ export default function WorkoutLogScreen() {
   const [noteSetId, setNoteSetId] = useState<string | null>(null);
   const [noteText, setNoteText] = useState("");
 
-  const [videoModalOpen, setVideoModalOpen] = useState(false);
-  const [videoExId, setVideoExId] = useState<string | null>(null);
+  const [exerciseDetailOpen, setExerciseDetailOpen] = useState(false);
+  const [exerciseDetailExId, setExerciseDetailExId] = useState<string | null>(null);
 
   const [workoutDuration, setWorkoutDuration] = useState(0);
 
@@ -394,6 +1018,7 @@ export default function WorkoutLogScreen() {
             tempo: base?.tempo ?? "—",
             image: base?.image ?? "",
             unitLabel: draftEx.unitLabel,
+            trackingMode: draftEx.trackingMode ?? base?.trackingMode,
             videoUrl: base?.videoUrl,
             description: base?.description,
             tutorial: base?.tutorial,
@@ -493,37 +1118,36 @@ export default function WorkoutLogScreen() {
     return null;
   };
 
-const getNextIncompleteSet = (exId: string, currentSetIndex: number) => {
-  const block = getBlockForExercise(exId);
+  const getNextIncompleteSet = (exId: string, currentSetIndex: number) => {
+    const block = getBlockForExercise(exId);
 
-  if (block && isGroupedBlock(block.id)) {
-    const nextInGroup = getNextSetInGroup(exId, currentSetIndex);
-    if (nextInGroup) return nextInGroup;
-    // fall through to next blocks if grouped block is exhausted
-  }
+    if (block && isGroupedBlock(block.id)) {
+      const nextInGroup = getNextSetInGroup(exId, currentSetIndex);
+      if (nextInGroup) return nextInGroup;
+    }
 
-  const ex = exercises.find((e) => e.id === exId);
-  if (!ex) return null;
+    const ex = exercises.find((e) => e.id === exId);
+    if (!ex) return null;
 
-  for (let i = currentSetIndex + 1; i < ex.sets.length; i += 1) {
-    if (!ex.sets[i].done) return { exId, setIndex: i };
-  }
+    for (let i = currentSetIndex + 1; i < ex.sets.length; i += 1) {
+      if (!ex.sets[i].done) return { exId, setIndex: i };
+    }
 
-  const currentBlockIndex = blocks.findIndex((b) => b.exerciseIds.includes(exId));
-  for (let i = currentBlockIndex + 1; i < blocks.length; i += 1) {
-    for (const nextExId of blocks[i].exerciseIds) {
-      const nextEx = exercises.find((e) => e.id === nextExId);
-      if (!nextEx) continue;
+    const currentBlockIndex = blocks.findIndex((b) => b.exerciseIds.includes(exId));
+    for (let i = currentBlockIndex + 1; i < blocks.length; i += 1) {
+      for (const nextExId of blocks[i].exerciseIds) {
+        const nextEx = exercises.find((e) => e.id === nextExId);
+        if (!nextEx) continue;
 
-      const firstIncompleteSetIndex = nextEx.sets.findIndex((s) => !s.done);
-      if (firstIncompleteSetIndex !== -1) {
-        return { exId: nextExId, setIndex: firstIncompleteSetIndex };
+        const firstIncompleteSetIndex = nextEx.sets.findIndex((s) => !s.done);
+        if (firstIncompleteSetIndex !== -1) {
+          return { exId: nextExId, setIndex: firstIncompleteSetIndex };
+        }
       }
     }
-  }
 
-  return null;
-};
+    return null;
+  };
 
   const isBlockComplete = (blockId: string) => {
     const block = blocks.find((b) => b.id === blockId);
@@ -856,6 +1480,7 @@ const getNextIncompleteSet = (exId: string, currentSetIndex: number) => {
     },
     [exercises],
   );
+  
 
   const undoDelete = async () => {
     if (!undoAction || undoAction.type !== "delete") return;
@@ -932,6 +1557,14 @@ const getNextIncompleteSet = (exId: string, currentSetIndex: number) => {
     }
     setMenuExerciseId(exId);
     setMenuOpen(true);
+  };
+
+  const openSwap = async (exId: string) => {
+    if (Platform.OS !== "web") {
+      await Haptics.selectionAsync();
+    }
+    setMenuExerciseId(exId);
+    setSwapOpen(true);
   };
 
   const swapExercise = async (alternative: ExerciseAlternative) => {
@@ -1098,71 +1731,71 @@ const getNextIncompleteSet = (exId: string, currentSetIndex: number) => {
     return null;
   };
 
- const goToFinish = useCallback(
-  async (sessionStatus: "partial" | "completed") => {
-    Keyboard.dismiss();
+  const goToFinish = useCallback(
+    async (sessionStatus: "partial" | "completed") => {
+      Keyboard.dismiss();
 
-    if (Platform.OS !== "web") {
-      await Haptics.selectionAsync();
-    }
+      if (Platform.OS !== "web") {
+        await Haptics.selectionAsync();
+      }
 
-    const sessionId =
-      availableDraft?.sessionId ?? makeSessionId(selectedWorkoutId ?? "full-body-foundation");
+      const sessionId =
+        availableDraft?.sessionId ?? makeSessionId(selectedWorkoutId ?? "full-body-foundation");
 
-    const { summary, historyEntry } = buildFinishSummary({
-      sessionId,
-      workoutId: selectedWorkoutId ?? "full-body-foundation",
-      workoutTitle,
-      programId: selectedProgramId ?? undefined,
-      status: sessionStatus,
-      durationSec: workoutDuration,
-      exercises: exercises.map((ex) => ({
-        id: ex.id,
-        name: ex.name,
-        unitLabel: ex.unitLabel,
-        trackingMode: ex.trackingMode,
-        sets: ex.sets.map((s) => ({
-          id: s.id,
-          weight: s.weight ?? "",
-          reps: s.reps ?? "",
-          rest: s.rest ?? "",
-          done: !!s.done,
-          note: s.note ?? "",
+      const { summary, historyEntry } = buildFinishSummary({
+        sessionId,
+        workoutId: selectedWorkoutId ?? "full-body-foundation",
+        workoutTitle,
+        programId: selectedProgramId ?? undefined,
+        status: sessionStatus,
+        durationSec: workoutDuration,
+        exercises: exercises.map((ex) => ({
+          id: ex.id,
+          name: ex.name,
+          unitLabel: ex.unitLabel,
+          trackingMode: ex.trackingMode,
+          sets: ex.sets.map((s) => ({
+            id: s.id,
+            weight: s.weight ?? "",
+            reps: s.reps ?? "",
+            rest: s.rest ?? "",
+            done: !!s.done,
+            note: s.note ?? "",
+          })),
         })),
-      })),
-      history: realWorkoutHistory,
-    });
+        history: realWorkoutHistory,
+      });
 
-    await appendWorkoutHistoryEntry(historyEntry);
-    setRealWorkoutHistory((prev) => [historyEntry, ...prev]);
+      await appendWorkoutHistoryEntry(historyEntry);
+      setRealWorkoutHistory((prev) => [historyEntry, ...prev]);
 
-    await AsyncStorage.setItem(
-      FINISH_SUMMARY_STORAGE_KEY,
-      JSON.stringify(summary satisfies FinishSummary),
-    );
+      await AsyncStorage.setItem(
+        FINISH_SUMMARY_STORAGE_KEY,
+        JSON.stringify(summary satisfies FinishSummary),
+      );
 
-    await markDraftCompleted();
-    await clearWorkoutDraft();
-    setAvailableDraft(null);
+      await markDraftCompleted();
+      await clearWorkoutDraft();
+      setAvailableDraft(null);
 
-    setPartialFinishConfirmOpen(false);
-    setCompleteFinishConfirmOpen(false);
+      setPartialFinishConfirmOpen(false);
+      setCompleteFinishConfirmOpen(false);
 
-    router.replace({
-      pathname: "/workout/finish",
-      params: { sessionStatus },
-    });
-  },
-  [
-    availableDraft?.sessionId,
-    exercises,
-    realWorkoutHistory,
-    selectedProgramId,
-    selectedWorkoutId,
-    workoutDuration,
-    workoutTitle,
-  ],
-);
+      router.replace({
+        pathname: "/workout/finish",
+        params: { sessionStatus },
+      });
+    },
+    [
+      availableDraft?.sessionId,
+      exercises,
+      realWorkoutHistory,
+      selectedProgramId,
+      selectedWorkoutId,
+      workoutDuration,
+      workoutTitle,
+    ],
+  );
 
   const handleFinishPress = useCallback(async () => {
     Keyboard.dismiss();
@@ -1182,9 +1815,9 @@ const getNextIncompleteSet = (exId: string, currentSetIndex: number) => {
   const onPressThumbnail = useCallback(
     (exId: string) => {
       const ex = exerciseById[exId];
-      if (!ex?.videoUrl) return;
-      setVideoExId(exId);
-      setVideoModalOpen(true);
+      if (!ex) return;
+      setExerciseDetailExId(exId);
+      setExerciseDetailOpen(true);
     },
     [exerciseById],
   );
@@ -1241,6 +1874,7 @@ const getNextIncompleteSet = (exId: string, currentSetIndex: number) => {
           formatDuration={formatDuration}
           shareWorkout={shareWorkout}
           openMenu={openMenu}
+          openSwap={openSwap}
           openHistory={openHistory}
           addSet={addSet}
           openFinish={handleFinishPress}
@@ -1999,68 +2633,16 @@ const getNextIncompleteSet = (exId: string, currentSetIndex: number) => {
         </View>
       </Modal>
 
-      <Modal
-        visible={videoModalOpen}
-        animationType="slide"
-        onRequestClose={() => setVideoModalOpen(false)}
-        presentationStyle="fullScreen"
-      >
-        <View style={{ flex: 1, backgroundColor: "#000" }}>
-          <SafeAreaView style={{ position: "absolute", top: 0, left: 0, right: 0, zIndex: 100 }}>
-            <View
-              style={{
-                padding: 16,
-                flexDirection: "row",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
-            >
-              <Text
-                style={{
-                  fontSize: 16,
-                  fontWeight: "900",
-                  color: "#FFF",
-                  flex: 1,
-                  paddingRight: 16,
-                }}
-              >
-                {videoExId ? exerciseById[videoExId]?.name : ""}
-              </Text>
-              <Pressable
-                onPress={() => setVideoModalOpen(false)}
-                style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 20,
-                  backgroundColor: "rgba(0,0,0,0.6)",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <X size={20} color="#FFF" />
-              </Pressable>
-            </View>
-          </SafeAreaView>
-
-          <View style={{ flex: 1, justifyContent: "center" }}>
-            {videoExId && exerciseById[videoExId]?.videoUrl ? (
-              <Video
-                source={{ uri: exerciseById[videoExId].videoUrl }}
-                style={{ width: "100%", height: "100%" }}
-                useNativeControls
-                resizeMode={ResizeMode.CONTAIN}
-                shouldPlay
-              />
-            ) : (
-              <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-                <Text style={{ color: "#FFF", fontWeight: "700", fontSize: 16 }}>
-                  No video available
-                </Text>
-              </View>
-            )}
-          </View>
-        </View>
-      </Modal>
+      <ExerciseDemoModal
+        visible={exerciseDetailOpen}
+        exercise={exerciseDetailExId ? exerciseById[exerciseDetailExId] : null}
+        onClose={() => {
+          setExerciseDetailOpen(false);
+          setTimeout(() => setExerciseDetailExId(null), 240);
+        }}
+        colors={colors}
+        isDark={isDark}
+      />
     </SafeAreaView>
   );
 }
