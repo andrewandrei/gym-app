@@ -1,8 +1,11 @@
 //gidhub
 cd Desktop/gym-app
 git add .
-git commit -m "reorganizing the files"
+git commit -m "delete swipe function added on sets"
 git push
+
+
+supabase aamoHP9rt981pVhr
 
 
 npx expo start -c

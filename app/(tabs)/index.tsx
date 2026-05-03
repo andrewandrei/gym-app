@@ -1,7 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect, useRouter } from "expo-router";
 import { ChevronRight, Clock, Lock, Moon, Sun } from "lucide-react-native";
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ImageBackground,
   ScrollView,
@@ -15,9 +15,13 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { EditorialCard } from "@/components/ui/EditorialCard";
 import { ScreenHeader } from "@/components/ui/ScreenHeader";
 import {
+  getFeaturedRecipes,
+  type RecipeItem,
+} from "@/features/recipes/recipes.supabase";
+import {
   getLatestIndividualWorkouts,
   type IndividualWorkout,
-} from "@/features/workouts/individualWorkouts.data";
+} from "@/features/workouts/individualWorkouts.supabase";
 import { BorderWidth } from "@/styles/hairline";
 import { Spacing } from "@/styles/spacing";
 
@@ -42,14 +46,6 @@ import { useAppTheme } from "../../providers/theme";
 
 type CtaState = "start" | "resume";
 
-type RecipeCard = {
-  id: string;
-  title: string;
-  metaBold: string;
-  metaMuted: string;
-  imageUrl: string;
-};
-
 const HERO_PROGRAM_ID = "strength-foundations";
 const HERO_WORKOUT_ID = "strength-foundations-week-2-workout-1";
 const WEEKLY_TOTAL = 3;
@@ -68,6 +64,7 @@ function calcStreak(history: WorkoutHistoryEntry[]): number {
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+
   let checkDay = today.getTime();
 
   if (!trainedDays.has(checkDay)) {
@@ -75,6 +72,7 @@ function calcStreak(history: WorkoutHistoryEntry[]): number {
   }
 
   let streak = 0;
+
   while (trainedDays.has(checkDay)) {
     streak++;
     checkDay -= 86_400_000;
@@ -87,6 +85,7 @@ function calcWeeklyDone(history: WorkoutHistoryEntry[]): number {
   const now = new Date();
   const dayOfWeek = now.getDay();
   const monday = new Date(now);
+
   monday.setDate(now.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
   monday.setHours(0, 0, 0, 0);
 
@@ -114,6 +113,7 @@ function calcProgramTotal(programId: string): number {
 
 function getSessionDateLabel(completedAt: string): string {
   const d = new Date(completedAt);
+
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -213,14 +213,14 @@ function RecentSessionCard({
 
           <View style={sessionCardStyles.metaRow}>
             <Clock size={11} color={colors.muted} strokeWidth={2.5} />
-            <Text
-              style={[sessionCardStyles.metaText, { color: colors.muted }]}
-            >
+            <Text style={[sessionCardStyles.metaText, { color: colors.muted }]}>
               {formatMinutes(entry.durationSec)}
             </Text>
+
             <Text style={[sessionCardStyles.metaDot, { color: colors.muted }]}>
               ·
             </Text>
+
             <Text
               style={[
                 sessionCardStyles.metaText,
@@ -319,19 +319,65 @@ export default function HomeScreen() {
   const { settings, setAppearance } = useAppSettings();
   const { isPro } = useEntitlements();
 
+  const [workoutCards, setWorkoutCards] = useState<IndividualWorkout[]>([]);
+  const [recipeCards, setRecipeCards] = useState<RecipeItem[]>([]);
   const [workoutDraft, setWorkoutDraft] = useState<WorkoutDraft | null>(null);
   const [history, setHistory] = useState<WorkoutHistoryEntry[]>([]);
 
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadLatestWorkouts() {
+      const latest = await getLatestIndividualWorkouts(4);
+
+      if (mounted) {
+        setWorkoutCards(latest);
+      }
+    }
+
+    loadLatestWorkouts();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadFeaturedRecipes() {
+      const featured = await getFeaturedRecipes(4);
+
+      if (mounted) {
+        setRecipeCards(featured);
+      }
+    }
+
+    loadFeaturedRecipes();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+ 
+
+ 
+
   const programTotal = useMemo(() => calcProgramTotal(HERO_PROGRAM_ID), []);
+
   const weeklyDone = useMemo(() => calcWeeklyDone(history), [history]);
   const streakDays = useMemo(() => calcStreak(history), [history]);
+
   const programCompleted = useMemo(
     () => calcProgramCompleted(history, HERO_PROGRAM_ID),
     [history],
   );
+
   const recentSessions = useMemo(() => history.slice(0, 2), [history]);
 
   const activeProgram = useMemo(() => getProgram(HERO_PROGRAM_ID), []);
+
   const heroWorkoutParsed = useMemo(
     () => parseProgramWorkoutId(HERO_WORKOUT_ID),
     [],
@@ -342,38 +388,6 @@ export default function HomeScreen() {
     return getProgramWorkoutTemplate(heroWorkoutParsed.workoutIndex);
   }, [heroWorkoutParsed]);
 
-  const workoutCards = useMemo(() => getLatestIndividualWorkouts(4), []);
-
-  const recipeCards = useMemo<RecipeCard[]>(
-    () => [
-      {
-        id: "r-004",
-        title: "Low Carb Lemon Pepper Chicken with Tzatziki",
-        metaBold: "Main course · ~35 min",
-        metaMuted: "High Protein · Low Carb",
-        imageUrl:
-          "https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?auto=format&fit=crop&w=1600&q=80",
-      },
-      {
-        id: "r-002",
-        title: "Greek Yogurt + Berries",
-        metaBold: "Breakfast · ~10 min",
-        metaMuted: "High Protein · Quick",
-        imageUrl:
-          "https://images.unsplash.com/photo-1490474418585-ba9bad8fd0ea?auto=format&fit=crop&w=1600&q=80",
-      },
-      {
-        id: "r-006",
-        title: "Salmon + Greens",
-        metaBold: "Dinner · ~18 min",
-        metaMuted: "Omega-3 · Low Carb",
-        imageUrl:
-          "https://images.unsplash.com/photo-1467003909585-2f8a72700288?auto=format&fit=crop&w=1600&q=80",
-      },
-    ],
-    [],
-  );
-
   useFocusEffect(
     useCallback(() => {
       const run = async () => {
@@ -382,6 +396,7 @@ export default function HomeScreen() {
             loadWorkoutDraft(),
             getWorkoutHistory(),
           ]);
+
           setWorkoutDraft(draft);
           setHistory(hist);
         } catch {
@@ -389,6 +404,7 @@ export default function HomeScreen() {
           setHistory([]);
         }
       };
+
       run();
     }, []),
   );
@@ -400,6 +416,7 @@ export default function HomeScreen() {
       (sum, ex) => sum + ex.sets.length,
       0,
     );
+
     const completedSets = workoutDraft.exercises.reduce(
       (sum, ex) => sum + ex.sets.filter((s) => s.done).length,
       0,
@@ -441,28 +458,43 @@ export default function HomeScreen() {
 
   const weeklyLeft = Math.max(0, WEEKLY_TOTAL - weeklyDone);
 
-  const startWorkout = () => {
-    if (ctaState === "resume" && workoutDraft) {
-      router.push({
-        pathname: "/workout",
-        params: {
-          resumeDraft: "1",
-          workoutId: workoutDraft.workoutId,
-          source: "home",
-        },
-      });
-      return;
-    }
-
+const startWorkout = () => {
+  if (ctaState === "resume" && workoutDraft) {
     router.push({
       pathname: "/workout",
       params: {
-        workoutId: HERO_WORKOUT_ID,
-        programId: HERO_PROGRAM_ID,
+        resumeDraft: "1",
+        workoutId: workoutDraft.workoutId,
         source: "home",
       },
     });
-  };
+    return;
+  }
+
+  const featuredWorkout = workoutCards[0];
+
+  if (featuredWorkout) {
+    router.push({
+      pathname: "/workout",
+      params: {
+        workoutId: featuredWorkout.slug ?? featuredWorkout.id,
+        supabaseWorkoutId: featuredWorkout.id,
+        supabaseWorkoutOwnerType: "individual_workout",
+        source: "home",
+      },
+    });
+    return;
+  }
+
+  router.push({
+    pathname: "/workout",
+    params: {
+      workoutId: HERO_WORKOUT_ID,
+      programId: HERO_PROGRAM_ID,
+      source: "home",
+    },
+  });
+};
 
   const discardWorkout = async () => {
     await clearWorkoutDraft();
@@ -470,22 +502,33 @@ export default function HomeScreen() {
   };
 
   const openPlanOverview = () => {
-    router.push({ pathname: "/program/[id]", params: { id: HERO_PROGRAM_ID } });
+    router.push({
+      pathname: "/program/[id]",
+      params: { id: HERO_PROGRAM_ID },
+    });
   };
 
   const openAllHistory = () => {
     router.push("/workout-history");
   };
 
-  const openWorkoutCard = (id: string) => {
-    router.push({
-      pathname: "/workout",
-      params: { workoutId: id, source: "home" },
-    });
-  };
+ const openWorkoutCard = (workout: IndividualWorkout) => {
+  router.push({
+    pathname: "/workout",
+    params: {
+      workoutId: workout.slug ?? workout.id,
+      supabaseWorkoutId: workout.id,
+      supabaseWorkoutOwnerType: "individual_workout",
+      source: "home",
+    },
+  });
+};
 
-  const openRecipe = (id: string) => {
-    router.push({ pathname: "/recipes/[id]", params: { id } });
+  const openRecipe = (slug: string) => {
+    router.push({
+      pathname: "/recipes/[id]",
+      params: { id: slug },
+    });
   };
 
   const openSession = async (entry: WorkoutHistoryEntry) => {
@@ -530,6 +573,7 @@ export default function HomeScreen() {
         FINISH_SUMMARY_STORAGE_KEY,
         JSON.stringify(summary),
       );
+
       router.push("/workout/finish");
     } catch {
       router.push("/workout-history");
@@ -586,6 +630,7 @@ export default function HomeScreen() {
 
         <View style={styles.todayRow}>
           <Text style={styles.todayTitle}>Today</Text>
+
           <TouchableOpacity
             style={styles.planLink}
             activeOpacity={0.8}
@@ -635,8 +680,8 @@ export default function HomeScreen() {
                 <View style={styles.metricsRow}>
                   <View style={styles.metricPill}>
                     <Text style={styles.metricPillText}>
-                      {draftProgress.completedSets}/{draftProgress.totalSets} sets
-                      logged
+                      {draftProgress.completedSets}/{draftProgress.totalSets}{" "}
+                      sets logged
                     </Text>
                   </View>
                 </View>
@@ -672,6 +717,7 @@ export default function HomeScreen() {
           <>
             <View style={[styles.sectionHeaderRow, styles.recentSectionHeader]}>
               <Text style={styles.sectionTitle}>Recent sessions</Text>
+
               <TouchableOpacity
                 style={styles.sectionLink}
                 activeOpacity={0.8}
@@ -705,6 +751,7 @@ export default function HomeScreen() {
 
         <View style={[styles.sectionHeaderRow, styles.workoutsSectionHeader]}>
           <Text style={styles.sectionTitle}>Try individual workouts</Text>
+
           <TouchableOpacity
             style={styles.sectionLink}
             activeOpacity={0.8}
@@ -738,6 +785,7 @@ export default function HomeScreen() {
                   metaMuted={card.meta}
                   imageUrl={card.imageUrl}
                   active={!!card.isActive}
+                  theme={colors}
                   topRightAccessory={
                     isLocked ? <LockedChip isDark={isDark} /> : undefined
                   }
@@ -746,7 +794,8 @@ export default function HomeScreen() {
                       router.push("/paywall");
                       return;
                     }
-                    openWorkoutCard(card.id);
+
+                    openWorkoutCard(card);
                   }}
                 />
               </View>
@@ -756,6 +805,7 @@ export default function HomeScreen() {
 
         <View style={[styles.sectionHeaderRow, styles.recipesSectionHeader]}>
           <Text style={styles.sectionTitle}>Featured recipes</Text>
+
           <TouchableOpacity
             style={styles.sectionLink}
             activeOpacity={0.8}
@@ -771,26 +821,49 @@ export default function HomeScreen() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.prepRail}
         >
-          {recipeCards.map((card, index) => (
-            <View
-              key={card.id}
-              style={
-                index !== recipeCards.length - 1
-                  ? styles.prepCardGap
-                  : undefined
-              }
-            >
-              <EditorialCard
-                title={card.title}
-                metaBold={card.metaBold}
-                metaMuted={card.metaMuted}
-                imageUrl={card.imageUrl}
-                width={210}
-                mediaHeight={210}
-                onPress={() => openRecipe(card.id)}
-              />
-            </View>
-          ))}
+          {recipeCards.map((card: RecipeItem, index) => {
+            const isLocked = card.access === "premium" && !isPro;
+
+            return (
+              <View
+                key={card.id}
+                style={
+                  index !== recipeCards.length - 1
+                    ? styles.prepCardGap
+                    : undefined
+                }
+              >
+                <EditorialCard
+                  title={card.title}
+                  metaBold={`${card.category || "Recipe"} ~${
+                    card.prepTimeMin ?? 0
+                  } min`}
+                  metaMuted={
+                    card.calories
+                      ? `${card.calories} kcal · ${
+                          card.proteinG ?? 0
+                        }g protein`
+                      : card.tags.slice(0, 2).join(" · ")
+                  }
+                  imageUrl={card.imageUrl}
+                  width={210}
+                  mediaHeight={210}
+                  theme={colors}
+                  topRightAccessory={
+                    isLocked ? <LockedChip isDark={isDark} /> : undefined
+                  }
+                  onPress={() => {
+                    if (isLocked) {
+                      router.push("/paywall");
+                      return;
+                    }
+
+                    openRecipe(card.slug);
+                  }}
+                />
+              </View>
+            );
+          })}
         </ScrollView>
 
         <View style={styles.bottomSpacer} />

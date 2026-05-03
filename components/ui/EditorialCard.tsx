@@ -1,15 +1,16 @@
 import { LinearGradient } from "expo-linear-gradient";
 import React from "react";
-import {
-  Image,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 
-import { useAppTheme } from "@/providers/theme";
+import { Colors } from "@/styles/colors";
 import { BorderWidth } from "@/styles/hairline";
+
+type EditorialCardTheme = {
+  card: string;
+  text: string;
+  muted: string;
+  borderSubtle?: string;
+};
 
 type Props = {
   title: string;
@@ -23,6 +24,7 @@ type Props = {
   metaTopSpacing?: number;
   onPress: () => void;
   topRightAccessory?: React.ReactNode;
+  theme?: EditorialCardTheme;
 };
 
 export function EditorialCard({
@@ -34,12 +36,17 @@ export function EditorialCard({
   badgeLabel,
   width = 332,
   mediaHeight = 214,
-  metaTopSpacing = 2,
+  metaTopSpacing = 10,
   onPress,
   topRightAccessory,
+  theme,
 }: Props) {
-  const { colors } = useAppTheme();
   const resolvedBadge = badgeLabel ?? (active ? "Active" : undefined);
+
+  const cardColor = theme?.card ?? Colors.card;
+  const textColor = theme?.text ?? Colors.text;
+  const mutedColor = theme?.muted ?? Colors.muted;
+  const borderColor = theme?.borderSubtle ?? "rgba(0,0,0,0.08)";
 
   return (
     <Pressable
@@ -57,8 +64,8 @@ export function EditorialCard({
           styles.media,
           {
             height: mediaHeight,
-            backgroundColor: colors.card,
-            borderColor: colors.borderSubtle,
+            backgroundColor: cardColor,
+            borderColor,
           },
         ]}
       >
@@ -90,12 +97,12 @@ export function EditorialCard({
       </View>
 
       <View style={[styles.below, { paddingTop: metaTopSpacing }]}>
-        <Text style={[styles.belowBold, { color: colors.text }]} numberOfLines={1}>
+        <Text style={[styles.belowBold, { color: textColor }]} numberOfLines={1}>
           {metaBold}
         </Text>
 
         {!!metaMuted && (
-          <Text style={[styles.belowMuted, { color: colors.muted }]} numberOfLines={1}>
+          <Text style={[styles.belowMuted, { color: mutedColor }]} numberOfLines={1}>
             {metaMuted}
           </Text>
         )}

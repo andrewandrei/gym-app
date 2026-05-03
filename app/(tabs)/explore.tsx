@@ -1,6 +1,6 @@
 import { router } from "expo-router";
 import { ChevronRight, Info, Lock } from "lucide-react-native";
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { FlatList, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -12,7 +12,13 @@ import { ScreenHeader } from "@/components/ui/ScreenHeader";
 import {
   getLatestIndividualWorkouts,
   type IndividualWorkout,
-} from "@/features/workouts/individualWorkouts.data";
+} from "@/features/workouts/individualWorkouts.supabase";
+
+import {
+  getFeaturedRecipes,
+  type RecipeItem,
+} from "@/features/recipes/recipes.supabase";
+
 import { Spacing } from "@/styles/spacing";
 
 import { useEntitlements } from "../../providers/entitlements";
@@ -36,13 +42,7 @@ type Program = {
   isFeatured?: boolean;
 };
 
-type Recipe = {
-  id: string;
-  title: string;
-  metaBold: string;
-  metaMuted: string;
-  imageUrl: string;
-};
+
 
 type Rail<T> = {
   id: string;
@@ -288,42 +288,47 @@ export default function ExploreScreen() {
     [ACTIVE_PROGRAM_IMAGE, PROGRAM_IMAGES],
   );
 
-  const workouts = useMemo<IndividualWorkout[]>(
-      () => getLatestIndividualWorkouts(4),
-      [],
-    );
+  const [workouts, setWorkouts] = useState<IndividualWorkout[]>([]);
 
-  const recipes = useMemo<Recipe[]>(
-    () => [
-      {
-        id: "r-001",
-        title: "Low Carb Lemon Pepper Chicken with Tzatziki",
-        metaBold: "Main course ~35 min",
-        metaMuted: "High Protein · Vegetables",
-        imageUrl:
-          "https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?auto=format&fit=crop&w=1600&q=80",
-      },
-      {
-        id: "r-002",
-        title: "Greek Yogurt + Berries",
-        metaBold: "Breakfast ~10 min",
-        metaMuted: "Snack · Fruit",
-        imageUrl:
-          "https://images.unsplash.com/photo-1490474418585-ba9bad8fd0ea?auto=format&fit=crop&w=1600&q=80",
-      },
-      {
-        id: "r-003",
-        title: "Salmon + Greens",
-        metaBold: "Main course ~18 min",
-        metaMuted: "Omega-3 · Lean",
-        imageUrl:
-          "https://images.unsplash.com/photo-1467003909585-2f8a72700288?auto=format&fit=crop&w=1600&q=80",
-      },
-    ],
-    [],
-  );
+    useEffect(() => {
+      let mounted = true;
 
-  const rails = useMemo<Array<Rail<Program> | Rail<IndividualWorkout> | Rail<Recipe>>>(() => {
+      async function loadLatestWorkouts() {
+        const latest = await getLatestIndividualWorkouts(4);
+
+        if (mounted) {
+          setWorkouts(latest);
+        }
+      }
+
+      loadLatestWorkouts();
+
+      return () => {
+        mounted = false;
+      };
+    }, []);
+
+  const [recipes, setRecipes] = useState<RecipeItem[]>([]);
+
+useEffect(() => {
+  let mounted = true;
+
+  async function loadFeaturedRecipes() {
+    const featured = await getFeaturedRecipes(4);
+
+    if (mounted) {
+      setRecipes(featured);
+    }
+  }
+
+  loadFeaturedRecipes();
+
+  return () => {
+    mounted = false;
+  };
+}, []);
+
+  const rails = useMemo<Array<Rail<Program> | Rail<IndividualWorkout> | Rail<RecipeItem>>>(() => {
     return [
       { id: "programs", title: "Programs", kind: "program", items: programs },
       { id: "workouts", title: "Individual workouts", kind: "workout", items: workouts },
@@ -341,16 +346,23 @@ export default function ExploreScreen() {
       return;
     }
 
-    router.push({
-      pathname: "/workout",
-      params: {
-        workoutId: workout.id,
-        source: "explore",
-      },
-    });
+   router.push({
+  pathname: "/workout",
+  params: {
+    workoutId: workout.slug,
+    supabaseWorkoutId: workout.id,
+    supabaseWorkoutOwnerType: "individual_workout",
+    source: "explore",
+  },
+});
   };
 
-  const onPressRecipe = (_id: string) => router.push("/recipes");
+  const onPressRecipe = (slug: string) => {
+  router.push({
+    pathname: "/recipes/[id]",
+    params: { id: slug },
+  });
+};
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
@@ -422,6 +434,7 @@ export default function ExploreScreen() {
                         metaMuted={w.meta}
                         imageUrl={w.imageUrl}
                         active={!!w.isActive}
+                        theme={colors}
                         topRightAccessory={
                           isLocked ? <LockedChip isDark={isDark} /> : undefined
                         }
@@ -430,19 +443,36 @@ export default function ExploreScreen() {
                     );
                   }
 
-                  const r = item as Recipe;
+                 const r = item as RecipeItem;
+                  const isLocked = r.access === "premium" && !isPro;
+
                   return (
                     <EditorialCard
                       title={r.title}
-                      metaBold={r.metaBold}
-                      metaMuted={r.metaMuted}
+                      metaBold={`${r.category || "Recipe"} ~${r.prepTimeMin ?? 0} min`}
+                      metaMuted={
+                        r.calories
+                          ? `${r.calories} kcal · ${r.proteinG ?? 0}g protein`
+                          : r.tags.slice(0, 2).join(" · ")
+                      }
                       imageUrl={r.imageUrl}
                       width={210}
                       mediaHeight={210}
-                      onPress={() => onPressRecipe(r.id)}
+                      theme={colors}
+                      topRightAccessory={
+                        isLocked ? <LockedChip isDark={isDark} /> : undefined
+                      }
+                      onPress={() => {
+                        if (isLocked) {
+                          router.push("/paywall");
+                          return;
+                        }
+
+                        onPressRecipe(r.slug);
+                      }}
                     />
                   );
-                }}
+                                  }}
               />
             </View>
           ))}

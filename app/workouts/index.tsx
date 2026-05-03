@@ -1,15 +1,16 @@
 import { useRouter } from "expo-router";
 import { ChevronRight, Lock } from "lucide-react-native";
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import SubpageHeader from "@/components/SubpageHeader";
 import { EditorialCard } from "@/components/ui/EditorialCard";
 import {
-  getWorkoutsForCategory,
+  getAllIndividualWorkouts,
   type IndividualWorkout,
-} from "@/features/workouts/individualWorkouts.data";
+  type WorkoutCategory,
+} from "@/features/workouts/individualWorkouts.supabase";
 import { useEntitlements } from "@/providers/entitlements";
 import { useAppTheme } from "@/providers/theme";
 import { createExploreStyles } from "@/styles/screens/explore.styles";
@@ -18,7 +19,7 @@ import { Spacing } from "@/styles/spacing";
 const RAIL_GAP = Spacing.md;
 
 type WorkoutRail = {
-  id: "upper" | "lower" | "bodyweight" | "dumbbells" | "conditioning";
+  id: WorkoutCategory;
   title: string;
   items: IndividualWorkout[];
 };
@@ -82,37 +83,57 @@ export default function WorkoutsIndexScreen() {
   const { colors, isDark } = useAppTheme();
   const { isPro } = useEntitlements();
   const styles = useMemo(() => createExploreStyles(colors, isDark), [colors, isDark]);
+  const [allWorkouts, setAllWorkouts] = useState<IndividualWorkout[]>([]);
+  useEffect(() => {
+        let mounted = true;
 
-  const rails = useMemo<WorkoutRail[]>(
-    () => [
-      {
-        id: "upper",
-        title: "Upper body",
-        items: getWorkoutsForCategory("upper"),
-      },
-      {
-        id: "lower",
-        title: "Lower body",
-        items: getWorkoutsForCategory("lower"),
-      },
-      {
-        id: "bodyweight",
-        title: "Bodyweight",
-        items: getWorkoutsForCategory("bodyweight"),
-      },
-      {
-        id: "dumbbells",
-        title: "Dumbbells",
-        items: getWorkoutsForCategory("dumbbells"),
-      },
-      {
-        id: "conditioning",
-        title: "Conditioning",
-        items: getWorkoutsForCategory("conditioning"),
-      },
-    ],
-    [],
-  );
+        async function loadWorkouts() {
+          const workouts = await getAllIndividualWorkouts();
+
+          if (mounted) {
+            setAllWorkouts(workouts);
+          }
+        }
+
+        loadWorkouts();
+
+        return () => {
+          mounted = false;
+        };
+      }, []);
+
+  const rails = useMemo<WorkoutRail[]>(() => {
+  const byCategory = (category: WorkoutCategory) =>
+    allWorkouts.filter((workout) => workout.categories.includes(category));
+
+  return [
+    {
+      id: "upper",
+      title: "Upper body",
+      items: byCategory("upper"),
+    },
+    {
+      id: "lower",
+      title: "Lower body",
+      items: byCategory("lower"),
+    },
+    {
+      id: "bodyweight",
+      title: "Bodyweight",
+      items: byCategory("bodyweight"),
+    },
+    {
+      id: "dumbbells",
+      title: "Dumbbells",
+      items: byCategory("dumbbells"),
+    },
+    {
+      id: "conditioning",
+      title: "Conditioning",
+      items: byCategory("conditioning"),
+    },
+  ].filter((rail) => rail.items.length > 0);
+}, [allWorkouts]);
 
   const handleBack = () => {
     if (router.canGoBack()) router.back();

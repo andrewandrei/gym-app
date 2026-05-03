@@ -66,6 +66,13 @@ import {
   formatStoredWeightStringForDisplay,
 } from "../../lib/weightUnits";
 
+
+import {
+  mapSupabaseBlueprintToWorkoutConfig,
+  type BuilderWorkoutConfig,
+} from "@/features/workoutBuilder/workoutBuilder.mapper";
+import { getWorkoutBlueprintForOwner } from "@/features/workoutBuilder/workoutBuilder.supabase";
+
 const IOS_ACCESSORY_ID = "workoutAccessoryDone";
 const FINISH_SUMMARY_STORAGE_KEY = "aa_fit_finish_summary";
 
@@ -709,6 +716,197 @@ const openExternalVideo = async () => {
   );
 }
 
+function secondsToRestLabel(seconds: number | null | undefined) {
+  if (!seconds || seconds <= 0) return "";
+
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+
+  return `${minutes}:${String(remainingSeconds).padStart(2, "0")}`;
+}
+
+function secondsToTimeInput(seconds: number | null | undefined) {
+  if (!seconds || seconds <= 0) return "";
+
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+
+  return `${minutes}:${String(remainingSeconds).padStart(2, "0")}`;
+}
+
+function getUnitLabelForBuilderTracking(trackingType: string) {
+  if (trackingType === "bodyweight" || trackingType === "reps_only") {
+    return "REPS";
+  }
+
+  if (trackingType === "time" || trackingType === "mobility") {
+    return "TIME";
+  }
+
+  if (trackingType === "calories") {
+    return "CAL";
+  }
+
+  if (trackingType === "distance_speed") {
+    return "M";
+  }
+
+  return "KG";
+}
+
+function getTrackingModeForBuilderTracking(trackingType: string) {
+  if (trackingType === "time" || trackingType === "mobility") {
+    return "time";
+  }
+
+  if (trackingType === "calories") {
+    return "calories";
+  }
+
+  if (trackingType === "distance_speed") {
+    return "distance_speed";
+  }
+
+  if (trackingType === "bodyweight" || trackingType === "reps_only") {
+    return "reps";
+  }
+
+  return undefined;
+}
+
+function getRepsValueForBuilderSet(
+  set: BuilderWorkoutConfig["exercises"][number]["sets"][number],
+  trackingType: string,
+) {
+  if (trackingType === "time" || trackingType === "mobility") {
+    return secondsToTimeInput(set.timeSeconds);
+  }
+
+  if (trackingType === "calories") {
+    return set.calories;
+  }
+
+  if (trackingType === "distance_speed") {
+    return set.distanceMeters;
+  }
+
+  if (set.minReps && set.maxReps) {
+    return `${set.minReps}-${set.maxReps}`;
+  }
+
+  return set.reps;
+}
+
+function resolveBuilderBlockType(
+  blockType: string | null | undefined,
+): StrengthBlock["type"] {
+  if (blockType === "superset") return "superset";
+  if (blockType === "giant") return "giant";
+  if (blockType === "circuit") return "circuit";
+  return "single";
+}
+
+function buildWorkoutConfigFromBuilder(
+  builderConfig: BuilderWorkoutConfig,
+): ReturnType<typeof getWorkoutConfig> {
+  const sortedBuilderExercises = [...builderConfig.exercises].sort(
+    (a, b) => a.orderIndex - b.orderIndex,
+  );
+
+  const exercises = sortedBuilderExercises.map((exercise) => {
+    const unitLabel = getUnitLabelForBuilderTracking(exercise.trackingType);
+
+    return {
+      id: exercise.id,
+      name: exercise.displayName || exercise.name,
+      tempo: exercise.tempo || "—",
+      image: exercise.imageUrl || builderConfig.imageUrl || "",
+      unitLabel,
+      trackingMode: getTrackingModeForBuilderTracking(exercise.trackingType) as any,
+      videoUrl: exercise.videoUrl || undefined,
+      description: exercise.instructions || exercise.notes || undefined,
+      tutorial: exercise.coachingCues?.length ? exercise.coachingCues : undefined,
+      musclesWorked: [exercise.primaryMuscle, exercise.equipment].filter(Boolean) as string[],
+      sets: exercise.sets.map((set) => ({
+        id: set.id,
+        weight:
+          exercise.trackingType === "strength"
+            ? set.weightKg
+            : set.weightLabel || "",
+        reps: getRepsValueForBuilderSet(set, exercise.trackingType),
+        rest: secondsToRestLabel(set.restSeconds ?? exercise.restSeconds),
+        done: false,
+        note: set.notes || "",
+      })),
+    };
+  }) as Exercise[];
+
+  const blocks: StrengthBlock[] = [];
+
+  let index = 0;
+
+  while (index < sortedBuilderExercises.length) {
+    const current = sortedBuilderExercises[index];
+    const currentKey = current.blockKey || current.id;
+
+    const contiguous = [current];
+    let cursor = index + 1;
+
+    while (cursor < sortedBuilderExercises.length) {
+      const candidate = sortedBuilderExercises[cursor];
+      const candidateKey = candidate.blockKey || candidate.id;
+
+      if (candidateKey !== currentKey) break;
+
+      contiguous.push(candidate);
+      cursor += 1;
+    }
+
+    const hasGroupedType = contiguous.some(
+      (item) =>
+        item.blockType === "superset" ||
+        item.blockType === "giant" ||
+        item.blockType === "circuit",
+    );
+
+    const isGrouped = contiguous.length > 1 && hasGroupedType;
+
+    const resolvedType: StrengthBlock["type"] = isGrouped
+      ? resolveBuilderBlockType(current.blockType)
+      : "single";
+
+    blocks.push({
+      id: isGrouped
+        ? `builder-${currentKey}-${index}`
+        : `builder-single-${current.id}`,
+      type: resolvedType,
+      exerciseIds: contiguous.map((item) => item.id),
+      rounds:
+        resolvedType === "circuit"
+          ? Math.max(
+              1,
+              ...contiguous.map((item) => item.sets.length || 1),
+            )
+          : undefined,
+    } as StrengthBlock);
+
+    index = cursor;
+  }
+
+  return {
+    id: builderConfig.id,
+    title: builderConfig.title,
+    subtitle: builderConfig.subtitle,
+    description: builderConfig.description,
+    image: builderConfig.imageUrl,
+    exercises,
+    blocks,
+    exerciseAlternatives: {},
+    historyByExerciseId: {},
+  } as ReturnType<typeof getWorkoutConfig>;
+}
+
+
 export default function WorkoutLogScreen() {
   const { colors, isDark } = useAppTheme();
   const { settings } = useAppSettings();
@@ -716,15 +914,31 @@ export default function WorkoutLogScreen() {
   const S = useMemo(() => createWorkoutStyles(colors, isDark), [colors, isDark]);
 
   const params = useLocalSearchParams<{
-    resumeDraft?: string | string[];
-    workoutId?: string | string[];
-    programId?: string | string[];
-    source?: string | string[];
-  }>();
+      resumeDraft?: string | string[];
+      workoutId?: string | string[];
+      supabaseWorkoutId?: string | string[];
+      supabaseWorkoutOwnerType?: string | string[];
+      programId?: string | string[];
+      source?: string | string[];
+    }>();
 
   const selectedWorkoutId = Array.isArray(params.workoutId)
     ? params.workoutId[0]
     : params.workoutId;
+
+  const selectedSupabaseWorkoutId = Array.isArray(params.supabaseWorkoutId)
+  ? params.supabaseWorkoutId[0]
+  : params.supabaseWorkoutId;
+
+  const selectedSupabaseWorkoutOwnerType = Array.isArray(
+  params.supabaseWorkoutOwnerType,
+)
+  ? params.supabaseWorkoutOwnerType[0]
+  : params.supabaseWorkoutOwnerType;
+
+
+
+
 
   const selectedProgramId = Array.isArray(params.programId)
     ? params.programId[0]
@@ -734,10 +948,82 @@ export default function WorkoutLogScreen() {
     ? params.resumeDraft[0]
     : params.resumeDraft;
 
-  const workoutConfig = useMemo(
-    () => getWorkoutConfig(selectedWorkoutId),
-    [selectedWorkoutId],
-  );
+  const localWorkoutConfig = useMemo(
+  () => getWorkoutConfig(selectedWorkoutId),
+  [selectedWorkoutId],
+);
+
+const [builderWorkoutConfig, setBuilderWorkoutConfig] =
+  useState<ReturnType<typeof getWorkoutConfig> | null>(null);
+
+const [isLoadingBuilderWorkout, setIsLoadingBuilderWorkout] = useState(false);
+
+useEffect(() => {
+  let mounted = true;
+
+  async function loadBuilderWorkout() {
+    console.log("🏋️ workout route params:", {
+  selectedWorkoutId,
+  selectedSupabaseWorkoutId,
+  selectedSupabaseWorkoutOwnerType,
+});
+   if (!selectedSupabaseWorkoutId) {
+  console.log("⚠️ no supabaseWorkoutId passed, using local hardcoded fallback:", selectedWorkoutId);
+  setBuilderWorkoutConfig(null);
+  return;
+}
+
+    setIsLoadingBuilderWorkout(true);
+
+    const blueprintOwnerType =
+  selectedSupabaseWorkoutOwnerType === "program_workout"
+    ? "program_workout"
+    : "individual_workout";
+
+const blueprint = await getWorkoutBlueprintForOwner({
+  ownerType: blueprintOwnerType,
+  ownerId: selectedSupabaseWorkoutId,
+});
+
+    if (!mounted) return;
+
+   if (!blueprint || blueprint.exercises.length === 0) {
+  console.log("⚠️ no Supabase blueprint found, using local hardcoded fallback:", {
+    ownerType: blueprintOwnerType,
+    ownerId: selectedSupabaseWorkoutId,
+  });
+
+  setBuilderWorkoutConfig(null);
+  setIsLoadingBuilderWorkout(false);
+  return;
+}
+
+    const mapped = mapSupabaseBlueprintToWorkoutConfig(blueprint);
+    const adapted = buildWorkoutConfigFromBuilder(mapped);
+
+    console.log("✅ mapped Supabase workout:", {
+      title: adapted.title,
+      exercises: adapted.exercises.length,
+      blocks: adapted.blocks.map((block) => ({
+        type: block.type,
+        exerciseIds: block.exerciseIds,
+      })),
+    });
+
+    setBuilderWorkoutConfig(adapted);
+    setIsLoadingBuilderWorkout(false);
+
+    console.log("✅ using Supabase workout builder:", adapted.title);
+  }
+
+  loadBuilderWorkout();
+
+  return () => {
+    mounted = false;
+  };
+}, [selectedSupabaseWorkoutId, selectedSupabaseWorkoutOwnerType]);
+
+const workoutConfig = builderWorkoutConfig ?? localWorkoutConfig;
 
   const workoutTitle = workoutConfig.title;
   const workoutStartTime = useRef(Date.now());
@@ -1822,7 +2108,7 @@ export default function WorkoutLogScreen() {
     [exerciseById],
   );
 
-  if (isHydratingDraft) {
+  if (isHydratingDraft || isLoadingBuilderWorkout) {
     return (
       <SafeAreaView
         style={{ flex: 1, backgroundColor: colors.background }}
@@ -1830,7 +2116,7 @@ export default function WorkoutLogScreen() {
       >
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
           <Text style={{ fontSize: 15, fontWeight: "800", color: colors.muted }}>
-            Restoring workout…
+           {isLoadingBuilderWorkout ? "Loading workout…" : "Restoring workout…"}
           </Text>
         </View>
       </SafeAreaView>

@@ -725,12 +725,12 @@ export function WorkoutPreview({
     setTimeout(() => setSelectedExercise(null), 300);
   }, []);
 
-  const blockKickerFor = (block: StrengthBlock) => {
-    if (block.type === "superset") return "SUPERSET";
-    if (block.type === "giant") return "GIANT SET";
-    if (block.type === "circuit") return "CIRCUIT";
-    return "SINGLE";
-  };
+const blockKickerFor = (block: StrengthBlock) => {
+  if (block.type === "superset") return "SUPERSET";
+  if (block.type === "giant") return "GIANT SET";
+  if (block.type === "circuit") return "CIRCUIT";
+  return "";
+};
 
   const blockCountLabel = (block: StrengthBlock) => {
     const count = block.exerciseIds.length;
@@ -773,21 +773,32 @@ export function WorkoutPreview({
         <View style={styles.headerDivider} />
 
         <View style={styles.body}>
-          {blocks.map((block) => {
-            const countLabel = blockCountLabel(block);
+        {blocks.map((block) => {
+  const isGroupedBlock = block.type !== "single";
+  const countLabel = blockCountLabel(block);
 
-            return (
-              <View key={block.id} style={styles.blockWrap}>
-                <View style={[styles.blockRail, { backgroundColor: railColor(block) }]} />
+  return (
+    <View
+      key={block.id}
+      style={[
+        styles.blockWrap,
+        !isGroupedBlock && { paddingLeft: 0 },
+      ]}
+    >
+      {isGroupedBlock ? (
+        <View style={[styles.blockRail, { backgroundColor: railColor(block) }]} />
+      ) : null}
 
-                <View style={styles.blockHeader}>
-                  <Text style={styles.blockKicker}>{blockKickerFor(block)}</Text>
-                  {countLabel !== "" && (
-                    <Text style={styles.blockCount}>{countLabel}</Text>
-                  )}
-                </View>
+      {isGroupedBlock ? (
+        <View style={styles.blockHeader}>
+          <Text style={styles.blockKicker}>{blockKickerFor(block)}</Text>
+          {countLabel !== "" ? (
+            <Text style={styles.blockCount}>{countLabel}</Text>
+          ) : null}
+        </View>
+      ) : null}
 
-                {block.exerciseIds.map((exId, idx) => {
+      {block.exerciseIds.map((exId, idx) => {
                   const ex = exerciseById[exId];
                   if (!ex) return null;
                   const blockTag = tagFor(block, idx);
@@ -822,7 +833,7 @@ export function WorkoutPreview({
                 })}
               </View>
             );
-          })}
+})}
         </View>
       </ScrollView>
 

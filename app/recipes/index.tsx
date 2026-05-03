@@ -1,8 +1,8 @@
 // app/recipes/index.tsx
 
 import { useRouter } from "expo-router";
-import { ChevronLeft } from "lucide-react-native";
-import React, { useMemo, useState } from "react";
+import { ChevronLeft, Lock } from "lucide-react-native";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Image,
   Pressable,
@@ -15,33 +15,31 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { PressableScale } from "@/components/ui/PressableScale";
 import { ScreenHeader } from "@/components/ui/ScreenHeader";
+import {
+  getAllRecipes,
+  type RecipeItem,
+} from "@/features/recipes/recipes.supabase";
+import { useEntitlements } from "@/providers/entitlements";
 import { useAppTheme } from "@/providers/theme";
 import { BorderWidth } from "@/styles/hairline";
 import { Spacing } from "@/styles/spacing";
 
-import {
-  getAllRecipes,
-  RECIPE_CATEGORIES,
-  type Recipe,
-  type RecipeCategory,
-} from "../../features/programs/recipe.data";
-
 // ─── Category pill ───────────────────────────────────────────────────────────
 
-type FilterOption = "All" | RecipeCategory;
+type FilterOption = "All" | string;
 
 function CategoryPills({
   active,
   onChange,
   colors,
-  isDark,
+  categories,
 }: {
   active: FilterOption;
   onChange: (f: FilterOption) => void;
   colors: any;
-  isDark: boolean;
+  categories: string[];
 }) {
-  const options: FilterOption[] = ["All", ...RECIPE_CATEGORIES];
+  const options: FilterOption[] = ["All", ...categories];
   const BORDER = colors.borderSubtle ?? colors.border;
 
   return (
@@ -112,18 +110,57 @@ const pillStyles = StyleSheet.create({
   },
 });
 
+// ─── Locked chip ─────────────────────────────────────────────────────────────
+
+function LockedChip({ isDark }: { isDark: boolean }) {
+  return (
+    <View style={lockStyles.wrap}>
+      <Lock
+        size={14}
+        color={isDark ? "rgba(255,255,255,0.46)" : "rgba(17,17,17,0.40)"}
+      />
+    </View>
+  );
+}
+
+const lockStyles = StyleSheet.create({
+  wrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(0,0,0,0.28)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.18)",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 2,
+  },
+});
+
 // ─── Recipe card ─────────────────────────────────────────────────────────────
 
 function RecipeCard({
   recipe,
   onPress,
   colors,
+  isLocked,
+  isDark,
 }: {
-  recipe: Recipe;
+  recipe: RecipeItem;
   onPress: () => void;
   colors: any;
+  isLocked: boolean;
+  isDark: boolean;
 }) {
   const BORDER = colors.borderSubtle ?? colors.border;
+
+  const metaMuted = recipe.calories
+    ? `${recipe.calories} kcal · ${recipe.proteinG ?? 0}g protein`
+    : recipe.tags.slice(0, 2).join(" · ");
 
   return (
     <Pressable
@@ -137,11 +174,20 @@ function RecipeCard({
         },
       ]}
     >
-      <Image
-        source={{ uri: recipe.imageUrl }}
-        style={cardStyles.image}
-        resizeMode="cover"
-      />
+      <View>
+        <Image
+          source={{ uri: recipe.imageUrl }}
+          style={cardStyles.image}
+          resizeMode="cover"
+        />
+
+        {isLocked ? (
+          <View style={cardStyles.lockWrap}>
+            <LockedChip isDark={isDark} />
+          </View>
+        ) : null}
+      </View>
+
       <View style={cardStyles.body}>
         <View style={cardStyles.tagsRow}>
           <View
@@ -150,10 +196,13 @@ function RecipeCard({
               { backgroundColor: colors.premium },
             ]}
           >
-            <Text style={cardStyles.categoryPillText}>{recipe.category}</Text>
+            <Text style={cardStyles.categoryPillText}>
+              {recipe.category || "Recipe"}
+            </Text>
           </View>
+
           <Text style={[cardStyles.duration, { color: colors.muted }]}>
-            ~{recipe.durationMin} min
+            ~{recipe.prepTimeMin ?? 0} min
           </Text>
         </View>
 
@@ -168,16 +217,12 @@ function RecipeCard({
           style={[cardStyles.tagline, { color: colors.muted }]}
           numberOfLines={2}
         >
-          {recipe.tagline}
+          {recipe.tags.length > 0 ? recipe.tags.join(" · ") : recipe.category}
         </Text>
 
         <View style={cardStyles.macrosRow}>
           <Text style={[cardStyles.macroText, { color: colors.muted }]}>
-            {recipe.macrosPerServing.calories} kcal
-          </Text>
-          <Text style={[cardStyles.macroDot, { color: colors.muted }]}>·</Text>
-          <Text style={[cardStyles.macroText, { color: colors.muted }]}>
-            {recipe.macrosPerServing.protein}g protein
+            {metaMuted}
           </Text>
         </View>
       </View>
@@ -195,6 +240,11 @@ const cardStyles = StyleSheet.create({
   image: {
     width: "100%",
     height: 200,
+  },
+  lockWrap: {
+    position: "absolute",
+    top: 12,
+    right: 12,
   },
   body: {
     padding: 16,
@@ -242,10 +292,6 @@ const cardStyles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "700",
   },
-  macroDot: {
-    fontSize: 12,
-    fontWeight: "700",
-  },
 });
 
 // ─── Empty state ─────────────────────────────────────────────────────────────
@@ -263,7 +309,7 @@ function EmptyCategory({
         No {category.toLowerCase()} recipes yet
       </Text>
       <Text style={[emptyStyles.body, { color: colors.muted }]}>
-        New recipes will appear here as they're added.
+        New recipes will appear here as they&apos;re added.
       </Text>
     </View>
   );
@@ -295,10 +341,38 @@ const emptyStyles = StyleSheet.create({
 export default function RecipesListScreen() {
   const router = useRouter();
   const { colors, isDark } = useAppTheme();
+  const { isPro } = useEntitlements();
 
   const [activeFilter, setActiveFilter] = useState<FilterOption>("All");
+  const [allRecipes, setAllRecipes] = useState<RecipeItem[]>([]);
 
-  const allRecipes = useMemo(() => getAllRecipes(), []);
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadRecipes() {
+      const recipes = await getAllRecipes();
+
+      if (mounted) {
+        setAllRecipes(recipes);
+      }
+    }
+
+    loadRecipes();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const categories = useMemo(() => {
+    const unique = new Set<string>();
+
+    allRecipes.forEach((recipe) => {
+      if (recipe.category) unique.add(recipe.category);
+    });
+
+    return Array.from(unique);
+  }, [allRecipes]);
 
   const filteredRecipes = useMemo(() => {
     if (activeFilter === "All") return allRecipes;
@@ -309,7 +383,6 @@ export default function RecipesListScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
-      {/* Header */}
       <View style={styles.headerRow}>
         <Pressable
           onPress={() => router.back()}
@@ -318,20 +391,19 @@ export default function RecipesListScreen() {
         >
           <ChevronLeft size={22} color={colors.text} />
         </Pressable>
+
         <View style={{ flex: 1, marginLeft: 12 }}>
           <ScreenHeader title="Recipes" subtitle="Macro-focused meals" />
         </View>
       </View>
 
-      {/* Category pills */}
       <CategoryPills
         active={activeFilter}
         onChange={setActiveFilter}
         colors={colors}
-        isDark={isDark}
+        categories={categories}
       />
 
-      {/* Recipe list */}
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.content}
@@ -343,19 +415,30 @@ export default function RecipesListScreen() {
             colors={colors}
           />
         ) : (
-          filteredRecipes.map((recipe) => (
-            <RecipeCard
-              key={recipe.id}
-              recipe={recipe}
-              colors={colors}
-              onPress={() =>
-                router.push({
-                  pathname: "/recipes/[id]",
-                  params: { id: recipe.id },
-                })
-              }
-            />
-          ))
+          filteredRecipes.map((recipe) => {
+            const isLocked = recipe.access === "premium" && !isPro;
+
+            return (
+              <RecipeCard
+                key={recipe.id}
+                recipe={recipe}
+                colors={colors}
+                isDark={isDark}
+                isLocked={isLocked}
+                onPress={() => {
+                  if (isLocked) {
+                    router.push("/paywall");
+                    return;
+                  }
+
+                  router.push({
+                    pathname: "/recipes/[id]",
+                    params: { id: recipe.slug },
+                  });
+                }}
+              />
+            );
+          })
         )}
 
         <View style={styles.bottomSpacer} />

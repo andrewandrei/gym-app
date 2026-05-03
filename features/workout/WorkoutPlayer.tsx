@@ -323,26 +323,41 @@ export default function WorkoutPlayer({
         showsVerticalScrollIndicator={false}
       >
         <View style={S.exerciseList}>
-          {blocks.map((block) => (
-            <View key={block.id} style={S.groupWrap}>
-              <View
-                style={[
-                  S.groupRail,
-                  groupAccentStyle(block),
-                  celebratingBlock === block.id && { opacity: 0.3 },
-                ]}
-              />
+         {blocks.map((block) => {
+  const isGroupedBlock = block.type !== "single";
 
-              <View style={S.blockHeader}>
-                <Text style={S.blockKicker}>{blockKickerFor(block)}</Text>
+  return (
+    <View
+      key={block.id}
+      style={[
+        S.groupWrap,
+        !isGroupedBlock && { paddingLeft: 0 },
+      ]}
+    >
+      {isGroupedBlock ? (
+        <View
+          style={[
+            S.groupRail,
+            groupAccentStyle(block),
+            celebratingBlock === block.id && { opacity: 0.3 },
+          ]}
+        />
+      ) : null}
 
-                <View style={S.blockTitleRow}>
-                  <Text style={S.blockTitle}>{block.title ?? blockKickerFor(block)}</Text>
-                  <Text style={S.blockMeta}>{blockMetaFor(block)}</Text>
-                </View>
-              </View>
+      {isGroupedBlock ? (
+        <View style={S.blockHeader}>
+          <Text style={S.blockKicker}>{blockKickerFor(block)}</Text>
 
-              {block.exerciseIds.map((exId, idx) => {
+          <View style={S.blockTitleRow}>
+            <Text style={S.blockTitle}>
+              {block.title ?? blockKickerFor(block)}
+            </Text>
+            <Text style={S.blockMeta}>{blockMetaFor(block)}</Text>
+          </View>
+        </View>
+      ) : null}
+
+      {block.exerciseIds.map((exId, idx) => {
                 const ex = exerciseById[exId];
                 if (!ex) return null;
 
@@ -450,9 +465,10 @@ export default function WorkoutPlayer({
                     <View style={S.exerciseGap} />
                   </View>
                 );
-              })}
+               })}
             </View>
-          ))}
+          );
+        })}
         </View>
 
         <View style={S.finishSectionWrap}>

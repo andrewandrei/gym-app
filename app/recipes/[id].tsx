@@ -2,7 +2,7 @@
 
 import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import { ChevronLeft, Clock } from "lucide-react-native";
-import React, { useMemo, useRef } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
   Pressable,
@@ -13,23 +13,67 @@ import {
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
+import {
+  getRecipeBySlug,
+  type RecipeItem,
+} from "@/features/recipes/recipes.supabase";
+import { useEntitlements } from "@/providers/entitlements";
 import { useAppTheme } from "@/providers/theme";
 import { BorderWidth } from "@/styles/hairline";
 import { Spacing } from "@/styles/spacing";
 
-import { getRecipe } from "../../features/programs/recipe.data";
-
 const HERO_HEIGHT = 400;
+
+type Ingredient = {
+  amount: string;
+  name: string;
+};
+
+type Step = {
+  number: number;
+  text: string;
+};
+
+function buildTagline(recipe: RecipeItem) {
+  if (recipe.tags.length > 0) return recipe.tags.join(" · ");
+
+  if (recipe.calories && recipe.proteinG) {
+    return `${recipe.calories} kcal · ${recipe.proteinG}g protein`;
+  }
+
+  return "Macro-focused meal designed for your plan.";
+}
+
+function buildFallbackIngredients(recipe: RecipeItem): Ingredient[] {
+  return [
+    {
+      amount: "Coming soon",
+      name: "Ingredients will be added from the admin panel.",
+    },
+  ];
+}
+
+function buildFallbackSteps(): Step[] {
+  return [
+    {
+      number: 1,
+      text: "Instructions will be added from the admin panel.",
+    },
+  ];
+}
 
 export default function RecipeDetailScreen() {
   const router = useRouter();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const { colors, isDark } = useAppTheme();
+  const { isPro } = useEntitlements();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { height: screenHeight } = useWindowDimensions();
 
-  const recipe = useMemo(() => getRecipe(id), [id]);
+  const [recipe, setRecipe] = useState<RecipeItem | null>(null);
+  const [loading, setLoading] = useState(true);
+
   const styles = useMemo(
     () => createStyles(colors, isDark, screenHeight),
     [colors, isDark, screenHeight],
@@ -42,35 +86,39 @@ export default function RecipeDetailScreen() {
       router.back();
       return;
     }
+
     router.replace("/(tabs)");
   };
 
-  if (!recipe) {
-    return (
-      <SafeAreaView style={styles.safe}>
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyTitle}>Recipe not found</Text>
-          <Pressable onPress={handleBack} style={styles.backButton}>
-            <Text style={styles.backButtonText}>Go back</Text>
-          </Pressable>
-        </View>
-      </SafeAreaView>
-    );
-  }
+  useEffect(() => {
+    let mounted = true;
 
-  const macros = recipe.macrosPerServing;
+    async function loadRecipe() {
+      if (!id) {
+        if (mounted) setLoading(false);
+        return;
+      }
 
-  // ── Parallax interpolations ────────────────────────────────
-  //
-  // Pull-down (scrollY < 0):
-  //   - translateY moves the image down 1:1 with overscroll
-  //     so the bottom edge stays glued to the content top.
-  //   - scale grows the image proportionally so the top edge
-  //     doesn't drop below y=0 (stays pinned to screen top).
-  //
-  // Scroll-up (scrollY > 0):
-  //   - subtle upward drift for parallax feel.
-  //
+      const found = await getRecipeBySlug(id);
+
+      if (!mounted) return;
+
+      if (found?.access === "premium" && !isPro) {
+        router.replace("/paywall");
+        return;
+      }
+
+      setRecipe(found);
+      setLoading(false);
+    }
+
+    loadRecipe();
+
+    return () => {
+      mounted = false;
+    };
+  }, [id, isPro, router]);
+
   const imageTranslateY = scrollY.interpolate({
     inputRange: [-200, 0, HERO_HEIGHT],
     outputRange: [200, 0, -HERO_HEIGHT * 0.1],
@@ -85,7 +133,6 @@ export default function RecipeDetailScreen() {
     extrapolateRight: "clamp",
   });
 
-  // Back button fades out as content scrolls over it
   const backButtonOpacity = scrollY.interpolate({
     inputRange: [0, HERO_HEIGHT * 0.45, HERO_HEIGHT * 0.65],
     outputRange: [1, 1, 0],
@@ -98,9 +145,41 @@ export default function RecipeDetailScreen() {
     extrapolate: "clamp",
   });
 
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyTitle}>Loading recipe...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!recipe) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyTitle}>Recipe not found</Text>
+
+          <Pressable onPress={handleBack} style={styles.backButton}>
+            <Text style={styles.backButtonText}>Go back</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const tagline = buildTagline(recipe);
+  const ingredients = buildFallbackIngredients(recipe);
+  const steps = buildFallbackSteps();
+
+  const calories = recipe.calories ?? 0;
+  const protein = recipe.proteinG ?? 0;
+  const carbs = recipe.carbsG ?? 0;
+  const fat = recipe.fatG ?? 0;
+
   return (
     <View style={styles.safe}>
-      {/* ── Parallax hero image (pinned behind scroll) ────────── */}
       <View style={styles.heroContainer} pointerEvents="none">
         <Animated.Image
           source={{ uri: recipe.imageUrl }}
@@ -117,7 +196,6 @@ export default function RecipeDetailScreen() {
         />
       </View>
 
-      {/* ── Back button (fades out on scroll) ────────────────── */}
       <Animated.View
         style={[
           styles.backBtnWrap,
@@ -133,10 +211,11 @@ export default function RecipeDetailScreen() {
         </Pressable>
       </Animated.View>
 
-      {/* ── Scrollable content ───────────────────────────────── */}
       <Animated.ScrollView
         style={styles.scroll}
-        contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 24) + 24 }}
+        contentContainerStyle={{
+          paddingBottom: Math.max(insets.bottom, 24) + 24,
+        }}
         showsVerticalScrollIndicator={false}
         bounces
         scrollEventThrottle={16}
@@ -145,27 +224,27 @@ export default function RecipeDetailScreen() {
           { useNativeDriver: true },
         )}
       >
-        {/* Spacer — lets the image show through */}
         <View style={styles.heroSpacer} />
 
-        {/* ── Content (solid bg, slides over image) ──────────── */}
         <View style={styles.content}>
           <Text style={styles.title}>{recipe.title}</Text>
 
-          <Text style={styles.tagline}>{recipe.tagline}</Text>
+          <Text style={styles.tagline}>{tagline}</Text>
 
           <View style={styles.metaRow}>
             <Clock size={16} color={colors.muted} strokeWidth={2.2} />
             <Text style={styles.metaText}>
-              {recipe.durationMin} minutes / {recipe.servings}{" "}
-              {recipe.servings === 1 ? "serving" : "servings"}
+              {recipe.prepTimeMin ?? 0} minutes
             </Text>
           </View>
 
           <View style={styles.tagsRow}>
             <View style={styles.categoryTag}>
-              <Text style={styles.categoryTagText}>{recipe.category}</Text>
+              <Text style={styles.categoryTagText}>
+                {recipe.category || "Recipe"}
+              </Text>
             </View>
+
             {recipe.tags.map((tag) => (
               <View key={tag} style={styles.tag}>
                 <Text style={styles.tagText}>{tag}</Text>
@@ -173,42 +252,47 @@ export default function RecipeDetailScreen() {
             ))}
           </View>
 
-          {/* ── Macros strip ───────────────────────────────── */}
           <View style={styles.macrosCard}>
             <Text style={styles.macrosCardTitle}>Per serving</Text>
+
             <View style={styles.macrosGrid}>
               <View style={styles.macroItem}>
-                <Text style={styles.macroValue}>{macros.calories}</Text>
+                <Text style={styles.macroValue}>{calories}</Text>
                 <Text style={styles.macroLabel}>kcal</Text>
               </View>
+
               <View style={styles.macroDivider} />
+
               <View style={styles.macroItem}>
-                <Text style={styles.macroValue}>{macros.protein}g</Text>
+                <Text style={styles.macroValue}>{protein}g</Text>
                 <Text style={styles.macroLabel}>Protein</Text>
               </View>
+
               <View style={styles.macroDivider} />
+
               <View style={styles.macroItem}>
-                <Text style={styles.macroValue}>{macros.carbs}g</Text>
+                <Text style={styles.macroValue}>{carbs}g</Text>
                 <Text style={styles.macroLabel}>Carbs</Text>
               </View>
+
               <View style={styles.macroDivider} />
+
               <View style={styles.macroItem}>
-                <Text style={styles.macroValue}>{macros.fat}g</Text>
+                <Text style={styles.macroValue}>{fat}g</Text>
                 <Text style={styles.macroLabel}>Fat</Text>
               </View>
             </View>
           </View>
 
-          {/* ── Ingredients ────────────────────────────────── */}
           <Text style={styles.sectionTitle}>Ingredients</Text>
 
           <View style={styles.ingredientsList}>
-            {recipe.ingredients.map((ing, index) => (
+            {ingredients.map((ing, index) => (
               <View
                 key={`${ing.name}-${index}`}
                 style={[
                   styles.ingredientRow,
-                  index < recipe.ingredients.length - 1 && styles.ingredientRowBorder,
+                  index < ingredients.length - 1 && styles.ingredientRowBorder,
                 ]}
               >
                 <Text style={styles.ingredientText}>
@@ -220,23 +304,23 @@ export default function RecipeDetailScreen() {
             ))}
           </View>
 
-          {/* ── Instructions ───────────────────────────────── */}
           <Text style={[styles.sectionTitle, styles.sectionTitleSpaced]}>
             Instructions
           </Text>
 
           <View style={styles.stepsList}>
-            {recipe.steps.map((step, index) => (
+            {steps.map((step, index) => (
               <View
                 key={step.number}
                 style={[
                   styles.stepRow,
-                  index < recipe.steps.length - 1 && styles.stepRowSpaced,
+                  index < steps.length - 1 && styles.stepRowSpaced,
                 ]}
               >
                 <View style={styles.stepNumber}>
                   <Text style={styles.stepNumberText}>{step.number}</Text>
                 </View>
+
                 <Text style={styles.stepText}>{step.text}</Text>
               </View>
             ))}
@@ -246,8 +330,6 @@ export default function RecipeDetailScreen() {
     </View>
   );
 }
-
-// ─── Styles ──────────────────────────────────────────────────────────────────
 
 function createStyles(
   colors: {
@@ -276,8 +358,6 @@ function createStyles(
       flex: 1,
     },
 
-    // ── Hero (parallax, pinned) ──────────────────────────────
-
     heroContainer: {
       position: "absolute",
       top: 0,
@@ -297,8 +377,6 @@ function createStyles(
       position: "relative",
     },
 
-    // ── Back button ──────────────────────────────────────────
-
     backBtnWrap: {
       position: "absolute",
       left: 16,
@@ -315,8 +393,6 @@ function createStyles(
       alignItems: "center",
       justifyContent: "center",
     },
-
-    // ── Content ──────────────────────────────────────────────
 
     content: {
       backgroundColor: colors.background,
@@ -393,8 +469,6 @@ function createStyles(
       letterSpacing: -0.05,
     },
 
-    // ── Macros ───────────────────────────────────────────────
-
     macrosCard: {
       marginTop: 24,
       backgroundColor: colors.card,
@@ -443,8 +517,6 @@ function createStyles(
       backgroundColor: BORDER,
     },
 
-    // ── Sections ─────────────────────────────────────────────
-
     sectionTitle: {
       marginTop: 28,
       marginBottom: 14,
@@ -457,8 +529,6 @@ function createStyles(
     sectionTitleSpaced: {
       marginTop: 32,
     },
-
-    // ── Ingredients ──────────────────────────────────────────
 
     ingredientsList: {},
 
@@ -482,8 +552,6 @@ function createStyles(
       fontWeight: "800",
       color: colors.text,
     },
-
-    // ── Steps ────────────────────────────────────────────────
 
     stepsList: {},
 
@@ -520,8 +588,6 @@ function createStyles(
       fontWeight: "600",
       color: colors.text,
     },
-
-    // ── Empty state ──────────────────────────────────────────
 
     emptyState: {
       flex: 1,

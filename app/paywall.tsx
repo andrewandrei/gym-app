@@ -1,10 +1,13 @@
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { Check, X } from "lucide-react-native";
-import React from "react";
-import { Pressable, Text, View } from "react-native";
+import React, { useEffect, useState } from "react";
+import { Linking, Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { useEntitlements } from "../providers/entitlements";
+import {
+  getPaywallConfig,
+  type PaywallConfig,
+} from "@/features/paywall/paywall.supabase";
 
 import { PressableScale } from "@/components/ui/PressableScale";
 import { Colors } from "@/styles/colors";
@@ -13,20 +16,57 @@ import { styles } from "../styles/screens/paywall.styles";
 
 export default function PaywallScreen() {
   const insets = useSafeAreaInsets();
-  const { setPro } = useEntitlements();
+  const params = useLocalSearchParams<{ paywall?: string }>();
+
+  const [config, setConfig] = useState<PaywallConfig | null>(null);
+
+  const paywallKey = params.paywall || "all_access";
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadPaywall() {
+      const nextConfig = await getPaywallConfig(paywallKey);
+
+      if (mounted) {
+        setConfig(nextConfig);
+      }
+    }
+
+    loadPaywall();
+
+    return () => {
+      mounted = false;
+    };
+  }, [paywallKey]);
 
   const onClose = () => router.back();
 
-  // DEV ONLY: simulate "web purchase"
   const onContinue = async () => {
-    // Later: openURL("https://andreiandreifit.com/join?source=app")
-    await setPro(true);
-    router.back();
+    const checkoutUrl = config?.checkoutUrl || "https://barbata.app/join";
+
+    const canOpen = await Linking.canOpenURL(checkoutUrl);
+
+    if (canOpen) {
+      await Linking.openURL(checkoutUrl);
+      return;
+    }
+
+    await Linking.openURL("https://barbata.app/join");
   };
+
+  const benefits =
+    config?.benefits && config.benefits.length > 0
+      ? config.benefits
+      : [
+          "All weeks, all sessions",
+          "Premium individual workouts",
+          "Progress tracking",
+          "Recipes library",
+        ];
 
   return (
     <View style={styles.backdrop}>
-      {/* Tap outside to dismiss (iOS sheet behavior) */}
       <Pressable
         style={styles.backdropTap}
         onPress={onClose}
@@ -40,14 +80,14 @@ export default function PaywallScreen() {
           { paddingBottom: Math.max(insets.bottom, 12) + 12 },
         ]}
       >
-        {/* Grabber */}
         <View style={styles.grabber} />
 
-        {/* Header */}
         <View style={styles.headerRow}>
           <View style={styles.headerTextWrap}>
-            <Text style={styles.kicker}>AndreiAndreiFit</Text>
-            <Text style={styles.headerTitle}>Join to continue</Text>
+            <Text style={styles.kicker}>BARBATA</Text>
+            <Text style={styles.headerTitle}>
+              {config?.title || "Join to continue"}
+            </Text>
           </View>
 
           <PressableScale
@@ -60,64 +100,45 @@ export default function PaywallScreen() {
           </PressableScale>
         </View>
 
-        {/* Body copy */}
-        <Text style={styles.title}>Full access to every program.</Text>
-        <Text style={styles.subtitle}>
-          Your plan is structured end-to-end. Upgrade when you’re ready — no
-          pressure.
+        <Text style={styles.title}>
+          {config?.subtitle ||
+            "Full access to every program, premium workout, and recipe."}
         </Text>
 
-        {/* Benefits group */}
+        <Text style={styles.subtitle}>
+          One subscription unlocks everything in the app — programs, individual
+          workouts, recipes, and progress tools.
+        </Text>
+
         <View style={styles.benefitsGroup}>
-          <View style={styles.benefitRow}>
-            <View style={styles.tick}>
-              <Check size={16} color={Colors.text} />
-            </View>
-            <View style={styles.benefitText}>
-              <Text style={styles.benefitTitle}>All weeks, all sessions</Text>
-              <Text style={styles.benefitMeta}>
-                Complete the program exactly as designed.
-              </Text>
-            </View>
-          </View>
+          {benefits.map((benefit, index) => (
+            <React.Fragment key={`${benefit}-${index}`}>
+              <View style={styles.benefitRow}>
+                <View style={styles.tick}>
+                  <Check size={16} color={Colors.text} />
+                </View>
 
-          <View style={styles.divider} />
+                <View style={styles.benefitText}>
+                  <Text style={styles.benefitTitle}>{benefit}</Text>
+                </View>
+              </View>
 
-          <View style={styles.benefitRow}>
-            <View style={styles.tick}>
-              <Check size={16} color={Colors.text} />
-            </View>
-            <View style={styles.benefitText}>
-              <Text style={styles.benefitTitle}>Progress tracking</Text>
-              <Text style={styles.benefitMeta}>
-                Sessions, streaks, and completion.
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.divider} />
-
-          <View style={styles.benefitRow}>
-            <View style={styles.tick}>
-              <Check size={16} color={Colors.text} />
-            </View>
-            <View style={styles.benefitText}>
-              <Text style={styles.benefitTitle}>Recipes library</Text>
-              <Text style={styles.benefitMeta}>
-                Macro-focused meals (coming soon).
-              </Text>
-            </View>
-          </View>
+              {index !== benefits.length - 1 ? (
+                <View style={styles.divider} />
+              ) : null}
+            </React.Fragment>
+          ))}
         </View>
 
-        {/* CTA */}
         <PressableScale
           onPress={onContinue}
           style={styles.cta}
           accessibilityRole="button"
-          accessibilityLabel="Continue on website"
+          accessibilityLabel={config?.ctaText || "Continue on website"}
         >
-          <Text style={styles.ctaText}>Continue on website</Text>
+          <Text style={styles.ctaText}>
+            {config?.ctaText || "Continue on website"}
+          </Text>
         </PressableScale>
 
         <PressableScale
@@ -126,12 +147,14 @@ export default function PaywallScreen() {
           scaleTo={0.99}
           opacityTo={0.9}
         >
-          <Text style={styles.secondaryText}>Not now</Text>
+          <Text style={styles.secondaryText}>
+            {config?.secondaryText || "Not now"}
+          </Text>
         </PressableScale>
 
         <Text style={styles.legal}>
-          Payments are handled on the website. Manage your plan anytime in
-          Profile.
+          {config?.legalText ||
+            "Payments are handled on the website. Manage your plan anytime in Profile."}
         </Text>
       </View>
     </View>

@@ -9,32 +9,121 @@ import {
   StyleSheet,
   Text,
   View,
-  useWindowDimensions
+  useWindowDimensions,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { PressableScale } from "@/components/ui/PressableScale";
-import { getProgram } from "@/features/programs/program.data";
 import {
-  buildProgramWorkoutId,
-  getProgramWorkoutTemplate,
-  getWorkoutCountForWeek,
-} from "@/features/programs/programWorkouts";
+  getProgramBySlug,
+  type SupabaseProgram,
+  type SupabaseProgramWorkout,
+} from "@/features/programs/programs.supabase";
+import { useEntitlements } from "@/providers/entitlements";
 import { useAppTheme } from "@/providers/theme";
 import { BorderWidth } from "@/styles/hairline";
 import { Spacing } from "@/styles/spacing";
 
 type WorkoutStatus = "next" | "done" | "available" | "locked";
 
+type ProgramWeek = {
+  id: string;
+  label: string;
+};
+
 type Workout = {
   id: string;
+  routeWorkoutId: string;
   label: string;
   title: string;
   meta: string;
   duration: string;
   image: string;
   status: WorkoutStatus;
+  access: SupabaseProgramWorkout["access"];
+  orderIndex: number;
+  weekNumber: number;
+  dayNumber: number;
 };
+
+function buildProgramWeeks(program: SupabaseProgram | null): ProgramWeek[] {
+  if (!program) return [];
+
+  const weekCount =
+    program.durationWeeks ??
+    Math.max(1, ...program.workouts.map((workout) => workout.weekNumber));
+
+  return Array.from({ length: weekCount }).map((_, index) => ({
+    id: `${program.slug}-week-${index + 1}`,
+    label: `Week ${index + 1}`,
+  }));
+}
+
+function buildRouteWorkoutId(
+  programSlug: string,
+  workout: SupabaseProgramWorkout,
+) {
+  return `${programSlug}-week-${workout.weekNumber}-workout-${workout.dayNumber}`;
+}
+
+function getWorkoutStatus({
+  workout,
+  completedCount,
+  isPro,
+  freeWorkoutCount,
+  programMeterEnabled,
+}: {
+  workout: SupabaseProgramWorkout;
+  completedCount: number;
+  isPro: boolean;
+  freeWorkoutCount: number;
+  programMeterEnabled: boolean;
+}): WorkoutStatus {
+  const zeroBasedIndex = workout.orderIndex - 1;
+
+  if (zeroBasedIndex < completedCount) return "done";
+  if (zeroBasedIndex === completedCount) return "next";
+
+  if (isPro) return "available";
+
+  if (workout.access === "free") return "available";
+
+  if (workout.access === "program_metered") {
+    if (!programMeterEnabled) return "available";
+    return workout.orderIndex <= freeWorkoutCount ? "available" : "locked";
+  }
+
+  return "locked";
+}
+
+function buildWorkoutMeta(workout: SupabaseProgramWorkout) {
+  return workout.subtitle || "Program workout";
+}
+
+function buildWorkoutDuration(workout: SupabaseProgramWorkout) {
+  if (!workout.estimatedDurationMin) return "";
+  return `${workout.estimatedDurationMin} min`;
+}
+
+function buildProgramBullets(program: SupabaseProgram): string[] {
+  const bullets = [
+    program.description,
+    program.goal ? `Goal: ${program.goal}` : "",
+    program.equipment ? `Equipment: ${program.equipment}` : "",
+    program.level ? `Level: ${program.level}` : "",
+    program.freeWorkoutCount
+      ? `${program.freeWorkoutCount} workouts included before joining.`
+      : "",
+  ].filter(Boolean);
+
+  if (bullets.length) return bullets;
+
+  return [
+    "Structured weekly progression.",
+    "Designed for consistent training and measurable progress.",
+    "Workout access is controlled from Supabase.",
+  ];
+}
 
 export default function ProgramDetailScreen() {
   const router = useRouter();
@@ -43,18 +132,53 @@ export default function ProgramDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { height: screenHeight } = useWindowDimensions();
   const { colors, isDark } = useAppTheme();
+  const { isPro } = useEntitlements();
 
   const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
-  const program = useMemo(() => getProgram(id), [id]);
 
+  const [program, setProgram] = useState<SupabaseProgram | null>(null);
+  const [loading, setLoading] = useState(true);
   const [activeWeekIndex, setActiveWeekIndex] = useState(0);
-  
 
   const weeksScrollRef = useRef<ScrollView | null>(null);
   const scrollY = useRef(new Animated.Value(0)).current;
 
-  const isPro = false;
-  const completedCount = 3;
+  /**
+   * Temporary until real user history is connected.
+   * Later this should come from Supabase workout history / local history.
+   */
+  const completedCount = 0;
+
+  const freeWorkoutCount = program?.freeWorkoutCount ?? 4;
+  const warningAfterWorkoutCount = program?.warningAfterWorkoutCount ?? 3;
+  const programMeterEnabled = program?.programMeterEnabled ?? true;
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadProgram() {
+      const slug = id || "strength-foundations";
+      const nextProgram = await getProgramBySlug(slug);
+
+      if (!mounted) return;
+
+      setProgram(nextProgram);
+      setLoading(false);
+    }
+
+    loadProgram();
+
+    return () => {
+      mounted = false;
+    };
+  }, [id]);
+
+  const weeks = useMemo(() => buildProgramWeeks(program), [program]);
+
+  const bullets = useMemo(
+    () => (program ? buildProgramBullets(program) : []),
+    [program],
+  );
 
   const heroHeight = Math.max(300, Math.round(screenHeight * 0.34));
 
@@ -97,55 +221,64 @@ export default function ProgramDetailScreen() {
   });
 
   const isDarkSoft = isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)";
-  const isDarkSoftStronger = isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.08)";
+  const isDarkSoftStronger = isDark
+    ? "rgba(255,255,255,0.12)"
+    : "rgba(0,0,0,0.08)";
 
   const workoutsByWeek: Workout[][] = useMemo(() => {
     if (!program) return [];
 
-    return program.weeks.map((_, weekIdx) => {
-      const count = getWorkoutCountForWeek(weekIdx);
+    return weeks.map((_, weekIdx) => {
+      const weekNumber = weekIdx + 1;
 
-      return Array.from({ length: count }).map((__, workoutIdx) => {
-        const template = getProgramWorkoutTemplate(workoutIdx);
-
-        const globalIndexBeforeThisWeek = program.weeks
-          .slice(0, weekIdx)
-          .reduce((sum, _week, idx) => sum + getWorkoutCountForWeek(idx), 0);
-
-        const globalIndex = globalIndexBeforeThisWeek + workoutIdx;
-        const workoutNumber = globalIndex + 1;
-
-        let status: WorkoutStatus = "available";
-
-        if (globalIndex < completedCount) {
-          status = "done";
-        } else if (globalIndex === completedCount) {
-          status = "next";
-        } else {
-          const isUnlockedPreview = isPro || globalIndex < 4;
-          status = isUnlockedPreview ? "available" : "locked";
-        }
-
-        return {
-          id: buildProgramWorkoutId(program.id, weekIdx, workoutIdx),
-          label: `Workout ${workoutNumber}`,
-          title: template.title,
-          meta: template.meta,
-          duration: template.duration,
-          image: template.image,
-          status,
-        };
-      });
+      return program.workouts
+        .filter((workout) => workout.weekNumber === weekNumber)
+        .sort((a, b) => a.orderIndex - b.orderIndex)
+        .map((workout) => ({
+          id: workout.id,
+          routeWorkoutId: buildRouteWorkoutId(program.slug, workout),
+          label: `Workout ${workout.orderIndex}`,
+          title: workout.title,
+          meta: buildWorkoutMeta(workout),
+          duration: buildWorkoutDuration(workout),
+          image: workout.imageUrl || program.cardImageUrl || program.heroImageUrl,
+          status: getWorkoutStatus({
+            workout,
+            completedCount,
+            isPro,
+            freeWorkoutCount,
+            programMeterEnabled,
+          }),
+          access: workout.access,
+          orderIndex: workout.orderIndex,
+          weekNumber: workout.weekNumber,
+          dayNumber: workout.dayNumber,
+        }));
     });
-  }, [completedCount, isPro, program]);
+  }, [
+    completedCount,
+    freeWorkoutCount,
+    isPro,
+    program,
+    programMeterEnabled,
+    weeks,
+  ]);
 
   const nextWorkout = useMemo(() => {
     for (let weekIdx = 0; weekIdx < workoutsByWeek.length; weekIdx += 1) {
-      const workoutIdx = workoutsByWeek[weekIdx].findIndex((w) => w.status === "next");
+      const workoutIdx = workoutsByWeek[weekIdx].findIndex(
+        (w) => w.status === "next",
+      );
+
       if (workoutIdx !== -1) {
-        return { weekIdx, workoutIdx, workout: workoutsByWeek[weekIdx][workoutIdx] };
+        return {
+          weekIdx,
+          workoutIdx,
+          workout: workoutsByWeek[weekIdx][workoutIdx],
+        };
       }
     }
+
     return null;
   }, [workoutsByWeek]);
 
@@ -155,6 +288,7 @@ export default function ProgramDetailScreen() {
 
   useEffect(() => {
     const x = activeWeekIndex * 136;
+
     const timer = setTimeout(() => {
       weeksScrollRef.current?.scrollTo({
         x: Math.max(0, x - 18),
@@ -165,24 +299,23 @@ export default function ProgramDetailScreen() {
     return () => clearTimeout(timer);
   }, [activeWeekIndex]);
 
-
-
   const handleBack = () => {
     if (navigation.canGoBack()) {
       router.back();
       return;
     }
+
     router.replace("/(tabs)");
   };
 
- const openInfoModal = () => {
-  router.push({
-    pathname: "/program-info",
-    params: { id: program.id },
-  });
-};
+  const openInfoModal = () => {
+    if (!program) return;
 
-
+    router.push({
+      pathname: "/program-info",
+      params: { id: program.slug },
+    });
+  };
 
   const onPressWorkout = (workout: Workout) => {
     if (!program) return;
@@ -195,18 +328,32 @@ export default function ProgramDetailScreen() {
     router.push({
       pathname: "/workout",
       params: {
-        workoutId: workout.id,
-        programId: program.id,
+        workoutId: workout.routeWorkoutId,
+        supabaseWorkoutId: workout.id,
+        supabaseWorkoutOwnerType: "program_workout",
+        programId: program.slug,
+        supabaseProgramId: program.id,
         source: "program",
       },
     });
   };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyTitle}>Loading program...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   if (!program) {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.emptyState}>
           <Text style={styles.emptyTitle}>Program not found</Text>
+
           <PressableScale onPress={handleBack} style={styles.emptyButton}>
             <Text style={styles.emptyButtonText}>Go back</Text>
           </PressableScale>
@@ -216,10 +363,26 @@ export default function ProgramDetailScreen() {
   }
 
   const totalWorkouts = workoutsByWeek.reduce((sum, week) => sum + week.length, 0);
-  const progressPct = Math.round((completedCount / Math.max(1, totalWorkouts)) * 100);
+
+  const progressPct = Math.round(
+    (completedCount / Math.max(1, totalWorkouts)) * 100,
+  );
 
   const activeWeekWorkouts = workoutsByWeek[activeWeekIndex] ?? [];
-  const weekCountForActive = getWorkoutCountForWeek(activeWeekIndex);
+  const weekCountForActive = activeWeekWorkouts.length;
+
+  const programMetaParts = [
+    program.level,
+    program.durationWeeks ? `${program.durationWeeks} weeks` : "",
+    program.equipment,
+  ].filter(Boolean);
+
+  const programMeta = programMetaParts.join(" · ");
+
+  const freeMessage =
+    freeWorkoutCount > 0
+      ? `${freeWorkoutCount} workouts included`
+      : "Join to continue";
 
   return (
     <SafeAreaView style={styles.safe} edges={["left", "right"]}>
@@ -235,7 +398,7 @@ export default function ProgramDetailScreen() {
             ]}
           >
             <Animated.Image
-              source={{ uri: program.hero }}
+              source={{ uri: program.heroImageUrl }}
               style={[
                 styles.heroImage,
                 {
@@ -309,7 +472,7 @@ export default function ProgramDetailScreen() {
               <Text style={styles.heroTitle}>{program.title}</Text>
 
               <Text style={styles.heroMeta}>
-                with Andrei Andrei · {program.meta}
+                with Andrei Andrei · {programMeta}
               </Text>
 
               <View style={styles.heroProgressTrack}>
@@ -327,12 +490,16 @@ export default function ProgramDetailScreen() {
                 <Text style={styles.heroStatText}>
                   {completedCount}/{totalWorkouts} workouts
                 </Text>
+
                 <View style={styles.heroStatDot} />
+
                 <Text style={styles.heroStatText}>
-                  Week {activeWeekIndex + 1} of {program.weeks.length}
+                  Week {activeWeekIndex + 1} of {weeks.length}
                 </Text>
+
                 <View style={styles.heroStatDot} />
-                <Text style={styles.heroStatText}>3-day streak</Text>
+
+                <Text style={styles.heroStatText}>{freeMessage}</Text>
               </View>
             </View>
 
@@ -343,7 +510,7 @@ export default function ProgramDetailScreen() {
               contentContainerStyle={styles.weeksRail}
               style={styles.weeksScroll}
             >
-              {program.weeks.map((week, index) => {
+              {weeks.map((week, index) => {
                 const active = index === activeWeekIndex;
 
                 return (
@@ -376,13 +543,17 @@ export default function ProgramDetailScreen() {
             <View style={styles.activeWeekHeader}>
               <View>
                 <Text style={styles.activeWeekEyebrow}>Current block</Text>
-                <Text style={styles.activeWeekTitle}>{program.weeks[activeWeekIndex]?.label}</Text>
-                <Text style={styles.activeWeekSub}>{weekCountForActive} workouts</Text>
+                <Text style={styles.activeWeekTitle}>
+                  {weeks[activeWeekIndex]?.label}
+                </Text>
+                <Text style={styles.activeWeekSub}>
+                  {weekCountForActive} workouts
+                </Text>
               </View>
 
               <View style={styles.activeWeekMetaChip}>
                 <Text style={styles.activeWeekMetaText}>
-                  {activeWeekIndex + 1}/{program.weeks.length}
+                  {activeWeekIndex + 1}/{weeks.length}
                 </Text>
               </View>
             </View>
@@ -407,12 +578,20 @@ export default function ProgramDetailScreen() {
                       scaleTo={0.99}
                       opacityTo={0.95}
                     >
-                      {isNext ? <View style={styles.nextWorkoutAccent} /> : <View style={styles.rowInset} />}
+                      {isNext ? (
+                        <View style={styles.nextWorkoutAccent} />
+                      ) : (
+                        <View style={styles.rowInset} />
+                      )}
 
-                      <Image source={{ uri: workout.image }} style={styles.workoutThumb} />
+                      <Image
+                        source={{ uri: workout.image }}
+                        style={styles.workoutThumb}
+                      />
 
                       <View style={styles.workoutContent}>
                         <Text style={styles.workoutLabel}>{workout.label}</Text>
+
                         <Text
                           style={[
                             styles.workoutTitle,
@@ -422,6 +601,7 @@ export default function ProgramDetailScreen() {
                         >
                           {workout.title}
                         </Text>
+
                         <Text
                           style={[
                             styles.workoutMeta,
@@ -429,7 +609,9 @@ export default function ProgramDetailScreen() {
                           ]}
                           numberOfLines={1}
                         >
-                          {workout.meta} · {workout.duration}
+                          {workout.duration
+                            ? `${workout.meta} · ${workout.duration}`
+                            : workout.meta}
                         </Text>
                       </View>
 
@@ -466,6 +648,7 @@ export default function ProgramDetailScreen() {
                             ]}
                           >
                             <Check size={13} color={colors.successText} />
+
                             <Text
                               style={[
                                 styles.statusPillText,
@@ -487,7 +670,11 @@ export default function ProgramDetailScreen() {
                           >
                             <Lock
                               size={14}
-                              color={isDark ? "rgba(255,255,255,0.48)" : "rgba(17,17,17,0.42)"}
+                              color={
+                                isDark
+                                  ? "rgba(255,255,255,0.48)"
+                                  : "rgba(17,17,17,0.42)"
+                              }
                             />
                           </View>
                         ) : (
@@ -520,12 +707,12 @@ export default function ProgramDetailScreen() {
             <View style={styles.bulletsCard}>
               <Text style={styles.bulletsEyebrow}>Program overview</Text>
 
-              {program.bullets.map((item, index) => (
+              {bullets.map((item, index) => (
                 <View
-                  key={item}
+                  key={`${item}-${index}`}
                   style={[
                     styles.bulletRow,
-                    index !== program.bullets.length - 1 && [
+                    index !== bullets.length - 1 && [
                       styles.bulletRowGap,
                       { borderBottomColor: colors.borderSubtle },
                     ],
@@ -537,6 +724,7 @@ export default function ProgramDetailScreen() {
                       { backgroundColor: colors.premium },
                     ]}
                   />
+
                   <Text style={styles.bulletText}>{item}</Text>
                 </View>
               ))}
@@ -560,6 +748,7 @@ export default function ProgramDetailScreen() {
               { height: insets.top, backgroundColor: colors.background },
             ]}
           />
+
           <View style={styles.floatingHeaderBar}>
             <View style={styles.floatingHeaderContent}>
               <Text style={styles.floatingHeaderTitle} numberOfLines={1}>
@@ -570,16 +759,16 @@ export default function ProgramDetailScreen() {
                 <Text style={styles.floatingHeaderMetaText}>
                   {completedCount}/{totalWorkouts} workouts
                 </Text>
+
                 <View style={styles.floatingHeaderDot} />
+
                 <Text style={styles.floatingHeaderMetaText}>
-                  Week {activeWeekIndex + 1} of {program.weeks.length}
+                  Week {activeWeekIndex + 1} of {weeks.length}
                 </Text>
               </View>
             </View>
           </View>
         </Animated.View>
-
- 
       </View>
     </SafeAreaView>
   );
@@ -1024,167 +1213,6 @@ function createStyles(
       borderRadius: 2,
       backgroundColor: colors.borderSubtle,
     },
-
-modalRoot: {
-  flex: 1,
-  justifyContent: "flex-end",
-},
-
-modalDim: {
-  ...StyleSheet.absoluteFillObject,
-  backgroundColor: "rgba(0,0,0,0.38)",
-},
-
-modalBackdropTouch: {
-  ...StyleSheet.absoluteFillObject,
-},
-
-infoModalOuter: {
-  backgroundColor: colors.background,
-  borderTopLeftRadius: 28,
-  borderTopRightRadius: 28,
-  paddingHorizontal: 18,
-},
-
-infoGrabber: {
-  alignSelf: "center",
-  width: 42,
-  height: 5,
-  borderRadius: 999,
-  backgroundColor: colors.borderSubtle,
-  marginBottom: 16,
-},
-
-infoModalTop: {
-  flexDirection: "row",
-  justifyContent: "space-between",
-  alignItems: "flex-start",
-  gap: 16,
-  paddingBottom: 14,
-  borderBottomWidth: BorderWidth.default,
-  borderBottomColor: colors.borderSubtle,
-},
-
-infoModalTitleWrap: {
-  flex: 1,
-  paddingRight: 8,
-},
-
-infoModalEyebrow: {
-  fontSize: 11,
-  fontWeight: "900",
-  color: colors.muted,
-  letterSpacing: 0.55,
-  textTransform: "uppercase",
-  marginBottom: 6,
-},
-
-infoModalTitle: {
-  fontSize: 24,
-  lineHeight: 28,
-  fontWeight: "900",
-  color: colors.text,
-  letterSpacing: -0.3,
-},
-
-infoCloseBtn: {
-  width: 38,
-  height: 38,
-  borderRadius: 19,
-  alignItems: "center",
-  justifyContent: "center",
-  backgroundColor: soft,
-  borderWidth: BorderWidth.default,
-  borderColor: colors.borderSubtle,
-},
-
-infoScroll: {
-  flexGrow: 0,
-},
-
-infoScrollContent: {
-  paddingTop: 16,
-  paddingBottom: 4,
-},
-
-infoModalBody: {
-  fontSize: 15,
-  lineHeight: 22,
-  fontWeight: "600",
-  color: colors.muted,
-},
-
-infoBulletsCard: {
-  marginTop: 18,
-  backgroundColor: colors.card,
-  borderRadius: 22,
-  borderWidth: BorderWidth.default,
-  borderColor: colors.borderSubtle,
-  padding: 16,
-},
-
-infoBulletRow: {
-  flexDirection: "row",
-  alignItems: "flex-start",
-  gap: 10,
-},
-
-infoBulletRowSpaced: {
-  marginBottom: 14,
-},
-
-infoBulletDotWrap: {
-  width: 12,
-  alignItems: "center",
-  paddingTop: 6,
-},
-
-infoBulletDot: {
-  width: 6,
-  height: 6,
-  borderRadius: 3,
-  backgroundColor: colors.premium,
-},
-
-infoBulletTextWrap: {
-  flex: 1,
-},
-
-infoBulletText: {
-  fontSize: 15,
-  lineHeight: 22,
-  fontWeight: "600",
-  color: colors.text,
-},
-
-infoMetaRow: {
-  marginTop: 16,
-  alignItems: "center",
-},
-
-infoMetaText: {
-  fontSize: 13,
-  fontWeight: "800",
-  color: colors.muted,
-  letterSpacing: -0.05,
-},
-
-infoModalButton: {
-  marginTop: 18,
-  height: 54,
-  borderRadius: 999,
-  backgroundColor: colors.text,
-  alignItems: "center",
-  justifyContent: "center",
-},
-
-infoModalButtonText: {
-  fontSize: 15,
-  fontWeight: "900",
-  color: colors.surface,
-  letterSpacing: -0.1,
-},
-   
 
     emptyState: {
       flex: 1,
