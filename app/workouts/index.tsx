@@ -1,3 +1,5 @@
+// app/workouts/index.tsx
+
 import { useRouter } from "expo-router";
 import { ChevronRight, Lock } from "lucide-react-native";
 import React, { useEffect, useMemo, useState } from "react";
@@ -41,12 +43,12 @@ function RailHeader({
     <View style={styles.railHeaderRow}>
       <Text style={styles.railTitle}>{title}</Text>
 
-      {showAll && !!onPressAll && (
+      {showAll && !!onPressAll ? (
         <Pressable onPress={onPressAll} style={styles.railAll} hitSlop={10}>
           <Text style={styles.railAllText}>See all</Text>
           <ChevronRight size={16} color={mutedColor} />
         </Pressable>
-      )}
+      ) : null}
     </View>
   );
 }
@@ -78,62 +80,80 @@ function LockedChip({ isDark }: { isDark: boolean }) {
   );
 }
 
+function uniqueById(items: IndividualWorkout[]) {
+  const seen = new Set<string>();
+
+  return items.filter((item) => {
+    if (seen.has(item.id)) return false;
+    seen.add(item.id);
+    return true;
+  });
+}
+
 export default function WorkoutsIndexScreen() {
   const router = useRouter();
   const { colors, isDark } = useAppTheme();
   const { isPro } = useEntitlements();
-  const styles = useMemo(() => createExploreStyles(colors, isDark), [colors, isDark]);
+
+  const styles = useMemo(
+    () => createExploreStyles(colors, isDark),
+    [colors, isDark],
+  );
+
   const [allWorkouts, setAllWorkouts] = useState<IndividualWorkout[]>([]);
+
   useEffect(() => {
-        let mounted = true;
+    let mounted = true;
 
-        async function loadWorkouts() {
-          const workouts = await getAllIndividualWorkouts();
+    async function loadWorkouts() {
+      const workouts = await getAllIndividualWorkouts();
 
-          if (mounted) {
-            setAllWorkouts(workouts);
-          }
-        }
+      if (mounted) {
+        setAllWorkouts(workouts);
+      }
+    }
 
-        loadWorkouts();
+    loadWorkouts();
 
-        return () => {
-          mounted = false;
-        };
-      }, []);
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const rails = useMemo<WorkoutRail[]>(() => {
-  const byCategory = (category: WorkoutCategory) =>
-    allWorkouts.filter((workout) => workout.categories.includes(category));
+    const byCategory = (category: WorkoutCategory) =>
+      uniqueById(
+        allWorkouts.filter((workout) => workout.categories.includes(category)),
+      );
 
-  return [
-    {
-      id: "upper",
-      title: "Upper body",
-      items: byCategory("upper"),
-    },
-    {
-      id: "lower",
-      title: "Lower body",
-      items: byCategory("lower"),
-    },
-    {
-      id: "bodyweight",
-      title: "Bodyweight",
-      items: byCategory("bodyweight"),
-    },
-    {
-      id: "dumbbells",
-      title: "Dumbbells",
-      items: byCategory("dumbbells"),
-    },
-    {
-      id: "conditioning",
-      title: "Conditioning",
-      items: byCategory("conditioning"),
-    },
-  ].filter((rail) => rail.items.length > 0);
-}, [allWorkouts]);
+    return [
+      {
+        id: "upper",
+        title: "Upper body",
+        items: byCategory("upper"),
+      },
+      {
+        id: "lower",
+        title: "Lower body",
+        items: byCategory("lower"),
+      },
+      {
+        id: "bodyweight",
+        title: "Bodyweight",
+        items: byCategory("bodyweight"),
+      },
+      {
+        id: "dumbbells",
+        title: "Dumbbells",
+        items: byCategory("dumbbells"),
+      },
+      {
+        id: "conditioning",
+        title: "Conditioning",
+        items: byCategory("conditioning"),
+      },
+    ].filter((rail) => rail.items.length > 0);
+  }, [allWorkouts]);
 
   const handleBack = () => {
     if (router.canGoBack()) router.back();
@@ -150,14 +170,22 @@ export default function WorkoutsIndexScreen() {
 
     router.push({
       pathname: "/workout",
-      params: { workoutId: item.id, source: "workouts" },
+      params: {
+        workoutId: item.slug ?? item.id,
+        supabaseWorkoutId: item.id,
+        supabaseWorkoutOwnerType: "individual_workout",
+        source: "workouts",
+      },
     });
   };
 
   const handleSeeAll = (rail: WorkoutRail) => {
     router.push({
       pathname: "/workouts/category",
-      params: { category: rail.id, title: rail.title },
+      params: {
+        category: rail.id,
+        title: rail.title,
+      },
     });
   };
 
@@ -207,7 +235,11 @@ export default function WorkoutsIndexScreen() {
                   return (
                     <View
                       key={`${rail.id}_${item.id}`}
-                      style={idx !== rail.items.length - 1 ? { marginRight: RAIL_GAP } : undefined}
+                      style={
+                        idx !== rail.items.length - 1
+                          ? { marginRight: RAIL_GAP }
+                          : undefined
+                      }
                     >
                       <EditorialCard
                         title={item.title}

@@ -1,7 +1,7 @@
 //gidhub
 cd Desktop/gym-app
 git add .
-git commit -m "delete swipe function added on sets"
+git commit -m "supabase integration"
 git push
 
 
