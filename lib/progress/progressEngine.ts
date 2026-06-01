@@ -1,6 +1,6 @@
 // app/lib/progress/progressEngine.ts
 
-import type { WorkoutHistoryEntry } from "../../workout/workoutHistory";
+import type { WorkoutHistoryEntry } from "../../features/workout/workoutHistory";
 import type {
   ExerciseProgressCard,
   ProgressBodyMetricsBlock,
@@ -22,7 +22,6 @@ import type {
 } from "./types";
 
 type HistoryExercise = WorkoutHistoryEntry["exercises"][number];
-type HistorySet = HistoryExercise["sets"][number];
 
 type PRRecord = {
   exerciseId: string;
@@ -37,12 +36,12 @@ type ExerciseAggregate = {
   exerciseId: string;
   exerciseName: string;
   unitLabel: string;
-  sessions: Array<{
+  sessions: {
     sessionId: string;
     completedAt: string;
     status: "partial" | "completed";
     exercise: HistoryExercise;
-  }>;
+  }[];
 };
 
 function toNumber(value?: string | number | null): number | null {
@@ -162,8 +161,6 @@ function sortHistoryDesc(history: WorkoutHistoryEntry[]) {
 }
 
 function getRangeStart(range: ProgressRange, now: Date) {
-  const end = endOfDay(now);
-
   if (range === "7D") {
     return startOfDay(addDays(now, -6));
   }
@@ -182,8 +179,7 @@ function getRangeSubtitle(range: ProgressRange) {
 }
 
 function buildDailyBuckets(now: Date, days: number) {
-  const buckets: Array<{ key: string; label: string; start: Date; end: Date; date: string }> =
-    [];
+  const buckets: { key: string; label: string; start: Date; end: Date; date: string }[] = [];
 
   for (let i = days - 1; i >= 0; i -= 1) {
     const current = addDays(startOfDay(now), -i);
@@ -203,8 +199,7 @@ function buildWeeklyBuckets(now: Date, daysBack: number) {
   const start = startOfDay(addDays(now, -(daysBack - 1)));
   const end = endOfDay(now);
 
-  const buckets: Array<{ key: string; label: string; start: Date; end: Date; date: string }> =
-    [];
+  const buckets: { key: string; label: string; start: Date; end: Date; date: string }[] = [];
   let cursor = startOfWeek(start);
 
   while (cursor <= end) {
@@ -230,8 +225,7 @@ function buildMonthlyBuckets(history: WorkoutHistoryEntry[], now: Date) {
   const start = oldest ? startOfMonth(new Date(oldest.completedAt)) : startOfMonth(now);
   const end = endOfMonth(now);
 
-  const buckets: Array<{ key: string; label: string; start: Date; end: Date; date: string }> =
-    [];
+  const buckets: { key: string; label: string; start: Date; end: Date; date: string }[] = [];
   let cursor = new Date(start);
 
   while (cursor <= end) {
@@ -256,7 +250,7 @@ function getBucketsForRange(
   history: WorkoutHistoryEntry[],
   range: ProgressRange,
   now: Date,
-): Array<{ key: string; label: string; start: Date; end: Date; date: string }> {
+): { key: string; label: string; start: Date; end: Date; date: string }[] {
   if (range === "7D") return buildDailyBuckets(now, 7);
   if (range === "30D") return buildWeeklyBuckets(now, 30);
 
@@ -415,7 +409,7 @@ function compareExerciseSessions(
   }, 0);
 
   const previousVolume = previousDoneSets.reduce((sum, set) => {
-    return sum + getSetVolume(prev.weight, prev.reps);
+    return sum + getSetVolume(set.weight, set.reps);
   }, 0);
 
   return {

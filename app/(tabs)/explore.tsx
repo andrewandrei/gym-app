@@ -8,6 +8,11 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Image } from "react-native";
 
 import { EditorialCard } from "@/components/ui/EditorialCard";
+import BarbataContentLoading from "@/components/BarbataContentLoading";
+import {
+  getPublishedPrograms,
+  type SupabaseProgramSummary,
+} from "@/features/programs/programs.supabase";
 import { ScreenHeader } from "@/components/ui/ScreenHeader";
 import {
   getLatestIndividualWorkouts,
@@ -27,15 +32,14 @@ import { createExploreStyles } from "../../styles/screens/explore.styles";
 
 const RAIL_GAP = Spacing.md;
 
-type Level = "Beginner" | "Intermediate" | "Advanced";
-
 type Program = {
   id: string;
+  slug: string;
   title: string;
   duration: string;
   tag: string;
   workoutsPerWeek: number;
-  level: Level;
+  level: string;
   imageUrl: string;
   description: string;
   isActive?: boolean;
@@ -99,7 +103,7 @@ function LevelChip({
   level,
   styles,
 }: {
-  level: Level;
+  level: string;
   styles: ReturnType<typeof createExploreStyles>;
 }) {
   return (
@@ -143,13 +147,13 @@ function ProgramCard({
   styles,
 }: {
   program: Program;
-  onPress: (id: string) => void;
+  onPress: (program: Program) => void;
   onPressInfo: (program: Program) => void;
   styles: ReturnType<typeof createExploreStyles>;
 }) {
   return (
     <Pressable
-      onPress={() => onPress(program.id)}
+      onPress={() => onPress(program)}
       style={({ pressed }) => [styles.programCardWrap, pressed && styles.cardPressed]}
       accessibilityRole="button"
       accessibilityLabel={`Open ${program.title}`}
@@ -222,82 +226,78 @@ export default function ExploreScreen() {
   const openInfo = (p: Program) => {
     router.push({
       pathname: "/program-info",
-      params: { id: p.id },
+      params: { id: p.slug },
     });
   };
 
-  const ACTIVE_PROGRAM_IMAGE =
-    "https://cdn.prod.website-files.com/6442b6aa142c4cb61a9a549d/685bf886d23017768f4614b5_img%20(1).png";
+  const [programs, setPrograms] = useState<Program[]>([]);
+  const [programsLoaded, setProgramsLoaded] = useState(false);
 
-  const PROGRAM_IMAGES = [
-    "https://cdn.prod.website-files.com/6442b6aa142c4cb61a9a549d/690f57910b105d3dea2f1eb9_Strength%20%26%20Symmetry.jpg",
-    "https://cdn.prod.website-files.com/6442b6aa142c4cb61a9a549d/690f510381f5fead2d6257b8_c7d8a728-2fde-4254-a1a7-a505e1a4cf3e.jpeg",
-    "https://cdn.prod.website-files.com/6442b6aa142c4cb61a9a549d/6784fa945db9e2462bde508b_675b0276e2206c6b6a37ff0c_Hybrid%20Athlete%20(1)-p-800.jpg",
-  ];
+  useEffect(() => {
+    let mounted = true;
 
-  const programs = useMemo<Program[]>(
-    () => [
-      {
-        id: "strength-foundations",
-        title: "Strength Foundations",
-        duration: "12 weeks",
-        tag: "Gym",
-        workoutsPerWeek: 3,
-        level: "Intermediate",
-        imageUrl: ACTIVE_PROGRAM_IMAGE,
-        description:
-          "Build a strong base with progressive overload, clean technique, and repeatable weekly structure. Perfect if you want strength + shape without chaos.",
-        isActive: true,
-      },
-      {
-        id: "strength-symmetry",
-        title: "Strength & Symmetry",
-        duration: "10 weeks",
-        tag: "Gym",
-        workoutsPerWeek: 4,
-        level: "Intermediate",
-        imageUrl: PROGRAM_IMAGES[0],
-        description:
-          "Hypertrophy-forward training that targets proportion, weak points, and control. Built for visible physique changes and cleaner execution.",
-        isFeatured: true,
-      },
-      {
-        id: "hypertrophy-block",
-        title: "Hypertrophy Block",
-        duration: "8 weeks",
-        tag: "Gym",
-        workoutsPerWeek: 5,
-        level: "Advanced",
-        imageUrl: PROGRAM_IMAGES[1],
-        description:
-          "High-quality volume with intelligent progression. For experienced lifters who want measurable growth and better weekly performance.",
-      },
-      {
-        id: "hybrid-athlete",
-        title: "Hybrid Athlete",
-        duration: "12 weeks",
-        tag: "Hybrid",
-        workoutsPerWeek: 3,
-        level: "Beginner",
-        imageUrl: PROGRAM_IMAGES[2],
-        description:
-          "Strength + conditioning with simple structure. Great if you want to feel athletic, lean out, and still build muscle — without burning out.",
-        isFeatured: true,
-      },
-    ],
-    [ACTIVE_PROGRAM_IMAGE, PROGRAM_IMAGES],
-  );
+    function mapProgram(program: SupabaseProgramSummary): Program {
+      return {
+        id: program.id,
+        slug: program.slug,
+        title: program.title,
+        duration: program.durationWeeks ? `${program.durationWeeks} weeks` : "Program",
+        tag: program.equipment || program.goal || program.subtitle || "Program",
+        workoutsPerWeek: program.workoutsPerWeek ?? 0,
+        level: program.level || "All levels",
+        imageUrl: program.cardImageUrl || program.heroImageUrl,
+        description: program.description || program.subtitle,
+        isActive: program.isActive,
+        isFeatured: program.isFeatured,
+      };
+    }
+
+    async function loadPrograms() {
+      try {
+        const nextPrograms = await getPublishedPrograms(4);
+
+        if (mounted) {
+          setPrograms(nextPrograms.map(mapProgram));
+        }
+      } catch {
+        if (mounted) {
+          setPrograms([]);
+        }
+      } finally {
+        if (mounted) {
+          setProgramsLoaded(true);
+        }
+      }
+    }
+
+    loadPrograms();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const [workouts, setWorkouts] = useState<IndividualWorkout[]>([]);
+  const [workoutsLoaded, setWorkoutsLoaded] = useState(false);
 
     useEffect(() => {
       let mounted = true;
 
       async function loadLatestWorkouts() {
-        const latest = await getLatestIndividualWorkouts(4);
+        try {
+          const latest = await getLatestIndividualWorkouts(4);
 
-        if (mounted) {
-          setWorkouts(latest);
+          if (mounted) {
+            setWorkouts(latest);
+          }
+        } catch {
+          if (mounted) {
+            setWorkouts([]);
+          }
+        } finally {
+          if (mounted) {
+            setWorkoutsLoaded(true);
+          }
         }
       }
 
@@ -309,15 +309,26 @@ export default function ExploreScreen() {
     }, []);
 
   const [recipes, setRecipes] = useState<RecipeItem[]>([]);
+  const [recipesLoaded, setRecipesLoaded] = useState(false);
 
 useEffect(() => {
   let mounted = true;
 
   async function loadFeaturedRecipes() {
-    const featured = await getFeaturedRecipes(4);
+    try {
+      const featured = await getFeaturedRecipes(4);
 
-    if (mounted) {
-      setRecipes(featured);
+      if (mounted) {
+        setRecipes(featured);
+      }
+    } catch {
+      if (mounted) {
+        setRecipes([]);
+      }
+    } finally {
+      if (mounted) {
+        setRecipesLoaded(true);
+      }
     }
   }
 
@@ -336,7 +347,7 @@ useEffect(() => {
     ];
   }, [programs, workouts, recipes]);
 
-  const onPressProgram = (id: string) => router.push(`/program/${id}`);
+  const onPressProgram = (program: Program) => router.push(`/program/${program.slug}`);
 
   const onPressWorkout = (workout: IndividualWorkout) => {
     const isLocked = workout.access === "premium" && !isPro;
@@ -363,6 +374,18 @@ useEffect(() => {
     params: { id: slug },
   });
 };
+
+  if (!programsLoaded || !workoutsLoaded || !recipesLoaded) {
+    return (
+      <SafeAreaView style={styles.safe} edges={["top"]}>
+        <BarbataContentLoading
+          title="Loading Explore"
+          subtitle="Programs, workouts, and recipes are coming in."
+          variant="feed"
+        />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>

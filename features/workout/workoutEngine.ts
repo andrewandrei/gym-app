@@ -60,6 +60,7 @@ export type FinishSummary = {
   workoutId: string;
   workoutTitle: string;
   programId?: string;
+  completedAt: string;
   status: "partial" | "completed";
   durationSec: number;
   totals: {
@@ -84,7 +85,7 @@ export type FinishSummary = {
     belowSetCount: number;
     previousSessionFound: boolean;
   };
-  prs: Array<{
+  prs: {
     exerciseId: string;
     exerciseName: string;
     set: number;
@@ -94,14 +95,14 @@ export type FinishSummary = {
     delta: number;
     weight: string;
     reps: string;
-  }>;
-  wins: Array<{
+  }[];
+  wins: {
     exerciseId: string;
     exerciseName: string;
     type: "heavier" | "more_reps" | "matched" | "volume_up";
     label: string;
-  }>;
-  exercises: Array<{
+  }[];
+  exercises: {
     id: string;
     name: string;
     trackingMode: TrackingMode;
@@ -127,7 +128,7 @@ export type FinishSummary = {
       belowSets: number;
       prCount: number;
     };
-    sets: Array<{
+    sets: {
       set: number;
       weight: string;
       reps: string;
@@ -135,8 +136,8 @@ export type FinishSummary = {
       done: boolean;
       note?: string;
       comparison?: SetComparison;
-    }>;
-  }>;
+    }[];
+  }[];
 };
 
 export type BuildFinishSummaryParams = {
@@ -751,12 +752,14 @@ export function buildFinishSummary({
     },
   );
 
+  const completedAt = new Date().toISOString();
+
   const historyEntry: WorkoutHistoryEntry = {
     sessionId,
     workoutId,
     workoutTitle,
     programId,
-    completedAt: new Date().toISOString(),
+    completedAt,
     startedAt: new Date(Date.now() - durationSec * 1000).toISOString(),
     durationSec,
     status,
@@ -776,6 +779,7 @@ export function buildFinishSummary({
     workoutId,
     workoutTitle,
     programId,
+    completedAt,
     status,
     durationSec,
     totals: {

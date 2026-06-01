@@ -1,13 +1,36 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { X } from "lucide-react-native";
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
+import BarbataContentLoading from "@/components/BarbataContentLoading";
 import { PressableScale } from "@/components/ui/PressableScale";
-import { getProgram } from "@/features/programs/program.data";
+import {
+  getProgramBySlug,
+  type SupabaseProgram,
+} from "@/features/programs/programs.supabase";
 import { useAppTheme } from "@/providers/theme";
 import { BorderWidth } from "@/styles/hairline";
+
+function buildProgramBullets(program: SupabaseProgram): string[] {
+  const bullets = [
+    program.description,
+    program.goal ? `Goal: ${program.goal}` : "",
+    program.equipment ? `Equipment: ${program.equipment}` : "",
+    program.level ? `Level: ${program.level}` : "",
+    program.freeWorkoutCount
+      ? `${program.freeWorkoutCount} workouts included before joining.`
+      : "",
+  ].filter(Boolean);
+
+  return bullets.length
+    ? bullets
+    : [
+        "Structured weekly progression.",
+        "Designed for consistent training and measurable progress.",
+      ];
+}
 
 export default function ProgramInfoScreen() {
   const router = useRouter();
@@ -16,7 +39,49 @@ export default function ProgramInfoScreen() {
   const { colors, isDark } = useAppTheme();
 
   const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
-  const program = useMemo(() => getProgram(id), [id]);
+  const [program, setProgram] = useState<SupabaseProgram | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadProgram() {
+      if (!id) {
+        if (mounted) setLoading(false);
+        return;
+      }
+
+      const nextProgram = await getProgramBySlug(id);
+
+      if (mounted) {
+        setProgram(nextProgram);
+        setLoading(false);
+      }
+    }
+
+    void loadProgram();
+
+    return () => {
+      mounted = false;
+    };
+  }, [id]);
+
+  const bullets = useMemo(
+    () => (program ? buildProgramBullets(program) : []),
+    [program],
+  );
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
+        <BarbataContentLoading
+          title="Loading program"
+          subtitle="Pulling in the details and structure."
+          variant="detail"
+        />
+      </SafeAreaView>
+    );
+  }
 
   if (!program) {
     return (
@@ -67,12 +132,12 @@ export default function ProgramInfoScreen() {
         <Text style={styles.body}>{program.description}</Text>
 
         <View style={styles.bulletsCard}>
-          {program.bullets.map((item, index) => (
+          {bullets.map((item, index) => (
             <View
               key={item}
               style={[
                 styles.bulletRow,
-                index !== program.bullets.length - 1 && styles.bulletRowSpaced,
+                index !== bullets.length - 1 && styles.bulletRowSpaced,
               ]}
             >
               <View style={styles.bulletDotWrap}>
@@ -86,7 +151,17 @@ export default function ProgramInfoScreen() {
         </View>
 
         <View style={styles.metaRow}>
-          <Text style={styles.metaText}>{program.meta}</Text>
+          <Text style={styles.metaText}>
+            {[
+              program.level || null,
+              program.durationWeeks ? `${program.durationWeeks} weeks` : null,
+              program.workoutsPerWeek
+                ? `${program.workoutsPerWeek} workouts / week`
+                : null,
+            ]
+              .filter(Boolean)
+              .join(" · ") || "Program"}
+          </Text>
         </View>
 
         <PressableScale

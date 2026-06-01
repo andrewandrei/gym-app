@@ -118,6 +118,10 @@ function getExerciseSubline(ex: Exercise, trackingMode: TrackingMode) {
   return base;
 }
 
+function hasImageUri(value?: string | null) {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
 export default function WorkoutPlayer({
   workoutTitle,
   blocks,
@@ -379,7 +383,20 @@ export default function WorkoutPlayer({
                           onPress={() => onPressThumbnail(ex.id)}
                           style={{ borderRadius: 12, overflow: "hidden" }}
                         >
-                          <Image source={{ uri: ex.image }} style={S.thumb} />
+                          {hasImageUri(ex.image) ? (
+                            <Image source={{ uri: ex.image }} style={S.thumb} />
+                          ) : (
+                            <View
+                              style={[
+                                S.thumb,
+                                {
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  backgroundColor: colors.card,
+                                },
+                              ]}
+                            />
+                          )}
                         </Pressable>
 
                         <View style={S.exerciseText}>

@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useRouter } from "expo-router";
 import { ChevronRight, Clock, Lock, Moon, Sun } from "lucide-react-native";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
@@ -12,7 +13,21 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import BarbataContentLoading from "@/components/BarbataContentLoading";
 import { EditorialCard } from "@/components/ui/EditorialCard";
+import {
+  getProgramBySlug,
+  getPublishedPrograms,
+  type SupabaseProgram,
+  type SupabaseProgramWorkout,
+} from "@/features/programs/programs.supabase";
+import {
+  dismissProgramSessionDraft,
+  getProgramSessionDismissals,
+  getProgramSessionSkips,
+  type ProgramSessionDismissal,
+  type ProgramSessionSkip,
+} from "@/features/programs/programSessionState";
 import { ScreenHeader } from "@/components/ui/ScreenHeader";
 import {
   getFeaturedRecipes,
@@ -25,14 +40,9 @@ import {
 import { BorderWidth } from "@/styles/hairline";
 import { Spacing } from "@/styles/spacing";
 
-import { getProgram } from "../../features/programs/program.data";
-import {
-  getProgramWorkoutTemplate,
-  getWorkoutCountForWeek,
-  parseProgramWorkoutId,
-} from "../../features/programs/programWorkouts";
 import {
   clearWorkoutDraft,
+  isDraftResumable,
   loadWorkoutDraft,
   type WorkoutDraft,
 } from "../../features/workout/workoutDraft";
@@ -45,11 +55,66 @@ import { useEntitlements } from "../../providers/entitlements";
 import { useAppTheme } from "../../providers/theme";
 
 type CtaState = "start" | "resume";
+type ProgramWorkoutStatus =
+  | "not_started"
+  | "partial"
+  | "completed"
+  | "skipped"
+  | "dismissed";
+
+type HomeProgramPlan = {
+  workout: SupabaseProgramWorkout | null;
+  status: ProgramWorkoutStatus;
+  weekNumber: number;
+  weekWorkouts: SupabaseProgramWorkout[];
+  loggedThisWeek: number;
+  completedThisWeek: number;
+  weeklyTarget: number;
+  workoutNumber: number | null;
+  label: string;
+  ctaLabel: string;
+  helper?: string;
+  canSkip: boolean;
+};
 
 const HERO_PROGRAM_ID = "strength-foundations";
-const HERO_WORKOUT_ID = "strength-foundations-week-2-workout-1";
 const WEEKLY_TOTAL = 3;
 const FINISH_SUMMARY_STORAGE_KEY = "aa_fit_finish_summary";
+const START_QUOTES = [
+  "Show up for yourself today.",
+  "Small steps. Big results.",
+  "Train with intention.",
+  "Build it one session at a time.",
+  "Momentum starts now.",
+  "Strong habits win.",
+  "Your future self will thank you.",
+  "Consistency changes everything.",
+  "Earn the feeling.",
+  "Start strong. Finish stronger.",
+];
+const RESUME_QUOTES = [
+  "Pick up the pace again.",
+  "You’re already in motion.",
+  "Finish what you started.",
+  "Your progress is waiting.",
+  "Keep the streak alive.",
+  "One more push forward.",
+  "You’re closer than you think.",
+  "Get back into your rhythm.",
+];
+
+function pickFreshQuote(quotes: string[], previous?: string | null) {
+  if (quotes.length === 0) return "";
+  if (quotes.length === 1) return quotes[0];
+
+  let next = quotes[Math.floor(Math.random() * quotes.length)];
+
+  while (next === previous) {
+    next = quotes[Math.floor(Math.random() * quotes.length)];
+  }
+
+  return next;
+}
 
 function calcStreak(history: WorkoutHistoryEntry[]): number {
   if (!history.length) return 0;
@@ -89,7 +154,9 @@ function calcWeeklyDone(history: WorkoutHistoryEntry[]): number {
   monday.setDate(now.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
   monday.setHours(0, 0, 0, 0);
 
-  return history.filter((e) => new Date(e.completedAt) >= monday).length;
+  return history.filter(
+    (e) => e.status === "completed" && new Date(e.completedAt) >= monday,
+  ).length;
 }
 
 function calcProgramCompleted(
@@ -97,18 +164,227 @@ function calcProgramCompleted(
   programId: string,
 ): number {
   return history.filter(
-    (e) => e.programId === programId || e.workoutId.startsWith(programId),
+    (e) =>
+      e.status === "completed" &&
+      (e.programId === programId || e.workoutId.startsWith(programId)),
   ).length;
 }
 
-function calcProgramTotal(programId: string): number {
-  const program = getProgram(programId);
-  if (!program) return 0;
+function buildProgramMeta(program: SupabaseProgram) {
+  return [
+    program.level || null,
+    program.durationWeeks ? `${program.durationWeeks} weeks` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
 
-  return program.weeks.reduce(
-    (sum, _, idx) => sum + getWorkoutCountForWeek(idx),
-    0,
+function buildRouteWorkoutId(
+  programSlug: string,
+  workout: SupabaseProgramWorkout,
+) {
+  return `${programSlug}-week-${workout.weekNumber}-workout-${workout.dayNumber}`;
+}
+
+function getIsoWeekday(date = new Date()) {
+  const day = date.getDay();
+  return day === 0 ? 7 : day;
+}
+
+function getWeekdayLabel(dayNumber: number) {
+  return (
+    ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"][
+      dayNumber - 1
+    ] ?? `Day ${dayNumber}`
   );
+}
+
+function getWorkoutHistoryStatus(
+  programSlug: string,
+  workout: SupabaseProgramWorkout,
+  history: WorkoutHistoryEntry[],
+): ProgramWorkoutStatus | null {
+  const routeWorkoutId = buildRouteWorkoutId(programSlug, workout);
+  const entries = history.filter(
+    (entry) =>
+      entry.workoutId === routeWorkoutId ||
+      (entry.programId === programSlug && entry.workoutTitle === workout.title),
+  );
+
+  if (entries.some((entry) => entry.status === "completed")) return "completed";
+  if (entries.some((entry) => entry.status === "partial")) return "partial";
+  return null;
+}
+
+function buildHomeProgramPlan(
+  program: SupabaseProgram | null,
+  history: WorkoutHistoryEntry[],
+  skips: ProgramSessionSkip[],
+  dismissals: ProgramSessionDismissal[],
+): HomeProgramPlan {
+  const fallback: HomeProgramPlan = {
+    workout: null,
+    status: "not_started",
+    weekNumber: 1,
+    weekWorkouts: [],
+    loggedThisWeek: 0,
+    completedThisWeek: 0,
+    weeklyTarget: WEEKLY_TOTAL,
+    workoutNumber: null,
+    label: "Program workout",
+    ctaLabel: "Start workout",
+    canSkip: false,
+  };
+
+  if (!program || program.workouts.length === 0) return fallback;
+
+  const sortedWorkouts = [...program.workouts].sort(
+    (a, b) => a.weekNumber - b.weekNumber || a.dayNumber - b.dayNumber || a.orderIndex - b.orderIndex,
+  );
+
+  const skipIds = new Set(
+    skips
+      .filter((item) => item.programId === program.slug)
+      .map((item) => item.workoutId),
+  );
+
+  const dismissalIds = new Set(
+    dismissals
+      .filter((item) => item.programId === program.slug)
+      .map((item) => item.workoutId),
+  );
+
+  const withState = sortedWorkouts.map((workout) => {
+    const routeWorkoutId = buildRouteWorkoutId(program.slug, workout);
+    const historyStatus = getWorkoutHistoryStatus(program.slug, workout, history);
+    const isSkipped = skipIds.has(routeWorkoutId);
+    const isDismissed = dismissalIds.has(routeWorkoutId);
+    const status: ProgramWorkoutStatus =
+      historyStatus === "completed"
+        ? "completed"
+        : isSkipped
+          ? "skipped"
+          : isDismissed
+            ? "dismissed"
+            : historyStatus ?? "not_started";
+
+    return {
+      workout,
+      routeWorkoutId,
+      status,
+    };
+  });
+
+  const firstOpen =
+    withState.find(
+      (item) =>
+        item.status !== "completed" &&
+        item.status !== "skipped" &&
+        item.status !== "dismissed",
+    ) ??
+    withState[withState.length - 1];
+  const weekNumber = firstOpen?.workout.weekNumber ?? sortedWorkouts[0].weekNumber;
+  const weekItems = withState.filter((item) => item.workout.weekNumber === weekNumber);
+  const weekWorkouts = weekItems.map((item) => item.workout);
+  const weeklyTarget = weekWorkouts.length || program.workoutsPerWeek || WEEKLY_TOTAL;
+  const loggedThisWeek = weekItems.filter(
+    (item) => item.status === "partial" || item.status === "completed",
+  ).length;
+  const completedThisWeek = weekItems.filter(
+    (item) => item.status === "completed",
+  ).length;
+
+  const today = getIsoWeekday();
+  const partial = weekItems.find((item) => item.status === "partial");
+  const overdue = weekItems.find(
+    (item) => item.status === "not_started" && item.workout.dayNumber < today,
+  );
+  const todayWorkout = weekItems.find(
+    (item) => item.status === "not_started" && item.workout.dayNumber === today,
+  );
+  const upcoming = weekItems.find(
+    (item) => item.status === "not_started" && item.workout.dayNumber > today,
+  );
+  const next =
+    partial ??
+    overdue ??
+    todayWorkout ??
+    upcoming ??
+    weekItems.find((item) => item.status === "not_started") ??
+    firstOpen;
+
+  if (!next) return fallback;
+
+  const workout = next.workout;
+  const weekday = getWeekdayLabel(workout.dayNumber);
+  const workoutNumber =
+    sortedWorkouts.findIndex((item) => item.id === workout.id) + 1 || null;
+
+  if (next.status === "partial") {
+    return {
+      workout,
+      status: next.status,
+      weekNumber,
+      weekWorkouts,
+      loggedThisWeek,
+      completedThisWeek,
+      weeklyTarget,
+      workoutNumber,
+      label: "Partial session",
+      ctaLabel: "Continue session",
+      helper: "You already started this one.",
+      canSkip: false,
+    };
+  }
+
+  if (next.status === "not_started" && workout.dayNumber < today) {
+    return {
+      workout,
+      status: next.status,
+      weekNumber,
+      weekWorkouts,
+      loggedThisWeek,
+      completedThisWeek,
+      weeklyTarget,
+      workoutNumber,
+      label: `Missed ${weekday}`,
+      ctaLabel: "Do it today",
+      helper: "No pressure. Do it today and keep the plan moving.",
+      canSkip: false,
+    };
+  }
+
+  if (next.status === "not_started" && workout.dayNumber === today) {
+    return {
+      workout,
+      status: next.status,
+      weekNumber,
+      weekWorkouts,
+      loggedThisWeek,
+      completedThisWeek,
+      weeklyTarget,
+      workoutNumber,
+      label: "Due today",
+      ctaLabel: "Start today",
+      helper: `${weekday} session from your plan.`,
+      canSkip: false,
+    };
+  }
+
+  return {
+    workout,
+    status: next.status,
+    weekNumber,
+    weekWorkouts,
+    loggedThisWeek,
+    completedThisWeek,
+    weeklyTarget,
+    workoutNumber,
+    label: `Next on ${weekday}`,
+    ctaLabel: "Start workout",
+    helper: `Week ${workout.weekNumber} · Day ${workout.dayNumber}`,
+    canSkip: false,
+  };
 }
 
 function getSessionDateLabel(completedAt: string): string {
@@ -321,20 +597,69 @@ export default function HomeScreen() {
 
   const [workoutCards, setWorkoutCards] = useState<IndividualWorkout[]>([]);
   const [recipeCards, setRecipeCards] = useState<RecipeItem[]>([]);
+  const [activeProgram, setActiveProgram] = useState<SupabaseProgram | null>(null);
   const [workoutDraft, setWorkoutDraft] = useState<WorkoutDraft | null>(null);
   const [history, setHistory] = useState<WorkoutHistoryEntry[]>([]);
+  const [programSkips, setProgramSkips] = useState<ProgramSessionSkip[]>([]);
+  const [programDismissals, setProgramDismissals] = useState<
+    ProgramSessionDismissal[]
+  >([]);
+  const [motivationalQuote, setMotivationalQuote] = useState(START_QUOTES[0]);
+  const [programLoaded, setProgramLoaded] = useState(false);
+  const [workoutsLoaded, setWorkoutsLoaded] = useState(false);
+  const [recipesLoaded, setRecipesLoaded] = useState(false);
 
   useEffect(() => {
     let mounted = true;
 
-    async function loadLatestWorkouts() {
-      const latest = await getLatestIndividualWorkouts(4);
+    async function loadActiveProgram() {
+      try {
+        const summaries = await getPublishedPrograms();
+        const selectedSummary =
+          summaries.find((program) => program.isActive) ?? summaries[0] ?? null;
 
-      if (mounted) {
-        setWorkoutCards(latest);
+        if (!selectedSummary) {
+          if (mounted) {
+            setActiveProgram(null);
+          }
+          return;
+        }
+
+        const fullProgram = await getProgramBySlug(selectedSummary.slug);
+
+        if (mounted) {
+          setActiveProgram(fullProgram);
+        }
+      } catch {
+        if (mounted) {
+          setActiveProgram(null);
+        }
+      } finally {
+        if (mounted) {
+          setProgramLoaded(true);
+        }
       }
     }
 
+    async function loadLatestWorkouts() {
+      try {
+        const latest = await getLatestIndividualWorkouts(4);
+
+        if (mounted) {
+          setWorkoutCards(latest);
+        }
+      } catch {
+        if (mounted) {
+          setWorkoutCards([]);
+        }
+      } finally {
+        if (mounted) {
+          setWorkoutsLoaded(true);
+        }
+      }
+    }
+
+    loadActiveProgram();
     loadLatestWorkouts();
 
     return () => {
@@ -346,10 +671,20 @@ export default function HomeScreen() {
     let mounted = true;
 
     async function loadFeaturedRecipes() {
-      const featured = await getFeaturedRecipes(4);
+      try {
+        const featured = await getFeaturedRecipes(4);
 
-      if (mounted) {
-        setRecipeCards(featured);
+        if (mounted) {
+          setRecipeCards(featured);
+        }
+      } catch {
+        if (mounted) {
+          setRecipeCards([]);
+        }
+      } finally {
+        if (mounted) {
+          setRecipesLoaded(true);
+        }
       }
     }
 
@@ -364,50 +699,33 @@ export default function HomeScreen() {
 
  
 
-  const programTotal = useMemo(() => calcProgramTotal(HERO_PROGRAM_ID), []);
+  const activeProgramSlug = activeProgram?.slug ?? HERO_PROGRAM_ID;
+
+  const programTotal = useMemo(
+    () => activeProgram?.workouts.length ?? 0,
+    [activeProgram],
+  );
 
   const weeklyDone = useMemo(() => calcWeeklyDone(history), [history]);
   const streakDays = useMemo(() => calcStreak(history), [history]);
 
   const programCompleted = useMemo(
-    () => calcProgramCompleted(history, HERO_PROGRAM_ID),
-    [history],
+    () => calcProgramCompleted(history, activeProgramSlug),
+    [activeProgramSlug, history],
+  );
+
+  const programPlan = useMemo(
+    () =>
+      buildHomeProgramPlan(
+        activeProgram,
+        history,
+        programSkips,
+        programDismissals,
+      ),
+    [activeProgram, history, programDismissals, programSkips],
   );
 
   const recentSessions = useMemo(() => history.slice(0, 2), [history]);
-
-  const activeProgram = useMemo(() => getProgram(HERO_PROGRAM_ID), []);
-
-  const heroWorkoutParsed = useMemo(
-    () => parseProgramWorkoutId(HERO_WORKOUT_ID),
-    [],
-  );
-
-  const heroWorkoutTemplate = useMemo(() => {
-    if (!heroWorkoutParsed) return null;
-    return getProgramWorkoutTemplate(heroWorkoutParsed.workoutIndex);
-  }, [heroWorkoutParsed]);
-
-  useFocusEffect(
-    useCallback(() => {
-      const run = async () => {
-        try {
-          const [draft, hist] = await Promise.all([
-            loadWorkoutDraft(),
-            getWorkoutHistory(),
-          ]);
-
-          setWorkoutDraft(draft);
-          setHistory(hist);
-        } catch {
-          setWorkoutDraft(null);
-          setHistory([]);
-        }
-      };
-
-      run();
-    }, []),
-  );
 
   const draftProgress = useMemo(() => {
     if (!workoutDraft) return null;
@@ -426,17 +744,57 @@ export default function HomeScreen() {
   }, [workoutDraft]);
 
   const ctaState: CtaState = workoutDraft ? "resume" : "start";
+  const greetingQuotePool = ctaState === "resume" ? RESUME_QUOTES : START_QUOTES;
 
-  const programTitle = activeProgram.title;
-  const programMeta = activeProgram.meta;
-  const heroImage = activeProgram.hero;
+  const currentProgramWorkout = programPlan.workout;
+  useEffect(() => {
+    setMotivationalQuote((current) =>
+      pickFreshQuote(greetingQuotePool, current),
+    );
+  }, [greetingQuotePool]);
 
-  const heroWorkoutNumber = heroWorkoutParsed
-    ? (heroWorkoutParsed.weekNumber - 1) * 3 + heroWorkoutParsed.workoutNumber
-    : 4;
+  useFocusEffect(
+    useCallback(() => {
+      setMotivationalQuote((current) =>
+        pickFreshQuote(greetingQuotePool, current),
+      );
 
-  const defaultWorkoutLabel = `Workout ${heroWorkoutNumber}`;
-  const defaultWorkoutName = heroWorkoutTemplate?.title ?? "Hypertrophy Focus";
+      const run = async () => {
+        try {
+          const [draft, hist, skips, dismissals] = await Promise.all([
+            loadWorkoutDraft(),
+            getWorkoutHistory(),
+            getProgramSessionSkips(),
+            getProgramSessionDismissals(),
+          ]);
+
+          setWorkoutDraft(isDraftResumable(draft) ? draft : null);
+          setHistory(hist);
+          setProgramSkips(skips);
+          setProgramDismissals(dismissals);
+        } catch {
+          setWorkoutDraft(null);
+          setHistory([]);
+          setProgramSkips([]);
+          setProgramDismissals([]);
+        }
+      };
+
+      run();
+    }, [greetingQuotePool]),
+  );
+
+  const programTitle = activeProgram?.title ?? "Current program";
+  const programMeta = activeProgram ? buildProgramMeta(activeProgram) : "Program";
+  const heroImage =
+    activeProgram?.heroImageUrl || activeProgram?.cardImageUrl || "";
+  const hasHeroImage = heroImage.trim().length > 0;
+
+  const defaultWorkoutLabel = currentProgramWorkout
+    ? programPlan.label
+    : "Program workout";
+  const defaultWorkoutName =
+    currentProgramWorkout?.title ?? "Start your next session";
 
   const workoutLabel =
     ctaState === "resume" ? "Unfinished workout" : defaultWorkoutLabel;
@@ -445,18 +803,26 @@ export default function HomeScreen() {
     ctaState === "resume" && workoutDraft?.workoutTitle
       ? workoutDraft.workoutTitle
       : defaultWorkoutName;
+  const startWorkoutLabel = programPlan.workoutNumber
+    ? `Start workout ${programPlan.workoutNumber}`
+    : "Start workout";
 
-  const weeklyProgress = WEEKLY_TOTAL > 0 ? weeklyDone / WEEKLY_TOTAL : 0;
-
-  const greetingTitle =
-    ctaState === "resume" ? "Continue where you left off." : "Ready to train.";
+  const weeklyTarget = programPlan.weeklyTarget;
+  const weeklyComplete = activeProgram ? programPlan.completedThisWeek : weeklyDone;
+  const weeklyProgress = weeklyTarget > 0 ? weeklyComplete / weeklyTarget : 0;
 
   const greetingSub =
     ctaState === "resume" && draftProgress
       ? `${draftProgress.completedSets} of ${draftProgress.totalSets} sets completed`
       : undefined;
 
-  const weeklyLeft = Math.max(0, WEEKLY_TOTAL - weeklyDone);
+  const weeklyLeft = Math.max(0, weeklyTarget - weeklyComplete);
+  const weeklyStatusText =
+    weeklyLeft === 0
+      ? "Complete"
+      : activeProgram && programPlan.loggedThisWeek > programPlan.completedThisWeek
+        ? `${programPlan.loggedThisWeek} started`
+        : `${weeklyLeft} left`;
 
 const startWorkout = () => {
   if (ctaState === "resume" && workoutDraft) {
@@ -465,6 +831,23 @@ const startWorkout = () => {
       params: {
         resumeDraft: "1",
         workoutId: workoutDraft.workoutId,
+        programId: workoutDraft.programId,
+        supabaseWorkoutId: workoutDraft.supabaseWorkoutId,
+        supabaseWorkoutOwnerType: workoutDraft.supabaseWorkoutOwnerType,
+        source: "home",
+      },
+    });
+    return;
+  }
+
+  if (activeProgram && currentProgramWorkout) {
+    router.push({
+      pathname: "/workout",
+      params: {
+        workoutId: buildRouteWorkoutId(activeProgram.slug, currentProgramWorkout),
+        supabaseWorkoutId: currentProgramWorkout.id,
+        supabaseWorkoutOwnerType: "program_workout",
+        programId: activeProgram.slug,
         source: "home",
       },
     });
@@ -486,25 +869,29 @@ const startWorkout = () => {
     return;
   }
 
-  router.push({
-    pathname: "/workout",
-    params: {
-      workoutId: HERO_WORKOUT_ID,
-      programId: HERO_PROGRAM_ID,
-      source: "home",
-    },
-  });
+  router.push("/workouts");
 };
 
   const discardWorkout = async () => {
+    if (workoutDraft?.programId && workoutDraft.workoutId) {
+      const nextDismissals = await dismissProgramSessionDraft({
+        programId: workoutDraft.programId,
+        workoutId: workoutDraft.workoutId,
+      });
+
+      setProgramDismissals(nextDismissals);
+    }
+
     await clearWorkoutDraft();
     setWorkoutDraft(null);
   };
 
   const openPlanOverview = () => {
+    if (!activeProgram) return;
+
     router.push({
       pathname: "/program/[id]",
-      params: { id: HERO_PROGRAM_ID },
+      params: { id: activeProgram.slug },
     });
   };
 
@@ -582,6 +969,18 @@ const startWorkout = () => {
 
   const styles = useMemo(() => createStyles(colors), [colors]);
 
+  if (!programLoaded || !workoutsLoaded || !recipesLoaded) {
+    return (
+      <SafeAreaView style={styles.safe} edges={["top"]}>
+        <BarbataContentLoading
+          title="Loading home"
+          subtitle="Preparing your next session."
+          variant="feed"
+        />
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <ScrollView
@@ -591,7 +990,7 @@ const startWorkout = () => {
       >
         <ScreenHeader
           variant="hero"
-          title={greetingTitle}
+          title={motivationalQuote}
           subtitle={greetingSub}
           right={
             <TouchableOpacity
@@ -614,9 +1013,7 @@ const startWorkout = () => {
 
         <View style={styles.weekMetaRow}>
           <Text style={styles.weekMetaLeft}>This week</Text>
-          <Text style={styles.weekMetaRight}>
-            {weeklyLeft === 0 ? "Complete" : `${weeklyLeft} left`}
-          </Text>
+          <Text style={styles.weekMetaRight}>{weeklyStatusText}</Text>
         </View>
 
         <View style={styles.weekProgressBg}>
@@ -644,73 +1041,161 @@ const startWorkout = () => {
         <Text style={styles.todaySub}>Your current plan</Text>
 
         <View style={styles.heroCard}>
-          <ImageBackground
-            source={{ uri: heroImage }}
-            style={styles.heroImage}
-            imageStyle={styles.heroImageRadius}
-          >
-            <View style={styles.heroOverlay} />
+          {hasHeroImage ? (
+            <ImageBackground
+              source={{ uri: heroImage }}
+              style={styles.heroImage}
+              imageStyle={styles.heroImageRadius}
+            >
+              <LinearGradient
+                pointerEvents="none"
+                colors={[
+                  "rgba(0,0,0,0.28)",
+                  "rgba(0,0,0,0.08)",
+                  "rgba(0,0,0,0.28)",
+                  "rgba(0,0,0,0.78)",
+                ]}
+                locations={[0, 0.38, 0.68, 1]}
+                style={styles.heroOverlay}
+              />
 
-            <View style={styles.heroTop}>
-              <View style={styles.leftChips}>
-                <View style={styles.chipLight}>
-                  <Text style={styles.chipLightText}>
-                    {programCompleted}/{programTotal} complete
-                  </Text>
-                </View>
-              </View>
-
-              {streakDays > 0 && (
-                <View style={styles.chipOutline}>
-                  <Text style={styles.chipOutlineText}>
-                    {streakDays}-day streak
-                  </Text>
-                </View>
-              )}
-            </View>
-
-            <View style={styles.heroBottom}>
-              <Text style={styles.heroEyebrow}>{workoutLabel}</Text>
-              <Text style={styles.heroTitle}>{workoutName}</Text>
-              <Text style={styles.heroMeta}>
-                {programTitle} · {programMeta}
-              </Text>
-
-              {draftProgress && (
-                <View style={styles.metricsRow}>
-                  <View style={styles.metricPill}>
-                    <Text style={styles.metricPillText}>
-                      {draftProgress.completedSets}/{draftProgress.totalSets}{" "}
-                      sets logged
+              <View style={styles.heroTop}>
+                <View style={styles.leftChips}>
+                  <View style={styles.chipLight}>
+                    <Text style={styles.chipLightText}>
+                      {programCompleted}/{programTotal} complete
                     </Text>
                   </View>
                 </View>
-              )}
 
-              <TouchableOpacity
-                style={styles.heroCta}
-                onPress={startWorkout}
-                activeOpacity={0.9}
-              >
-                <Text style={styles.heroCtaIcon}>▶</Text>
-                <Text style={styles.heroCtaText}>
-                  {ctaState === "resume"
-                    ? "Resume workout"
-                    : `Start ${defaultWorkoutLabel}`}
+                {streakDays > 0 && (
+                  <View style={styles.chipOutline}>
+                    <Text style={styles.chipOutlineText}>
+                      {streakDays}-day streak
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              <View style={styles.heroBottom}>
+                <Text style={styles.heroEyebrow}>{workoutLabel}</Text>
+                <Text style={styles.heroTitle}>{workoutName}</Text>
+                <Text style={styles.heroMeta}>
+                  {programTitle} · {programMeta}
                 </Text>
-              </TouchableOpacity>
 
-              {ctaState === "resume" && (
+                {draftProgress && (
+                  <View style={styles.metricsRow}>
+                    <View style={styles.metricPill}>
+                      <Text style={styles.metricPillText}>
+                        {draftProgress.completedSets}/{draftProgress.totalSets}{" "}
+                        sets logged
+                      </Text>
+                    </View>
+                  </View>
+                )}
+
                 <TouchableOpacity
-                  onPress={discardWorkout}
-                  style={styles.discardButton}
-                  activeOpacity={0.75}
+                  style={styles.heroCta}
+                  onPress={startWorkout}
+                  activeOpacity={0.9}
                 >
-                  <Text style={styles.discardText}>Discard workout</Text>
+                  <Text style={styles.heroCtaIcon}>▶</Text>
+                  <Text style={styles.heroCtaText}>
+                    {ctaState === "resume" ? "Resume workout" : startWorkoutLabel}
+                  </Text>
                 </TouchableOpacity>
-              )}
+
+                {ctaState === "resume" && (
+                  <TouchableOpacity
+                    onPress={discardWorkout}
+                    style={styles.discardButton}
+                    activeOpacity={0.75}
+                  >
+                    <Text style={styles.discardText}>Dismiss workout</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </ImageBackground>
+          ) : (
+            <View
+              style={[
+                styles.heroImage,
+                styles.heroImageRadius,
+                { backgroundColor: colors.card },
+              ]}
+            >
+              <LinearGradient
+                pointerEvents="none"
+                colors={[
+                  "rgba(0,0,0,0.28)",
+                  "rgba(0,0,0,0.08)",
+                  "rgba(0,0,0,0.28)",
+                  "rgba(0,0,0,0.78)",
+                ]}
+                locations={[0, 0.38, 0.68, 1]}
+                style={styles.heroOverlay}
+              />
+
+              <View style={styles.heroTop}>
+                <View style={styles.leftChips}>
+                  <View style={styles.chipLight}>
+                    <Text style={styles.chipLightText}>
+                      {programCompleted}/{programTotal} complete
+                    </Text>
+                  </View>
+                </View>
+
+                {streakDays > 0 && (
+                  <View style={styles.chipOutline}>
+                    <Text style={styles.chipOutlineText}>
+                      {streakDays}-day streak
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              <View style={styles.heroBottom}>
+                <Text style={styles.heroEyebrow}>{workoutLabel}</Text>
+                <Text style={styles.heroTitle}>{workoutName}</Text>
+                <Text style={styles.heroMeta}>
+                  {programTitle} · {programMeta}
+                </Text>
+
+                {draftProgress && (
+                  <View style={styles.metricsRow}>
+                    <View style={styles.metricPill}>
+                      <Text style={styles.metricPillText}>
+                        {draftProgress.completedSets}/{draftProgress.totalSets}{" "}
+                        sets logged
+                      </Text>
+                    </View>
+                  </View>
+                )}
+
+                <TouchableOpacity
+                  style={styles.heroCta}
+                  onPress={startWorkout}
+                  activeOpacity={0.9}
+                >
+                  <Text style={styles.heroCtaIcon}>▶</Text>
+                  <Text style={styles.heroCtaText}>
+                    {ctaState === "resume" ? "Resume workout" : startWorkoutLabel}
+                  </Text>
+                </TouchableOpacity>
+
+                {ctaState === "resume" && (
+                  <TouchableOpacity
+                    onPress={discardWorkout}
+                    style={styles.discardButton}
+                    activeOpacity={0.75}
+                  >
+                    <Text style={styles.discardText}>Dismiss workout</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
             </View>
-          </ImageBackground>
+          )}
         </View>
 
         {recentSessions.length > 0 && (
@@ -1008,7 +1493,6 @@ function createStyles(colors: {
 
     heroOverlay: {
       ...StyleSheet.absoluteFillObject,
-      backgroundColor: "rgba(0,0,0,0.30)",
     },
 
     heroTop: {

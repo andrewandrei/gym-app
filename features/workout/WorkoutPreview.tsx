@@ -773,16 +773,18 @@ const blockKickerFor = (block: StrengthBlock) => {
         <View style={styles.headerDivider} />
 
         <View style={styles.body}>
-        {blocks.map((block) => {
+        {blocks.map((block, blockIndex) => {
   const isGroupedBlock = block.type !== "single";
   const countLabel = blockCountLabel(block);
+  const nextBlock = blocks[blockIndex + 1];
+  const showSingleDivider = !isGroupedBlock && nextBlock?.type === "single";
 
   return (
     <View
       key={block.id}
       style={[
         styles.blockWrap,
-        !isGroupedBlock && { paddingLeft: 0 },
+        isGroupedBlock && blockIndex > 0 ? styles.groupedBlockWrap : null,
       ]}
     >
       {isGroupedBlock ? (
@@ -831,6 +833,8 @@ const blockKickerFor = (block: StrengthBlock) => {
                     </View>
                   );
                 })}
+
+              {showSingleDivider ? <View style={styles.rowDivider} /> : null}
               </View>
             );
 })}
@@ -895,12 +899,15 @@ function createStyles(
 
     body: {
       paddingHorizontal: 16,
-      gap: 14,
+      gap: 0,
     },
 
     blockWrap: {
       position: "relative",
       paddingLeft: 14,
+    },
+    groupedBlockWrap: {
+      marginTop: 16,
     },
     blockRail: {
       position: "absolute",
@@ -911,51 +918,51 @@ function createStyles(
       borderRadius: 999,
     },
     blockHeader: {
-      marginBottom: 6,
+      marginBottom: 8,
       gap: 2,
     },
     blockKicker: {
-      fontSize: 11,
+      fontSize: 10,
       fontWeight: "900",
-      color: colors.muted,
-      letterSpacing: 0.6,
+      color: isDark ? "rgba(255,255,255,0.54)" : "rgba(0,0,0,0.44)",
+      letterSpacing: 0.5,
       textTransform: "uppercase",
     },
     blockCount: {
-      fontSize: 12,
+      fontSize: 11,
       fontWeight: "700",
-      color: isDark ? "rgba(255,255,255,0.30)" : "rgba(0,0,0,0.35)",
+      color: isDark ? "rgba(255,255,255,0.24)" : "rgba(0,0,0,0.28)",
       letterSpacing: -0.05,
     },
 
     exerciseRow: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 10,
-      paddingVertical: 9,
+      gap: 14,
+      paddingVertical: 8,
     },
     exerciseRowPressed: { opacity: 0.8 },
 
     thumbWrap: {
       position: "relative",
-      width: 48,
-      height: 48,
+      width: 72,
+      height: 72,
       flexShrink: 0,
     },
     thumb: {
-      width: 48,
-      height: 48,
-      borderRadius: 14,
+      width: 72,
+      height: 72,
+      borderRadius: 18,
       backgroundColor: SOFT,
     },
     tagBadge: {
       position: "absolute",
-      bottom: -3,
-      right: -3,
-      minWidth: 15,
-      height: 15,
-      paddingHorizontal: 3,
-      borderRadius: 7.5,
+      bottom: -2,
+      right: -2,
+      minWidth: 18,
+      height: 18,
+      paddingHorizontal: 4,
+      borderRadius: 9,
       backgroundColor: TAG_BG,
       borderWidth: BorderWidth.default,
       borderColor: TAG_BORDER,
@@ -963,30 +970,30 @@ function createStyles(
       justifyContent: "center",
     },
     tagBadgeText: {
-      fontSize: 8,
+      fontSize: 9,
       fontWeight: "900",
       color: TAG_TEXT,
       letterSpacing: 0,
     },
     exerciseText: { flex: 1, minWidth: 0 },
     exerciseName: {
-      fontSize: 14,
-      fontWeight: "900",
-      color: colors.text,
+      fontSize: 12,
+      fontWeight: "800",
+      color: isDark ? "rgba(255,255,255,0.88)" : "rgba(0,0,0,0.88)",
       letterSpacing: -0.1,
-      lineHeight: 18,
+      lineHeight: 16,
     },
     exerciseMeta: {
-      marginTop: 2,
-      fontSize: 12,
+      marginTop: 4,
+      fontSize: 11,
       fontWeight: "700",
-      color: colors.muted,
+      color: isDark ? "rgba(255,255,255,0.44)" : "rgba(0,0,0,0.42)",
     },
 
     rowDivider: {
       height: BorderWidth.default,
       backgroundColor: BORDER,
-      marginLeft: 58,
+      marginLeft: 86,
     },
 
     bottomWrap: {

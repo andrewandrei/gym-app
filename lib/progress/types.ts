@@ -1,12 +1,20 @@
 // app/lib/progress/types.ts
 
+import type { WorkoutHistoryEntry } from "../../features/workout/workoutHistory";
+
 export type ProgressRange = "7D" | "30D" | "ALL";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared progress hook / UI types
 // ─────────────────────────────────────────────────────────────────────────────
 
-export type DayStatus = "done" | "today" | "planned" | "rest";
+export type DayStatus =
+  | "done"
+  | "partial"
+  | "today"
+  | "planned"
+  | "skipped"
+  | "rest";
 
 export type WeekDay = {
   d: string; // "M" | "T" | "W" | "T" | "F" | "S" | "S"
@@ -18,9 +26,11 @@ export type SessionLifts = string; // "Back Squat 95kg×3" or "... 🏆"
 
 export type WeekSession = {
   date: string;
+  dayNumber?: number;
   type: string;
   complete: boolean;
   planned?: boolean;
+  skipped?: boolean;
   lifts: SessionLifts[];
 };
 
@@ -36,6 +46,7 @@ export type WeekEntry = {
 export type CalendarDay = {
   dayNum: number;
   trained: boolean;
+  status: "partial" | "completed" | "none";
   type?: string; // "U" | "L"
   isToday: boolean;
   future: boolean;
@@ -270,6 +281,7 @@ export type ProgressEmptyState = {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type ProgressData = {
+  programId: string;
   programTitle: string;
   programSubtitle: string;
   currentWeek: number;
@@ -284,7 +296,7 @@ export type ProgressData = {
   
   monthData: MonthData;
 
-  rawHistory: any[];
+  rawHistory: WorkoutHistoryEntry[];
 
   exerciseCards: ExerciseProgressCard[];
 
@@ -292,5 +304,6 @@ export type ProgressData = {
   addCheckin: (c: Omit<CheckIn, "id">) => Promise<void>;
 
   loading: boolean;
+  error: string | null;
   refresh: () => Promise<void>;
 };

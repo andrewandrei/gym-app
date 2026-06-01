@@ -15,11 +15,18 @@ export type WorkoutDraftExercise = {
   id: string;
   name: string;
   unitLabel: "LBS" | "KG" | "REPS";
+  trackingMode?:
+    | "weight_reps"
+    | "bodyweight_reps"
+    | "time"
+    | "reps_only"
+    | "calories";
   sets: WorkoutDraftSet[];
 };
 
 export type WorkoutDraftStatus = "active" | "completed" | "discarded";
 export type WorkoutDraftSource = "in_progress" | "interrupted" | "manual";
+export type WorkoutDraftOwnerType = "program_workout" | "individual_workout";
 
 export type WorkoutDraft = {
   id: string;
@@ -27,6 +34,8 @@ export type WorkoutDraft = {
   workoutId: string;
   workoutTitle: string;
   programId?: string;
+  supabaseWorkoutId?: string;
+  supabaseWorkoutOwnerType?: WorkoutDraftOwnerType;
   startedAt: number;
   updatedAt: number;
   elapsedSeconds: number;
@@ -71,6 +80,14 @@ function sanitizeDraftExercise(raw: any): WorkoutDraftExercise {
     id: typeof raw?.id === "string" ? raw.id : "",
     name: typeof raw?.name === "string" ? raw.name : "",
     unitLabel,
+    trackingMode:
+      raw?.trackingMode === "weight_reps" ||
+      raw?.trackingMode === "bodyweight_reps" ||
+      raw?.trackingMode === "time" ||
+      raw?.trackingMode === "reps_only" ||
+      raw?.trackingMode === "calories"
+        ? raw.trackingMode
+        : undefined,
     sets: Array.isArray(raw?.sets) ? raw.sets.map(sanitizeDraftSet) : [],
   };
 }
@@ -110,6 +127,13 @@ function sanitizeDraft(raw: any): WorkoutDraft | null {
     workoutId,
     workoutTitle,
     programId: typeof raw?.programId === "string" ? raw.programId : undefined,
+    supabaseWorkoutId:
+      typeof raw?.supabaseWorkoutId === "string" ? raw.supabaseWorkoutId : undefined,
+    supabaseWorkoutOwnerType:
+      raw?.supabaseWorkoutOwnerType === "program_workout" ||
+      raw?.supabaseWorkoutOwnerType === "individual_workout"
+        ? raw.supabaseWorkoutOwnerType
+        : undefined,
     startedAt:
       typeof raw?.startedAt === "number" && Number.isFinite(raw.startedAt)
         ? raw.startedAt
@@ -144,6 +168,8 @@ export function createWorkoutDraft(params: {
   workoutId: string;
   workoutTitle: string;
   programId?: string;
+  supabaseWorkoutId?: string;
+  supabaseWorkoutOwnerType?: WorkoutDraftOwnerType;
   exercises: WorkoutDraftExercise[];
   activeSetKey?: string | null;
   elapsedSeconds?: number;
@@ -156,6 +182,8 @@ export function createWorkoutDraft(params: {
     workoutId: params.workoutId,
     workoutTitle: params.workoutTitle,
     programId: params.programId,
+    supabaseWorkoutId: params.supabaseWorkoutId,
+    supabaseWorkoutOwnerType: params.supabaseWorkoutOwnerType,
     startedAt: now,
     updatedAt: now,
     elapsedSeconds: params.elapsedSeconds ?? 0,

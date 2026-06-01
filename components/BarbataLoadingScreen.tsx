@@ -11,17 +11,17 @@ export default function BarbataLoadingScreen() {
       Animated.timing(opacity, {
         toValue: 1,
         duration: 550,
-        useNativeDriver: true,
+        useNativeDriver: false,
       }),
       Animated.timing(scale, {
         toValue: 1,
         duration: 550,
-        useNativeDriver: true,
+        useNativeDriver: false,
       }),
       Animated.timing(translateY, {
         toValue: 0,
         duration: 550,
-        useNativeDriver: true,
+        useNativeDriver: false,
       }),
     ]).start();
   }, [opacity, scale, translateY]);

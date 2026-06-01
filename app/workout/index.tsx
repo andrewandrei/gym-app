@@ -25,6 +25,7 @@ import {
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
+import BarbataContentLoading from "@/components/BarbataContentLoading";
 import { useAppSettings } from "@/providers/appSettings";
 import { useAppTheme } from "@/providers/theme";
 import type { SetRow as SetRowLocal } from "../../features/workout/SetRowItem";
@@ -68,6 +69,11 @@ import {
 
 
 import {
+  getProgramBySlug,
+  type SupabaseProgramWorkout,
+} from "@/features/programs/programs.supabase";
+import { getAllIndividualWorkouts } from "@/features/workouts/individualWorkouts.supabase";
+import {
   mapSupabaseBlueprintToWorkoutConfig,
   type BuilderWorkoutConfig,
 } from "@/features/workoutBuilder/workoutBuilder.mapper";
@@ -94,6 +100,35 @@ type VideoSource = {
   html?: string;
   youtubeId?: string;
 };
+
+function parseProgramWorkoutRouteId(workoutId?: string | null) {
+  if (!workoutId) return null;
+
+  const match = workoutId.match(/^(.*)-week-(\d+)-workout-(\d+)$/);
+  if (!match) return null;
+
+  return {
+    programSlug: match[1],
+    weekNumber: Number(match[2]),
+    dayNumber: Number(match[3]),
+  };
+}
+
+function findProgramWorkoutFromRoute(
+  workouts: SupabaseProgramWorkout[],
+  routeWorkoutId?: string | null,
+) {
+  const parsed = parseProgramWorkoutRouteId(routeWorkoutId);
+  if (!parsed) return null;
+
+  return (
+    workouts.find(
+      (workout) =>
+        workout.weekNumber === parsed.weekNumber &&
+        workout.dayNumber === parsed.dayNumber,
+    ) ?? null
+  );
+}
 
 function parseVideoUrl(url?: string): VideoSource | null {
   if (!url) return null;
@@ -259,6 +294,10 @@ if (vimeoMatch) {
   return null;
 }
 
+function hasImageUri(value?: string | null) {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
 let WebViewComponent: any = null;
 try {
   WebViewComponent = require("react-native-webview").WebView;
@@ -329,6 +368,7 @@ function ExerciseDemoModal({
   const BORDER = colors.borderSubtle ?? colors.border;
   const SOFT = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)";
   const videoSource = parseVideoUrl(exercise.videoUrl);
+  const hasExerciseImage = hasImageUri(exercise.image);
 
 const openExternalVideo = async () => {
   if (!videoSource) return;
@@ -473,11 +513,15 @@ const openExternalVideo = async () => {
         onPress={openExternalVideo}
         style={{ flex: 1 }}
       >
-        <Image
-          source={{ uri: exercise.image }}
-          style={{ width: "100%", height: "100%" }}
-          resizeMode="cover"
-        />
+        {hasExerciseImage ? (
+          <Image
+            source={{ uri: exercise.image }}
+            style={{ width: "100%", height: "100%" }}
+            resizeMode="cover"
+          />
+        ) : (
+          <View style={{ width: "100%", height: "100%", backgroundColor: colors.card }} />
+        )}
         <View
           style={{
             ...StyleSheet.absoluteFillObject,
@@ -562,18 +606,26 @@ const openExternalVideo = async () => {
         originWhitelist={["*"]}
       />
     ) : (
+      hasExerciseImage ? (
+        <Image
+          source={{ uri: exercise.image }}
+          style={{ width: "100%", height: "100%" }}
+          resizeMode="cover"
+        />
+      ) : (
+        <View style={{ width: "100%", height: "100%", backgroundColor: colors.card }} />
+      )
+    )
+  ) : (
+    hasExerciseImage ? (
       <Image
         source={{ uri: exercise.image }}
         style={{ width: "100%", height: "100%" }}
         resizeMode="cover"
       />
+    ) : (
+      <View style={{ width: "100%", height: "100%", backgroundColor: colors.card }} />
     )
-  ) : (
-    <Image
-      source={{ uri: exercise.image }}
-      style={{ width: "100%", height: "100%" }}
-      resizeMode="cover"
-    />
   )}
 </View>
 
@@ -963,40 +1015,74 @@ useEffect(() => {
 
   async function loadBuilderWorkout() {
     console.log("🏋️ workout route params:", {
-  selectedWorkoutId,
-  selectedSupabaseWorkoutId,
-  selectedSupabaseWorkoutOwnerType,
-});
-   if (!selectedSupabaseWorkoutId) {
-  console.log("⚠️ no supabaseWorkoutId passed, using local hardcoded fallback:", selectedWorkoutId);
-  setBuilderWorkoutConfig(null);
-  return;
-}
+      selectedWorkoutId,
+      selectedSupabaseWorkoutId,
+      selectedSupabaseWorkoutOwnerType,
+      selectedProgramId,
+    });
+
+    let resolvedOwnerId = selectedSupabaseWorkoutId ?? null;
+    let resolvedOwnerType =
+      selectedSupabaseWorkoutOwnerType === "program_workout"
+        ? "program_workout"
+        : selectedSupabaseWorkoutOwnerType === "individual_workout"
+          ? "individual_workout"
+          : null;
+
+    if (!resolvedOwnerId && selectedProgramId && selectedWorkoutId) {
+      const program = await getProgramBySlug(selectedProgramId);
+      const matchedWorkout = findProgramWorkoutFromRoute(
+        program?.workouts ?? [],
+        selectedWorkoutId,
+      );
+
+      if (matchedWorkout) {
+        resolvedOwnerId = matchedWorkout.id;
+        resolvedOwnerType = "program_workout";
+      }
+    }
+
+    if (!resolvedOwnerId && selectedWorkoutId) {
+      const workouts = await getAllIndividualWorkouts();
+      const matchedWorkout = workouts.find(
+        (workout) =>
+          workout.id === selectedWorkoutId || workout.slug === selectedWorkoutId,
+      );
+
+      if (matchedWorkout) {
+        resolvedOwnerId = matchedWorkout.id;
+        resolvedOwnerType = "individual_workout";
+      }
+    }
+
+    if (!resolvedOwnerId || !resolvedOwnerType) {
+      console.log(
+        "⚠️ no supabase workout owner resolved, using local hardcoded fallback:",
+        selectedWorkoutId,
+      );
+      setBuilderWorkoutConfig(null);
+      return;
+    }
 
     setIsLoadingBuilderWorkout(true);
 
-    const blueprintOwnerType =
-  selectedSupabaseWorkoutOwnerType === "program_workout"
-    ? "program_workout"
-    : "individual_workout";
-
-const blueprint = await getWorkoutBlueprintForOwner({
-  ownerType: blueprintOwnerType,
-  ownerId: selectedSupabaseWorkoutId,
-});
+    const blueprint = await getWorkoutBlueprintForOwner({
+      ownerType: resolvedOwnerType,
+      ownerId: resolvedOwnerId,
+    });
 
     if (!mounted) return;
 
-   if (!blueprint || blueprint.exercises.length === 0) {
-  console.log("⚠️ no Supabase blueprint found, using local hardcoded fallback:", {
-    ownerType: blueprintOwnerType,
-    ownerId: selectedSupabaseWorkoutId,
-  });
+    if (!blueprint || blueprint.exercises.length === 0) {
+      console.log("⚠️ no Supabase blueprint found, using local hardcoded fallback:", {
+        ownerType: resolvedOwnerType,
+        ownerId: resolvedOwnerId,
+      });
 
-  setBuilderWorkoutConfig(null);
-  setIsLoadingBuilderWorkout(false);
-  return;
-}
+      setBuilderWorkoutConfig(null);
+      setIsLoadingBuilderWorkout(false);
+      return;
+    }
 
     const mapped = mapSupabaseBlueprintToWorkoutConfig(blueprint);
     const adapted = buildWorkoutConfigFromBuilder(mapped);
@@ -1021,7 +1107,12 @@ const blueprint = await getWorkoutBlueprintForOwner({
   return () => {
     mounted = false;
   };
-}, [selectedSupabaseWorkoutId, selectedSupabaseWorkoutOwnerType]);
+}, [
+  selectedProgramId,
+  selectedSupabaseWorkoutId,
+  selectedSupabaseWorkoutOwnerType,
+  selectedWorkoutId,
+]);
 
 const workoutConfig = builderWorkoutConfig ?? localWorkoutConfig;
 
@@ -1222,6 +1313,12 @@ const workoutConfig = builderWorkoutConfig ?? localWorkoutConfig;
       workoutId: selectedWorkoutId ?? "full-body-foundation",
       workoutTitle,
       programId: selectedProgramId ?? undefined,
+      supabaseWorkoutId: selectedSupabaseWorkoutId ?? undefined,
+      supabaseWorkoutOwnerType:
+        selectedSupabaseWorkoutOwnerType === "program_workout" ||
+        selectedSupabaseWorkoutOwnerType === "individual_workout"
+          ? selectedSupabaseWorkoutOwnerType
+          : undefined,
       startedAt: workoutStartTime.current,
       updatedAt: Date.now(),
       elapsedSeconds: workoutDuration,
@@ -1251,6 +1348,8 @@ const workoutConfig = builderWorkoutConfig ?? localWorkoutConfig;
     availableDraft?.sessionId,
     exercises,
     selectedProgramId,
+    selectedSupabaseWorkoutId,
+    selectedSupabaseWorkoutOwnerType,
     selectedWorkoutId,
     workoutDuration,
     workoutTitle,
@@ -1590,6 +1689,9 @@ const workoutConfig = builderWorkoutConfig ?? localWorkoutConfig;
       params: {
         workoutId: availableDraft.workoutId,
         resumeDraft: "1",
+        programId: availableDraft.programId,
+        supabaseWorkoutId: availableDraft.supabaseWorkoutId,
+        supabaseWorkoutOwnerType: availableDraft.supabaseWorkoutOwnerType,
       },
     });
   }, [availableDraft]);
@@ -2069,15 +2171,23 @@ const workoutConfig = builderWorkoutConfig ?? localWorkoutConfig;
 
       router.replace({
         pathname: "/workout/finish",
-        params: { sessionStatus },
+        params: {
+          sessionStatus,
+          workoutImage: workoutConfig.image ?? "",
+          supabaseWorkoutId: selectedSupabaseWorkoutId ?? "",
+          supabaseWorkoutOwnerType: selectedSupabaseWorkoutOwnerType ?? "",
+        },
       });
     },
     [
       availableDraft?.sessionId,
       exercises,
       realWorkoutHistory,
+      selectedSupabaseWorkoutId,
+      selectedSupabaseWorkoutOwnerType,
       selectedProgramId,
       selectedWorkoutId,
+      workoutConfig.image,
       workoutDuration,
       workoutTitle,
     ],
@@ -2114,11 +2224,15 @@ const workoutConfig = builderWorkoutConfig ?? localWorkoutConfig;
         style={{ flex: 1, backgroundColor: colors.background }}
         edges={["left", "right"]}
       >
-        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-          <Text style={{ fontSize: 15, fontWeight: "800", color: colors.muted }}>
-           {isLoadingBuilderWorkout ? "Loading workout…" : "Restoring workout…"}
-          </Text>
-        </View>
+        <BarbataContentLoading
+          title={isLoadingBuilderWorkout ? "Loading workout" : "Restoring workout"}
+          subtitle={
+            isLoadingBuilderWorkout
+              ? "Setting up your session."
+              : "Bringing your progress back in."
+          }
+          variant="compact"
+        />
       </SafeAreaView>
     );
   }
@@ -2457,7 +2571,11 @@ const workoutConfig = builderWorkoutConfig ?? localWorkoutConfig;
               {menuExerciseId &&
                 exerciseAlternatives[menuExerciseId]?.map((alt) => (
                   <Pressable key={alt.id} onPress={() => swapExercise(alt)} style={S.swapItem}>
-                    <Image source={{ uri: alt.image }} style={S.swapThumb} />
+                    {hasImageUri(alt.image) ? (
+                      <Image source={{ uri: alt.image }} style={S.swapThumb} />
+                    ) : (
+                      <View style={[S.swapThumb, { backgroundColor: colors.card }]} />
+                    )}
                     <View style={S.swapTextContainer}>
                       <Text style={[S.swapName, { color: colors.text }]}>{alt.name}</Text>
                       <Text style={[S.swapCategory, { color: colors.muted }]}>

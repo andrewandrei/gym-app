@@ -2,55 +2,62 @@
 
 import type { WeekDay, WeekEntry } from "./types";
 
+const WEEK_DAYS = ["M", "T", "W", "T", "F", "S", "S"];
+
+function getShortSessionType(type: string) {
+  if (type.includes("Upper")) return "Upper";
+  if (type.includes("Lower")) return "Lower";
+  if (type.includes("Full")) return "Full";
+  if (type.includes("Test")) return "Test";
+  return type;
+}
+
+function getWeekDayIndex(sessionCount: number, sessionIndex: number) {
+  if (sessionCount >= 6) return Math.min(sessionIndex, 6);
+  if (sessionCount === 5) return [0, 1, 2, 3, 4][sessionIndex] ?? sessionIndex;
+  if (sessionCount === 4) return [0, 1, 3, 4][sessionIndex] ?? sessionIndex;
+  if (sessionCount === 3) return [0, 2, 4][sessionIndex] ?? sessionIndex;
+  if (sessionCount === 2) return [0, 3][sessionIndex] ?? sessionIndex;
+  return sessionIndex;
+}
+
 export function buildThisWeekDays(
-  rawHistory: any[],
-  currentWeek: number,
+  _rawHistory: any[],
+  _currentWeek: number,
   weekEntry: WeekEntry,
 ): WeekDay[] {
   const now = new Date();
   const dayOfWeek = (now.getDay() + 6) % 7;
 
-  const sessionLabels = weekEntry.sessions.map((s) => ({
-    type: s.type.includes("Upper")
-      ? "Upper"
-      : s.type.includes("Lower")
-        ? "Lower"
-        : s.type.includes("Full")
-          ? "Full"
-          : s.type,
-    complete: s.complete,
-    planned: s.planned,
-  }));
+  const schedule = Array.from({ length: 7 }, () => null as number | null);
 
-  const schedule: Array<{ type: string; sessionIdx: number | null }> = [
-    { type: sessionLabels[0]?.type ?? "Upper", sessionIdx: 0 },
-    { type: sessionLabels[1]?.type ?? "Lower", sessionIdx: 1 },
-    { type: "Rest", sessionIdx: null },
-    { type: sessionLabels[2]?.type ?? "Upper", sessionIdx: 2 },
-    { type: sessionLabels[3]?.type ?? "Lower", sessionIdx: 3 },
-    { type: "Rest", sessionIdx: null },
-    { type: "Rest", sessionIdx: null },
-  ];
+  weekEntry.sessions.forEach((session, index) => {
+    const dayIndex =
+      typeof session.dayNumber === "number"
+        ? session.dayNumber - 1
+        : getWeekDayIndex(weekEntry.sessions.length, index);
+    if (dayIndex >= 0 && dayIndex < 7 && schedule[dayIndex] === null) {
+      schedule[dayIndex] = index;
+    }
+  });
 
-  const days = ["M", "T", "W", "T", "F", "S", "S"];
-
-  return days.map((d, i) => {
-    const slot = schedule[i];
-    const isRest = slot.type === "Rest";
-    const sessionIdx = slot.sessionIdx;
-    const session = sessionIdx !== null ? weekEntry.sessions[sessionIdx] : null;
+  return WEEK_DAYS.map((d, i) => {
+    const sessionIndex = schedule[i];
+    const session = sessionIndex !== null ? weekEntry.sessions[sessionIndex] : null;
 
     let status: WeekDay["status"] = "rest";
 
-    if (!isRest) {
-      if (session?.complete) status = "done";
-      else if (i === dayOfWeek) status = "today";
+    if (session) {
+      if (session.complete) status = "done";
+      else if (session.lifts.length > 0) status = "partial";
+      else if (session.skipped) status = "skipped";
+      else if (i === dayOfWeek && weekEntry.current) status = "today";
       else status = "planned";
     }
 
     return {
       d,
-      type: isRest ? "Rest" : slot.type,
+      type: session ? getShortSessionType(session.type) : "Rest",
       status,
     };
   });

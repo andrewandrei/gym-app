@@ -1,7 +1,7 @@
 import { LinearGradient } from "expo-linear-gradient";
-import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import { Check, ChevronLeft, Info, Lock } from "lucide-react-native";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
   Image,
@@ -13,18 +13,36 @@ import {
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
+import BarbataContentLoading from "@/components/BarbataContentLoading";
 import { PressableScale } from "@/components/ui/PressableScale";
 import {
   getProgramBySlug,
   type SupabaseProgram,
   type SupabaseProgramWorkout,
 } from "@/features/programs/programs.supabase";
+import {
+  getProgramSessionSkips,
+  skipProgramSession,
+  type ProgramSessionSkip,
+} from "@/features/programs/programSessionState";
 import { useEntitlements } from "@/providers/entitlements";
 import { useAppTheme } from "@/providers/theme";
 import { BorderWidth } from "@/styles/hairline";
 import { Spacing } from "@/styles/spacing";
+import {
+  getWorkoutHistory,
+  type WorkoutHistoryEntry,
+} from "../../../features/workout/workoutHistory";
 
-type WorkoutStatus = "next" | "done" | "available" | "locked";
+type WorkoutStatus =
+  | "partial"
+  | "due"
+  | "missed"
+  | "done"
+  | "skipped"
+  | "upcoming"
+  | "available"
+  | "locked";
 
 type ProgramWeek = {
   id: string;
@@ -32,6 +50,7 @@ type ProgramWeek = {
 };
 
 type Workout = {
+  kind: "workout";
   id: string;
   routeWorkoutId: string;
   label: string;
@@ -45,6 +64,18 @@ type Workout = {
   weekNumber: number;
   dayNumber: number;
 };
+
+type RestDay = {
+  kind: "rest";
+  id: string;
+  label: string;
+  title: string;
+  meta: string;
+  weekNumber: number;
+  dayNumber: number;
+};
+
+type ProgramScheduleDay = Workout | RestDay;
 
 function buildProgramWeeks(program: SupabaseProgram | null): ProgramWeek[] {
   if (!program) return [];
@@ -67,22 +98,35 @@ function buildRouteWorkoutId(
 }
 
 function getWorkoutStatus({
+  programSlug,
   workout,
-  completedCount,
+  history,
+  skips,
   isPro,
   freeWorkoutCount,
   programMeterEnabled,
 }: {
+  programSlug: string;
   workout: SupabaseProgramWorkout;
-  completedCount: number;
+  history: WorkoutHistoryEntry[];
+  skips: ProgramSessionSkip[];
   isPro: boolean;
   freeWorkoutCount: number;
   programMeterEnabled: boolean;
 }): WorkoutStatus {
-  const zeroBasedIndex = workout.orderIndex - 1;
+  const routeWorkoutId = buildRouteWorkoutId(programSlug, workout);
+  const historyStatus = getWorkoutHistoryStatus(programSlug, workout, history);
 
-  if (zeroBasedIndex < completedCount) return "done";
-  if (zeroBasedIndex === completedCount) return "next";
+  if (historyStatus === "done") return "done";
+  if (historyStatus === "partial") return "partial";
+
+  if (
+    skips.some(
+      (item) => item.programId === programSlug && item.workoutId === routeWorkoutId,
+    )
+  ) {
+    return "skipped";
+  }
 
   if (isPro) return "available";
 
@@ -94,6 +138,28 @@ function getWorkoutStatus({
   }
 
   return "locked";
+}
+
+function getIsoWeekday(date = new Date()) {
+  const day = date.getDay();
+  return day === 0 ? 7 : day;
+}
+
+function getWorkoutHistoryStatus(
+  programSlug: string,
+  workout: SupabaseProgramWorkout,
+  history: WorkoutHistoryEntry[],
+): "partial" | "done" | null {
+  const routeWorkoutId = buildRouteWorkoutId(programSlug, workout);
+  const entries = history.filter(
+    (entry) =>
+      entry.workoutId === routeWorkoutId ||
+      (entry.programId === programSlug && entry.workoutTitle === workout.title),
+  );
+
+  if (entries.some((entry) => entry.status === "completed")) return "done";
+  if (entries.some((entry) => entry.status === "partial")) return "partial";
+  return null;
 }
 
 function buildWorkoutMeta(workout: SupabaseProgramWorkout) {
@@ -111,9 +177,6 @@ function buildProgramBullets(program: SupabaseProgram): string[] {
     program.goal ? `Goal: ${program.goal}` : "",
     program.equipment ? `Equipment: ${program.equipment}` : "",
     program.level ? `Level: ${program.level}` : "",
-    program.freeWorkoutCount
-      ? `${program.freeWorkoutCount} workouts included before joining.`
-      : "",
   ].filter(Boolean);
 
   if (bullets.length) return bullets;
@@ -139,18 +202,13 @@ export default function ProgramDetailScreen() {
   const [program, setProgram] = useState<SupabaseProgram | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeWeekIndex, setActiveWeekIndex] = useState(0);
+  const [history, setHistory] = useState<WorkoutHistoryEntry[]>([]);
+  const [programSkips, setProgramSkips] = useState<ProgramSessionSkip[]>([]);
 
   const weeksScrollRef = useRef<ScrollView | null>(null);
   const scrollY = useRef(new Animated.Value(0)).current;
 
-  /**
-   * Temporary until real user history is connected.
-   * Later this should come from Supabase workout history / local history.
-   */
-  const completedCount = 0;
-
   const freeWorkoutCount = program?.freeWorkoutCount ?? 4;
-  const warningAfterWorkoutCount = program?.warningAfterWorkoutCount ?? 3;
   const programMeterEnabled = program?.programMeterEnabled ?? true;
 
   useEffect(() => {
@@ -172,6 +230,30 @@ export default function ProgramDetailScreen() {
       mounted = false;
     };
   }, [id]);
+
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+
+      async function loadSessionState() {
+        const [nextHistory, nextSkips] = await Promise.all([
+          getWorkoutHistory(),
+          getProgramSessionSkips(),
+        ]);
+
+        if (!active) return;
+
+        setHistory(nextHistory);
+        setProgramSkips(nextSkips);
+      }
+
+      void loadSessionState();
+
+      return () => {
+        active = false;
+      };
+    }, []),
+  );
 
   const weeks = useMemo(() => buildProgramWeeks(program), [program]);
 
@@ -225,62 +307,151 @@ export default function ProgramDetailScreen() {
     ? "rgba(255,255,255,0.12)"
     : "rgba(0,0,0,0.08)";
 
-  const workoutsByWeek: Workout[][] = useMemo(() => {
+  const completedCount = useMemo(() => {
+    if (!program) return 0;
+
+    return program.workouts.filter(
+      (workout) => getWorkoutHistoryStatus(program.slug, workout, history) === "done",
+    ).length;
+  }, [history, program]);
+
+  const scheduleByWeek: ProgramScheduleDay[][] = useMemo(() => {
     if (!program) return [];
+
+    const today = getIsoWeekday();
+    const sortedWorkouts = [...program.workouts].sort(
+      (a, b) =>
+        a.weekNumber - b.weekNumber ||
+        a.dayNumber - b.dayNumber ||
+        a.orderIndex - b.orderIndex,
+    );
+    const baseStatuses = new Map<string, WorkoutStatus>();
+
+    sortedWorkouts.forEach((workout) => {
+      baseStatuses.set(
+        workout.id,
+        getWorkoutStatus({
+          programSlug: program.slug,
+          workout,
+          history,
+          skips: programSkips,
+          isPro,
+          freeWorkoutCount,
+          programMeterEnabled,
+        }),
+      );
+    });
+
+    const activeScheduleWeek =
+      sortedWorkouts.find((workout) => {
+        const status = baseStatuses.get(workout.id);
+        return status !== "done" && status !== "skipped";
+      })?.weekNumber ?? sortedWorkouts[0]?.weekNumber ?? 1;
 
     return weeks.map((_, weekIdx) => {
       const weekNumber = weekIdx + 1;
-
-      return program.workouts
+      const workoutsForWeek = program.workouts
         .filter((workout) => workout.weekNumber === weekNumber)
-        .sort((a, b) => a.orderIndex - b.orderIndex)
-        .map((workout) => ({
-          id: workout.id,
-          routeWorkoutId: buildRouteWorkoutId(program.slug, workout),
-          label: `Workout ${workout.orderIndex}`,
-          title: workout.title,
-          meta: buildWorkoutMeta(workout),
-          duration: buildWorkoutDuration(workout),
-          image: workout.imageUrl || program.cardImageUrl || program.heroImageUrl,
-          status: getWorkoutStatus({
-            workout,
-            completedCount,
-            isPro,
-            freeWorkoutCount,
-            programMeterEnabled,
-          }),
-          access: workout.access,
-          orderIndex: workout.orderIndex,
-          weekNumber: workout.weekNumber,
-          dayNumber: workout.dayNumber,
-        }));
+        .sort((a, b) => a.dayNumber - b.dayNumber || a.orderIndex - b.orderIndex);
+      const workoutDayLabels = new Map<number, number>();
+
+      Array.from(new Set(workoutsForWeek.map((workout) => workout.dayNumber)))
+        .sort((a, b) => a - b)
+        .forEach((dayNumber, index) => {
+          workoutDayLabels.set(dayNumber, index + 1);
+        });
+
+      return Array.from({ length: 7 }).flatMap((_, index) => {
+        const dayNumber = index + 1;
+        const workoutsForDay = workoutsForWeek.filter(
+          (workout) => workout.dayNumber === dayNumber,
+        );
+
+        if (!workoutsForDay.length) {
+          return [
+            {
+              kind: "rest" as const,
+              id: `${program.slug}-week-${weekNumber}-rest-${dayNumber}`,
+              label: "",
+              title: "Rest day",
+              meta: "Recover and come back stronger.",
+              weekNumber,
+              dayNumber,
+            },
+          ];
+        }
+
+        return workoutsForDay.map((workout) => {
+          const baseStatus = baseStatuses.get(workout.id) ?? "available";
+          let status = baseStatus;
+
+          if (baseStatus === "available") {
+            if (workout.weekNumber < activeScheduleWeek) status = "missed";
+            else if (workout.weekNumber > activeScheduleWeek) status = "upcoming";
+            else if (workout.dayNumber < today) status = "missed";
+            else if (workout.dayNumber === today) status = "due";
+            else status = "upcoming";
+          }
+
+          return {
+            kind: "workout" as const,
+            id: workout.id,
+            routeWorkoutId: buildRouteWorkoutId(program.slug, workout),
+            label: `Day ${workoutDayLabels.get(workout.dayNumber) ?? workout.dayNumber}`,
+            title: workout.title,
+            meta: buildWorkoutMeta(workout),
+            duration: buildWorkoutDuration(workout),
+            image: workout.imageUrl || program.cardImageUrl || program.heroImageUrl,
+            status,
+            access: workout.access,
+            orderIndex: workout.orderIndex,
+            weekNumber: workout.weekNumber,
+            dayNumber: workout.dayNumber,
+          };
+        });
+      });
     });
   }, [
-    completedCount,
     freeWorkoutCount,
+    history,
     isPro,
     program,
+    programSkips,
     programMeterEnabled,
     weeks,
   ]);
 
   const nextWorkout = useMemo(() => {
-    for (let weekIdx = 0; weekIdx < workoutsByWeek.length; weekIdx += 1) {
-      const workoutIdx = workoutsByWeek[weekIdx].findIndex(
-        (w) => w.status === "next",
-      );
+    const priority: WorkoutStatus[] = [
+      "partial",
+      "missed",
+      "due",
+      "available",
+      "upcoming",
+    ];
 
-      if (workoutIdx !== -1) {
-        return {
-          weekIdx,
-          workoutIdx,
-          workout: workoutsByWeek[weekIdx][workoutIdx],
-        };
+    for (const status of priority) {
+      for (let weekIdx = 0; weekIdx < scheduleByWeek.length; weekIdx += 1) {
+        const workoutIdx = scheduleByWeek[weekIdx].findIndex(
+          (item) => item.kind === "workout" && item.status === status,
+        );
+
+        if (workoutIdx !== -1) {
+          const workout = scheduleByWeek[weekIdx][workoutIdx];
+
+          if (workout.kind !== "workout") continue;
+
+          return {
+            weekIdx,
+            workoutIdx,
+            workout,
+          };
+        }
       }
     }
 
     return null;
-  }, [workoutsByWeek]);
+  }, [scheduleByWeek]);
 
   useEffect(() => {
     if (nextWorkout) setActiveWeekIndex(nextWorkout.weekIdx);
@@ -338,12 +509,25 @@ export default function ProgramDetailScreen() {
     });
   };
 
+  const onSkipWorkout = async (workout: Workout) => {
+    if (!program) return;
+
+    const nextSkips = await skipProgramSession({
+      programId: program.slug,
+      workoutId: workout.routeWorkoutId,
+    });
+
+    setProgramSkips(nextSkips);
+  };
+
   if (loading) {
     return (
       <SafeAreaView style={styles.safe}>
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyTitle}>Loading program...</Text>
-        </View>
+        <BarbataContentLoading
+          title="Loading program"
+          subtitle="Building your weekly plan."
+          variant="detail"
+        />
       </SafeAreaView>
     );
   }
@@ -362,14 +546,19 @@ export default function ProgramDetailScreen() {
     );
   }
 
-  const totalWorkouts = workoutsByWeek.reduce((sum, week) => sum + week.length, 0);
+  const totalWorkouts = program.workouts.length;
 
   const progressPct = Math.round(
     (completedCount / Math.max(1, totalWorkouts)) * 100,
   );
 
-  const activeWeekWorkouts = workoutsByWeek[activeWeekIndex] ?? [];
-  const weekCountForActive = activeWeekWorkouts.length;
+  const activeWeekSchedule = scheduleByWeek[activeWeekIndex] ?? [];
+  const weekWorkoutCount = activeWeekSchedule.filter(
+    (item) => item.kind === "workout",
+  ).length;
+  const weekRestCount = activeWeekSchedule.filter(
+    (item) => item.kind === "rest",
+  ).length;
 
   const programMetaParts = [
     program.level,
@@ -547,7 +736,7 @@ export default function ProgramDetailScreen() {
                   {weeks[activeWeekIndex]?.label}
                 </Text>
                 <Text style={styles.activeWeekSub}>
-                  {weekCountForActive} workouts
+                  {weekWorkoutCount} workouts · {weekRestCount} rest days
                 </Text>
               </View>
 
@@ -559,11 +748,42 @@ export default function ProgramDetailScreen() {
             </View>
 
             <View style={styles.workoutsCard}>
-              {activeWeekWorkouts.map((workout, index) => {
-                const isLast = index === activeWeekWorkouts.length - 1;
-                const isNext = workout.status === "next";
+              {activeWeekSchedule.map((item, index) => {
+                const isLast = index === activeWeekSchedule.length - 1;
+
+                if (item.kind === "rest") {
+                  return (
+                    <View key={item.id}>
+                      <View style={styles.restRow}>
+                        <View style={styles.rowInset} />
+
+                        <View style={styles.workoutContent}>
+                          <Text style={styles.restTitle}>{item.title}</Text>
+                        </View>
+                      </View>
+
+                      {!isLast ? (
+                        <View
+                          style={[
+                            styles.inlineDivider,
+                            { backgroundColor: colors.borderSubtle },
+                          ]}
+                        />
+                      ) : null}
+                    </View>
+                  );
+                }
+
+                const workout = item;
+                const isAction =
+                  workout.status === "partial" ||
+                  workout.status === "missed" ||
+                  workout.status === "due";
                 const isDone = workout.status === "done";
                 const isLocked = workout.status === "locked";
+                const isSkipped = workout.status === "skipped";
+                const canSkip =
+                  workout.status === "missed" || workout.status === "due";
 
                 return (
                   <View key={workout.id}>
@@ -572,13 +792,13 @@ export default function ProgramDetailScreen() {
                       style={[
                         styles.workoutRow,
                         {
-                          backgroundColor: isNext ? isDarkSoft : "transparent",
+                          backgroundColor: isAction ? isDarkSoft : "transparent",
                         },
                       ]}
                       scaleTo={0.99}
                       opacityTo={0.95}
                     >
-                      {isNext ? (
+                      {isAction ? (
                         <View style={styles.nextWorkoutAccent} />
                       ) : (
                         <View style={styles.rowInset} />
@@ -595,7 +815,7 @@ export default function ProgramDetailScreen() {
                         <Text
                           style={[
                             styles.workoutTitle,
-                            isLocked && { color: colors.muted },
+                            (isLocked || isSkipped) && { color: colors.muted },
                           ]}
                           numberOfLines={2}
                         >
@@ -605,7 +825,7 @@ export default function ProgramDetailScreen() {
                         <Text
                           style={[
                             styles.workoutMeta,
-                            isLocked && { color: colors.subtle },
+                            (isLocked || isSkipped) && { color: colors.subtle },
                           ]}
                           numberOfLines={1}
                         >
@@ -616,7 +836,7 @@ export default function ProgramDetailScreen() {
                       </View>
 
                       <View style={styles.workoutRight}>
-                        {isNext ? (
+                        {workout.status === "partial" ? (
                           <View
                             style={[
                               styles.statusPill,
@@ -632,7 +852,45 @@ export default function ProgramDetailScreen() {
                                 { color: colors.premiumText },
                               ]}
                             >
-                              Next
+                              Partial
+                            </Text>
+                          </View>
+                        ) : workout.status === "missed" ? (
+                          <View
+                            style={[
+                              styles.statusPill,
+                              {
+                                backgroundColor: colors.premiumSoft,
+                                borderColor: colors.premiumBorder,
+                              },
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.statusPillText,
+                                { color: colors.premiumText },
+                              ]}
+                            >
+                              Missed
+                            </Text>
+                          </View>
+                        ) : workout.status === "due" ? (
+                          <View
+                            style={[
+                              styles.statusPill,
+                              {
+                                backgroundColor: colors.premiumSoft,
+                                borderColor: colors.premiumBorder,
+                              },
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.statusPillText,
+                                { color: colors.premiumText },
+                              ]}
+                            >
+                              Today
                             </Text>
                           </View>
                         ) : isDone ? (
@@ -656,6 +914,44 @@ export default function ProgramDetailScreen() {
                               ]}
                             >
                               Done
+                            </Text>
+                          </View>
+                        ) : isSkipped ? (
+                          <View
+                            style={[
+                              styles.statusPill,
+                              {
+                                backgroundColor: isDarkSoft,
+                                borderColor: colors.borderSubtle,
+                              },
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.statusPillText,
+                                { color: colors.muted },
+                              ]}
+                            >
+                              Skipped
+                            </Text>
+                          </View>
+                        ) : workout.status === "upcoming" ? (
+                          <View
+                            style={[
+                              styles.statusPill,
+                              {
+                                backgroundColor: "transparent",
+                                borderColor: colors.borderSubtle,
+                              },
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.statusPillText,
+                                { color: colors.muted },
+                              ]}
+                            >
+                              Upcoming
                             </Text>
                           </View>
                         ) : isLocked ? (
@@ -690,6 +986,19 @@ export default function ProgramDetailScreen() {
                         )}
                       </View>
                     </PressableScale>
+
+                    {canSkip ? (
+                      <PressableScale
+                        onPress={() => onSkipWorkout(workout)}
+                        style={styles.skipRowAction}
+                        scaleTo={0.99}
+                        opacityTo={0.9}
+                      >
+                        <Text style={styles.skipRowActionText}>
+                          Skip this session
+                        </Text>
+                      </PressableScale>
+                    ) : null}
 
                     {!isLast ? (
                       <View
@@ -1025,6 +1334,15 @@ function createStyles(
       paddingRight: 14,
     },
 
+    restRow: {
+      minHeight: 54,
+      flexDirection: "row",
+      alignItems: "center",
+      paddingVertical: 8,
+      paddingRight: 14,
+      backgroundColor: "transparent",
+    },
+
     rowInset: {
       width: 4,
       height: "100%",
@@ -1077,9 +1395,37 @@ function createStyles(
       letterSpacing: -0.05,
     },
 
+    restTitle: {
+      fontSize: 14,
+      lineHeight: 18,
+      fontWeight: "800",
+      color: colors.muted,
+      letterSpacing: -0.12,
+    },
+
     workoutRight: {
       alignItems: "flex-end",
       justifyContent: "center",
+    },
+
+    skipRowAction: {
+      marginLeft: 26,
+      marginRight: 14,
+      marginBottom: 12,
+      minHeight: 36,
+      borderRadius: 999,
+      borderWidth: BorderWidth.default,
+      borderColor: colors.borderSubtle,
+      backgroundColor: soft,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+
+    skipRowActionText: {
+      fontSize: 12,
+      fontWeight: "900",
+      color: colors.muted,
+      letterSpacing: 0.08,
     },
 
     statusPill: {

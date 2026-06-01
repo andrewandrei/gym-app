@@ -2,24 +2,17 @@
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-import { SEED_CHECKINS } from "./checkinDemoData";
+import {
+  getWorkoutHistory,
+  type WorkoutHistoryEntry,
+} from "../../features/workout/workoutHistory";
 import type { CheckIn } from "./types";
 
 const CHECKINS_KEY = "aa_fit_checkins";
 const PROG_WEEK_KEY = "aa_fit_current_week";
 
-export async function fetchWorkoutHistory(): Promise<any[]> {
-  try {
-    const { loadWorkoutHistory } = require("../../workout/workoutHistory");
-    if (typeof loadWorkoutHistory === "function") {
-      const history = await loadWorkoutHistory();
-      return history ?? [];
-    }
-  } catch {
-    // noop
-  }
-
-  return [];
+export async function fetchWorkoutHistory(): Promise<WorkoutHistoryEntry[]> {
+  return getWorkoutHistory();
 }
 
 export async function fetchCheckIns(): Promise<CheckIn[]> {
@@ -35,7 +28,7 @@ export async function fetchCheckIns(): Promise<CheckIn[]> {
     // noop
   }
 
-  return SEED_CHECKINS;
+  return [];
 }
 
 export async function saveCheckIns(checkins: CheckIn[]): Promise<void> {
@@ -59,7 +52,7 @@ export async function fetchCurrentWeek(programId: string): Promise<number> {
     // noop
   }
 
-  return 6;
+  return 1;
 }
 
 export async function saveCurrentWeek(programId: string, week: number): Promise<void> {

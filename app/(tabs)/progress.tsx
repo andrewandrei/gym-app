@@ -4,11 +4,8 @@
 // This file only handles UI.
 
 import { useRouter } from "expo-router";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Animated,
-  Easing,
-  Image,
   Modal,
   PanResponder,
   Pressable,
@@ -23,7 +20,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Circle, Path } from "react-native-svg";
 
 import { buildMonthData } from "../../lib/progress/bodySelectors";
-import { PERFORMANCE_DEMO_CARDS } from "../../lib/progress/performanceDemoData";
 import { loadProgressViewState, saveProgressViewState } from "../../lib/progress/progressViewState";
 import type { CheckIn, WeekEntry, WeekSession } from "../../lib/progress/types";
 import { useProgressData } from "../../lib/progress/useProgressData";
@@ -49,10 +45,6 @@ function getSoft(isDark: boolean) {
   return isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)";
 }
 
-function getSoftStrong(isDark: boolean) {
-  return isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.07)";
-}
-
 function getNegativeColor(colors: any, isDark: boolean) {
   return isDark ? "#FF8A7A" : "#B42318";
 }
@@ -70,6 +62,17 @@ function getStatusStyle(
   colors: any,
   isDark: boolean,
 ): { bg: string; border: string; text: string; label: string } {
+  const hasLoggedWork = session.complete || session.lifts.length > 0;
+
+  if (session.skipped) {
+    return {
+      bg: isDark ? "rgba(255,255,255,0.035)" : "rgba(0,0,0,0.025)",
+      border: colors.borderSubtle,
+      text: colors.muted,
+      label: "Skipped",
+    };
+  }
+
   if (session.planned) {
     return {
       bg: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)",
@@ -85,6 +88,15 @@ function getStatusStyle(
       border: colors.successBorder,
       text: colors.successText,
       label: "Completed",
+    };
+  }
+
+  if (!hasLoggedWork) {
+    return {
+      bg: isDark ? "rgba(255,255,255,0.055)" : "rgba(0,0,0,0.035)",
+      border: colors.borderSubtle,
+      text: colors.muted,
+      label: "Not started",
     };
   }
 
@@ -151,91 +163,6 @@ function PRIcon({ color }: { color: string }) {
   );
 }
 
-function PRToast({
-  name,
-  gain,
-  onDone,
-}: {
-  name: string;
-  gain: string;
-  onDone: () => void;
-}) {
-  const { colors } = useAppTheme();
-  const ty = useRef(new Animated.Value(-80)).current;
-  const op = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(ty, {
-        toValue: 0,
-        duration: 380,
-        easing: Easing.out(Easing.back(1.3)),
-        useNativeDriver: true,
-      }),
-      Animated.timing(op, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-    ]).start();
-
-    const t = setTimeout(() => {
-      Animated.parallel([
-        Animated.timing(ty, {
-          toValue: -80,
-          duration: 280,
-          useNativeDriver: true,
-        }),
-        Animated.timing(op, {
-          toValue: 0,
-          duration: 260,
-          useNativeDriver: true,
-        }),
-      ]).start(() => onDone());
-    }, 4200);
-
-    return () => clearTimeout(t);
-  }, [op, ty, onDone]);
-
-  return (
-    <Animated.View
-      pointerEvents="none"
-      style={[
-        S.toast,
-        {
-          backgroundColor: colors.card,
-          borderColor: colors.premiumBorder,
-          transform: [{ translateY: ty }],
-          opacity: op,
-        },
-      ]}
-    >
-      <View
-        style={[
-          S.toastIcon,
-          {
-            backgroundColor: colors.premiumSoft,
-            borderColor: colors.premiumBorder,
-          },
-        ]}
-      >
-        <PRIcon color={colors.premiumText} />
-      </View>
-      <View style={{ flex: 1 }}>
-        <Text style={[S.toastTitle, { color: colors.text }]}>
-          New personal record
-        </Text>
-        <Text style={[S.toastSub, { color: colors.muted }]}>
-          {name} —{" "}
-          <Text style={{ color: colors.successText, fontWeight: FontWeight.heavy }}>
-            +{gain} kg
-          </Text>
-        </Text>
-      </View>
-    </Animated.View>
-  );
-}
-
 function PRBadge({ colors }: { colors: any }) {
   return (
     <View
@@ -264,14 +191,20 @@ function WeekDetailPanel({
   isDark: boolean;
   onSessionPress: (s: WeekSession) => void;
 }) {
-  const done = week.sessions.filter((s) => !s.planned && s.complete).length;
+  const logged = week.sessions.filter(
+    (s) => !s.planned && !s.skipped && (s.complete || s.lifts.length > 0),
+  ).length;
+  const completed = week.sessions.filter((s) => !s.planned && s.complete).length;
   const total = week.sessions.length;
   const statusLabel = week.upcoming
     ? "PLANNED"
     : week.current
       ? "IN PROGRESS"
-      : "COMPLETED";
-  const statusColor = week.upcoming ? colors.muted : colors.premiumText;
+      : total > 0 && completed >= total
+        ? "COMPLETED"
+        : "PAST WEEK";
+  const statusColor =
+    week.upcoming || statusLabel === "PAST WEEK" ? colors.muted : colors.premiumText;
 
   
 
@@ -298,7 +231,9 @@ function WeekDetailPanel({
         </View>
 
         <View style={{ alignItems: "flex-end" }}>
-          <Text style={[S.caption, { color: colors.muted }]}>Sessions</Text>
+          <Text style={[S.caption, { color: colors.muted }]}>
+            {week.upcoming ? "Sessions" : "Logged"}
+          </Text>
           <Text
             style={{
               fontSize: 20,
@@ -307,7 +242,7 @@ function WeekDetailPanel({
               letterSpacing: -0.2,
             }}
           >
-            {week.upcoming ? total : done}
+            {week.upcoming ? total : logged}
             {!week.upcoming && (
               <Text style={[S.caption, { color: colors.muted }]}>/{total}</Text>
             )}
@@ -318,18 +253,20 @@ function WeekDetailPanel({
       {week.sessions.map((s, i) => {
         const prs = s.lifts.filter((l) => l.includes("🏆"));
         const hasPR = prs.length > 0;
+        const hasLoggedWork = s.complete || s.lifts.length > 0;
         const pill = getStatusStyle(s, colors, isDark);
+        const canOpen = hasLoggedWork && !s.skipped;
 
         return (
           <Pressable
             key={i}
-            onPress={() => !s.planned && onSessionPress(s)}
+            onPress={() => canOpen && onSessionPress(s)}
             style={({ pressed }) => [
               S.finishLikeCard,
               {
                 backgroundColor: colors.card,
                 borderColor: hasPR ? colors.premiumBorder : colors.borderSubtle,
-                opacity: s.planned ? 0.64 : pressed ? 0.84 : 1,
+                opacity: s.planned || s.skipped ? 0.64 : pressed && canOpen ? 0.84 : 1,
                 marginBottom: 10,
               },
             ]}
@@ -347,7 +284,7 @@ function WeekDetailPanel({
                   <Text
                     style={[
                       S.finishLikeTitle,
-                      { color: s.planned ? colors.muted : colors.text },
+                      { color: s.planned || s.skipped ? colors.muted : colors.text },
                     ]}
                   >
                     {s.type}
@@ -357,7 +294,7 @@ function WeekDetailPanel({
 
                 <Text style={[S.finishLikeMeta, { color: colors.muted, marginTop: 4 }]}>
                   {s.date}
-                  {!s.planned ? " · tap to view" : ""}
+                  {hasLoggedWork ? " · tap to view" : ""}
                 </Text>
               </View>
 
@@ -383,14 +320,18 @@ function WeekDetailPanel({
               ]}
             />
 
-            {s.planned ? (
-              <View style={{ gap: 6 }}>
-                {s.lifts.map((l, j) => (
-                  <Text key={j} style={[S.caption, { color: colors.muted }]}>
-                    {l}
-                  </Text>
-                ))}
-              </View>
+            {s.skipped ? (
+              <Text style={[S.caption, { color: colors.muted }]}>
+                Skipped. Your plan moved on without dragging this session forward.
+              </Text>
+            ) : s.planned ? (
+              <Text style={[S.caption, { color: colors.muted }]}>
+                Scheduled for later in the plan.
+              </Text>
+            ) : !hasLoggedWork ? (
+              <Text style={[S.caption, { color: colors.muted }]}>
+                Not started yet. This session will update here after you train.
+              </Text>
             ) : hasPR ? (
               <View style={{ gap: 6 }}>
                 {prs.map((l, j) => (
@@ -421,7 +362,16 @@ function WeekDetailPanel({
                 ))}
               </View>
             ) : (
-              <Text style={[S.emptyPrText, { color: colors.muted }]}>No PRs</Text>
+              <View style={{ gap: 6 }}>
+                <Text style={[S.caption, { color: colors.muted }]}>
+                  {s.lifts.length} exercise{s.lifts.length === 1 ? "" : "s"} logged
+                </Text>
+                {s.lifts.slice(0, 3).map((l, j) => (
+                  <Text key={j} style={[S.caption, { color: colors.text }]}>
+                    {l.replace("🏆", "").trim()}
+                  </Text>
+                ))}
+              </View>
             )}
 
             <View
@@ -434,6 +384,10 @@ function WeekDetailPanel({
             <Text style={[S.caption, { color: colors.muted, fontWeight: FontWeight.bold }]}>
               {s.planned
                 ? "Upcoming session in this block"
+                : s.skipped
+                  ? "Skipped session"
+                : !hasLoggedWork
+                  ? "No sets logged yet"
                 : s.complete
                   ? "Completed session"
                   : "Partially logged session"}
@@ -451,16 +405,28 @@ function buildSelectedWeekDays(week: WeekEntry, currentWeek: number) {
   const isCurrentWeek = week.n === currentWeek;
 
   const dayLabels = ["M", "T", "W", "T", "F", "S", "S"];
+  const schedule = Array.from({ length: 7 }, () => null as WeekSession | null);
 
-  const schedule: Array<WeekSession | null> = [
-    week.sessions[0] ?? null,
-    week.sessions[1] ?? null,
-    null,
-    week.sessions[2] ?? null,
-    week.sessions[3] ?? null,
-    null,
-    null,
-  ];
+  week.sessions.forEach((session, index) => {
+    const dayIndex =
+      typeof session.dayNumber === "number"
+        ? session.dayNumber - 1
+        : week.sessions.length >= 6
+        ? index
+        : week.sessions.length === 5
+          ? [0, 1, 2, 3, 4][index]
+          : week.sessions.length === 4
+            ? [0, 1, 3, 4][index]
+            : week.sessions.length === 3
+              ? [0, 2, 4][index]
+              : week.sessions.length === 2
+                ? [0, 3][index]
+                : index;
+
+    if (dayIndex >= 0 && dayIndex <= 6 && !schedule[dayIndex]) {
+      schedule[dayIndex] = session;
+    }
+  });
 
   return dayLabels.map((d, i) => {
     const session = schedule[i];
@@ -483,10 +449,14 @@ function buildSelectedWeekDays(week: WeekEntry, currentWeek: number) {
             ? "Test"
             : session.type;
 
-    let status: "done" | "today" | "planned" | "rest" = "planned";
+    let status: "done" | "partial" | "today" | "planned" | "skipped" | "rest" = "planned";
 
     if (session.complete) {
       status = "done";
+    } else if (session.lifts.length > 0) {
+      status = "partial";
+    } else if (session.skipped) {
+      status = "skipped";
     } else if (isCurrentWeek && i === dayOfWeek && !week.upcoming) {
       status = "today";
     } else {
@@ -513,15 +483,15 @@ function buildMonthDayDetails(
 
   let title = `Day ${dayNum}`;
   let subtitle = "No session logged";
-  let status: "trained" | "today" | "rest" | "future" = "rest";
+  let status: "completed" | "partial" | "today" | "rest" | "future" = "rest";
 
   if (cell.future) {
     status = "future";
     subtitle = "Upcoming day";
   } else if (cell.trained) {
-    status = "trained";
+    status = cell.status === "completed" ? "completed" : "partial";
     title = cell.type === "U" ? "Upper session" : cell.type === "L" ? "Lower session" : "Session";
-    subtitle = "Training day logged";
+    subtitle = cell.status === "completed" ? "Completed session logged" : "Partial session logged";
   } else if (cell.isToday) {
     status = "today";
     subtitle = "Today";
@@ -533,8 +503,10 @@ function buildMonthDayDetails(
     subtitle,
     status,
     accentColor:
-      status === "trained"
-        ? colors.premiumText
+      status === "completed"
+        ? colors.successText
+        : status === "partial"
+          ? colors.premiumText
         : status === "today"
           ? colors.premiumText
           : colors.muted,
@@ -584,11 +556,7 @@ const monthData = buildMonthData(rawHistory, visibleMonth);
       const saved = await loadProgressViewState(programId);
       if (!mounted) return;
 
-      if (saved?.selectedWeek) {
-        setSelWeek(saved.selectedWeek);
-      } else {
-        setSelWeek(data.currentWeek);
-      }
+      setSelWeek(data.currentWeek);
 
       if (saved?.visibleMonthKey) {
         setVisibleMonth(dateFromMonthKey(saved.visibleMonthKey));
@@ -598,9 +566,12 @@ const monthData = buildMonthData(rawHistory, visibleMonth);
         setSelectedMonthDay(saved.selectedMonthDay ?? null);
       } else {
         const now = new Date();
+        const savedMonth = saved?.visibleMonthKey
+          ? dateFromMonthKey(saved.visibleMonthKey)
+          : new Date();
         const sameMonth =
-          now.getFullYear() === visibleMonth.getFullYear() &&
-          now.getMonth() === visibleMonth.getMonth();
+          now.getFullYear() === savedMonth.getFullYear() &&
+          now.getMonth() === savedMonth.getMonth();
 
         setSelectedMonthDay(sameMonth ? now.getDate() : 1);
       }
@@ -629,7 +600,7 @@ const monthData = buildMonthData(rawHistory, visibleMonth);
 
   const selectedWeekDays = buildSelectedWeekDays(selectedWeek, currentWeek);
   const selectedWeekDone = selectedWeek.sessions.filter(
-    (s) => !s.planned && s.complete,
+    (s) => !s.planned && !s.skipped && (s.complete || s.lifts.length > 0),
   ).length;
   const selectedWeekTotal = selectedWeek.sessions.length;
   const selectedIsCurrent = selectedWeek.n === currentWeek;
@@ -652,7 +623,7 @@ const monthData = buildMonthData(rawHistory, visibleMonth);
     return () => clearTimeout(t);
   }, [selWeek]);
 
-  const goToWeek = async (nextWeek: number) => {
+  const goToWeek = useCallback(async (nextWeek: number) => {
     const clamped = Math.max(1, Math.min(totalWeeks, nextWeek));
     setSelWeek(clamped);
 
@@ -662,9 +633,9 @@ const monthData = buildMonthData(rawHistory, visibleMonth);
       visibleMonthKey: monthKeyFromDate(visibleMonth),
       selectedMonthDay,
     });
-  };
+  }, [programId, selectedMonthDay, totalWeeks, visibleMonth]);
 
-  const goToMonth = async (direction: -1 | 1) => {
+  const goToMonth = useCallback(async (direction: -1 | 1) => {
     const next = new Date(
       visibleMonth.getFullYear(),
       visibleMonth.getMonth() + direction,
@@ -688,7 +659,7 @@ const monthData = buildMonthData(rawHistory, visibleMonth);
       visibleMonthKey: monthKeyFromDate(next),
       selectedMonthDay: nextSelectedDay,
     });
-  };
+  }, [programId, selWeek, visibleMonth]);
 
   const weekSwipeResponder = useMemo(
     () =>
@@ -703,7 +674,7 @@ const monthData = buildMonthData(rawHistory, visibleMonth);
           }
         },
       }),
-    [selWeek, totalWeeks, visibleMonth, selectedMonthDay],
+    [goToWeek, selWeek],
   );
 
   const monthSwipeResponder = useMemo(
@@ -719,16 +690,59 @@ const monthData = buildMonthData(rawHistory, visibleMonth);
           }
         },
       }),
-    [visibleMonth, selWeek, selectedMonthDay],
+    [goToMonth],
   );
 
   async function handleSessionPress(s: WeekSession) {
-    if (s.planned) return;
+    if (s.planned || s.skipped) return;
 
     router.push({
       pathname: "/workout-history",
       params: { workoutTitle: s.type },
     });
+  }
+
+  const hasProgramSessions = weekHistory.some((week) => week.sessions.length > 0);
+
+  if (!hasProgramSessions) {
+    return (
+      <View
+        style={[
+          S.finishLikeCard,
+          {
+            backgroundColor: colors.card,
+            borderColor: colors.borderSubtle,
+            padding: 22,
+          },
+        ]}
+      >
+        <Text style={[S.eyebrow, { color: colors.muted, marginBottom: 8 }]}>
+          PROGRAM PROGRESS
+        </Text>
+        <Text style={[S.title3, { color: colors.text }]}>
+          Nothing to track yet
+        </Text>
+        <Text style={[S.body, { color: colors.muted, marginTop: 8 }]}>
+          Start a program workout and this page will show your current week,
+          completed sessions, and consistency.
+        </Text>
+        <Pressable
+          onPress={() => router.push("/programs")}
+          style={[
+            S.checkinBtn,
+            {
+              backgroundColor: colors.premiumSoft,
+              borderColor: colors.premiumBorder,
+              marginTop: 16,
+            },
+          ]}
+        >
+          <Text style={[S.subhead, { color: colors.premiumText }]}>
+            Browse programs
+          </Text>
+        </Pressable>
+      </View>
+    );
   }
 
   return (
@@ -894,7 +908,7 @@ const monthData = buildMonthData(rawHistory, visibleMonth);
                   Week {selectedWeek.n} · {selectedWeek.label} phase
                 </Text>
                 <Text style={[S.title3, { color: colors.text, marginTop: 4 }]}>
-                  {selectedWeekDone}/{selectedWeekTotal} sessions
+                  {selectedWeekDone}/{selectedWeekTotal} logged
                 </Text>
                 <Text style={[S.caption, { color: colors.muted, marginTop: 4 }]}>
                   Swipe left or right to browse weeks
@@ -902,15 +916,17 @@ const monthData = buildMonthData(rawHistory, visibleMonth);
               </View>
 
               <View
-                style={[
-                  S.prMiniBadge,
-                  {
-                    backgroundColor: colors.premiumSoft,
-                    borderColor: colors.premiumBorder,
-                  },
-                ]}
+                style={{ alignItems: "flex-end" }}
               >
-                <Text style={[S.prMiniBadgeText, { color: colors.premiumText }]}>
+                <Text
+                  style={[
+                    S.eyebrow,
+                    {
+                      color: colors.muted,
+                      letterSpacing: 1,
+                    },
+                  ]}
+                >
                   {selectedIsCurrent ? "Current" : `W${selectedWeek.n}`}
                 </Text>
               </View>
@@ -920,7 +936,10 @@ const monthData = buildMonthData(rawHistory, visibleMonth);
               {selectedWeekDays.map((s, i) => {
                 const isRest = s.status === "rest";
                 const isDone = s.status === "done";
+                const isPartial = s.status === "partial";
                 const isToday = s.status === "today";
+                const isPlanned = s.status === "planned";
+                const isSkipped = s.status === "skipped";
 
                 return (
                   <View key={i} style={S.dayCol}>
@@ -928,8 +947,14 @@ const monthData = buildMonthData(rawHistory, visibleMonth);
                       style={[
                         S.dayLetter,
                         {
-                          color: isToday ? colors.premiumText : colors.muted,
-                          fontWeight: isToday ? FontWeight.black : FontWeight.bold,
+                          color:
+                            isDone || isPartial || isToday
+                              ? colors.premiumText
+                              : colors.muted,
+                          fontWeight:
+                            isDone || isPartial || isToday
+                              ? FontWeight.black
+                              : FontWeight.bold,
                         },
                       ]}
                     >
@@ -943,14 +968,17 @@ const monthData = buildMonthData(rawHistory, visibleMonth);
                           backgroundColor: isRest
                             ? "transparent"
                             : isDone
-                              ? colors.success
-                              : isToday
+                              ? colors.successText
+                              : isPartial || isToday || isSkipped
                                 ? colors.premiumSoft
                                 : soft,
-                          borderWidth: isRest || isDone ? 0 : 0.5,
-                          borderColor: isToday
-                            ? colors.premiumBorder
-                            : colors.borderSubtle,
+                          borderWidth: isRest || isDone ? 0 : 1,
+                          borderColor: isSkipped
+                            ? colors.borderSubtle
+                            : isPartial || isToday
+                              ? colors.premiumBorder
+                              : colors.borderSubtle,
+                          opacity: isPlanned || isSkipped ? 0.48 : 1,
                         },
                       ]}
                     >
@@ -958,13 +986,23 @@ const monthData = buildMonthData(rawHistory, visibleMonth);
                         <Svg width={11} height={11} viewBox="0 0 12 12">
                           <Path
                             d="M2 6L5 9L10 3"
-                            stroke={isDark ? "#111111" : "#FFFFFF"}
+                            stroke="#FFFFFF"
                             strokeWidth={2.2}
                             strokeLinecap="round"
                             strokeLinejoin="round"
                             fill="none"
                           />
                         </Svg>
+                      )}
+                      {isPartial && (
+                        <View
+                          style={{
+                            width: 10,
+                            height: 3,
+                            borderRadius: 99,
+                            backgroundColor: colors.premiumText,
+                          }}
+                        />
                       )}
                       {isToday && (
                         <View
@@ -976,13 +1014,24 @@ const monthData = buildMonthData(rawHistory, visibleMonth);
                           }}
                         />
                       )}
+                      {isSkipped && (
+                        <View
+                          style={{
+                            width: 9,
+                            height: 2,
+                            borderRadius: 99,
+                            backgroundColor: colors.muted,
+                          }}
+                        />
+                      )}
                       {s.status === "planned" && !isToday && (
                         <View
                           style={{
-                            width: 4,
-                            height: 4,
-                            borderRadius: 2,
+                            width: 5,
+                            height: 5,
+                            borderRadius: 2.5,
                             backgroundColor: colors.muted,
+                            opacity: 0.55,
                           }}
                         />
                       )}
@@ -995,10 +1044,18 @@ const monthData = buildMonthData(rawHistory, visibleMonth);
                           color: isRest
                             ? colors.muted
                             : isDone
-                              ? colors.muted
+                              ? colors.successText
+                              : isPartial
+                                ? colors.premiumText
+                              : isSkipped
+                                ? colors.muted
                               : isToday
                                 ? colors.premiumText
                                 : colors.muted,
+                          fontWeight:
+                            isDone || isPartial || isToday || isSkipped
+                              ? FontWeight.bold
+                              : FontWeight.medium,
                         },
                       ]}
                     >
@@ -1159,6 +1216,8 @@ const monthData = buildMonthData(rawHistory, visibleMonth);
 
                     const cell = monthData.days.find((c) => c.dayNum === d);
                     const tr = cell?.trained ?? false;
+                    const completed = cell?.status === "completed";
+                    const partial = cell?.status === "partial";
                     const isT = cell?.isToday ?? false;
                     const fut = cell?.future ?? false;
                     const isSelected = selectedMonthDay === d;
@@ -1178,42 +1237,59 @@ const monthData = buildMonthData(rawHistory, visibleMonth);
                         style={[
                           S.calCircle,
                           {
-                            backgroundColor: tr
-                              ? colors.premium
+                            backgroundColor: completed
+                              ? colors.successText
+                              : partial
+                                ? colors.premiumSoft
                               : isT
                                 ? colors.premiumSoft
                                 : soft,
-                            borderWidth: isSelected ? 1.6 : isT && !tr ? 0.5 : 0,
+                            borderWidth:
+                              isSelected || partial || (isT && !tr) ? 1.6 : 0,
                             borderColor: isSelected
-                              ? colors.premium
-                              : colors.premiumBorder,
+                              ? completed
+                                ? colors.successText
+                                : colors.premium
+                              : partial || isT
+                                ? colors.premiumBorder
+                                : colors.borderSubtle,
                             opacity: fut ? 0.3 : 1,
                           },
                         ]}
                       >
-                        <Text
-                          style={[
-                            S.calNum,
-                            {
-                              color: tr ? "#111111" : isT ? colors.premiumText : colors.muted,
-                              fontWeight:
-                                tr || isT || isSelected ? FontWeight.bold : FontWeight.medium,
-                              fontSize: 9,
-                            },
-                          ]}
-                        >
-                          {d}
-                        </Text>
-
-                        {tr && cell?.type && (
-                          <Text
+                        {completed ? (
+                          <Svg width={11} height={11} viewBox="0 0 12 12">
+                            <Path
+                              d="M2 6L5 9L10 3"
+                              stroke="#FFFFFF"
+                              strokeWidth={2.2}
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              fill="none"
+                            />
+                          </Svg>
+                        ) : partial ? (
+                          <View
                             style={{
-                              fontSize: 5,
-                              color: "#111111",
-                              fontWeight: FontWeight.black,
+                              width: 9,
+                              height: 3,
+                              borderRadius: 99,
+                              backgroundColor: colors.premiumText,
                             }}
+                          />
+                        ) : (
+                          <Text
+                            style={[
+                              S.calNum,
+                              {
+                                color: isT ? colors.premiumText : colors.muted,
+                                fontWeight:
+                                  isT || isSelected ? FontWeight.bold : FontWeight.medium,
+                                fontSize: 9,
+                              },
+                            ]}
                           >
-                            {cell.type}
+                            {d}
                           </Text>
                         )}
                       </Pressable>
@@ -1225,7 +1301,8 @@ const monthData = buildMonthData(rawHistory, visibleMonth);
 
             <View style={{ flexDirection: "row", gap: 16, marginTop: 12 }}>
               {[
-                { color: colors.premium, label: "Trained" },
+                { color: colors.successText, label: "Completed" },
+                { color: colors.premiumSoft, border: colors.premiumBorder, label: "Partial" },
                 { color: colors.premiumSoft, border: colors.premiumBorder, label: "Today" },
                 { color: soft, label: "Rest" },
               ].map((l, i) => (
@@ -1283,8 +1360,10 @@ const monthData = buildMonthData(rawHistory, visibleMonth);
                   ]}
                 >
                   <Text style={[S.prMiniBadgeText, { color: selectedMonthDayDetails.accentColor }]}>
-                    {selectedMonthDayDetails.status === "trained"
-                      ? "Logged"
+                    {selectedMonthDayDetails.status === "completed"
+                      ? "Completed"
+                      : selectedMonthDayDetails.status === "partial"
+                        ? "Partial"
                       : selectedMonthDayDetails.status === "today"
                         ? "Today"
                         : selectedMonthDayDetails.status === "future"
@@ -1316,15 +1395,19 @@ const monthData = buildMonthData(rawHistory, visibleMonth);
 function PerformanceTab({
   exerciseCards,
   colors,
-  isDark,
 }: {
   exerciseCards: any[];
   colors: any;
-  isDark: boolean;
 }) {
   const [openId, setOpenId] = useState<string | null>(null);
   const prCount = exerciseCards.filter((e) => (e.trend?.prCount ?? 0) > 0).length;
-  const negativeColor = getNegativeColor(colors, isDark);
+  const trendCopy = (result?: string, prs = 0) => {
+    if (prs > 0) return `${prs} PR${prs === 1 ? "" : "s"} hit`;
+    if (result === "better") return "Progress moving up";
+    if (result === "same") return "Matched your level";
+    if (result === "mixed") return "Mixed session";
+    return "Keep logging";
+  };
 
   return (
     <View>
@@ -1371,13 +1454,24 @@ function PerformanceTab({
           const open = openId === ex.exerciseId;
           const hasPR = (ex.trend?.prCount ?? 0) > 0;
           const gain = ex.recentDelta?.weight ?? 0;
-          const gainPct =
-            ex.bestWeight && gain
-              ? Math.round((gain / (ex.bestWeight - gain)) * 100)
-              : 0;
-          const chart = ex.bestWeight
-            ? [ex.bestWeight - gain * 2, ex.bestWeight - gain, ex.bestWeight]
-            : [];
+          const positiveGain = gain > 0 ? gain : 0;
+          const chart =
+            ex.bestWeight && positiveGain > 0
+              ? [
+                  Math.max(0, ex.bestWeight - positiveGain * 2),
+                  Math.max(0, ex.bestWeight - positiveGain),
+                  ex.bestWeight,
+                ]
+              : [];
+          const comparisonLabel = trendCopy(ex.trend?.result, ex.trend?.prCount ?? 0);
+          const bestLabel =
+            ex.bestWeight && ex.bestWeight > 0
+              ? `Best ${ex.bestWeight} kg`
+              : ex.latestSession
+                ? ex.latestSession.completedSets > 0
+                  ? `${ex.latestSession.completedSets}/${ex.latestSession.totalSetsPlanned} sets last time`
+                  : "No completed sets yet"
+                : "More sessions needed";
 
           return (
             <Pressable
@@ -1407,17 +1501,16 @@ function PerformanceTab({
                 </View>
 
                 <View style={{ alignItems: "flex-end", gap: 6 }}>
-                  {gain !== 0 ? (
+                  {positiveGain > 0 ? (
                     <Text
                       style={{
                         fontSize: 16,
                         fontWeight: FontWeight.heavy,
-                        color: gain > 0 ? colors.successText : negativeColor,
+                        color: colors.successText,
                         letterSpacing: -0.1,
                       }}
                     >
-                      {gain > 0 ? "+" : ""}
-                      {gain.toFixed(1)} kg
+                      +{positiveGain.toFixed(1)} kg
                     </Text>
                   ) : null}
                   <Text style={[S.caption, { color: colors.muted }]}>
@@ -1443,11 +1536,13 @@ function PerformanceTab({
                     strokeWidth={1.6}
                   />
                   <Text style={[S.caption, { color: colors.muted }]}>
-                    {gainPct !== 0
-                      ? `${gainPct > 0 ? "+" : ""}${gainPct}% vs prior range`
-                      : "No recent change"}
+                    {comparisonLabel}
                   </Text>
                 </View>
+              ) : !open ? (
+                <Text style={[S.caption, { color: colors.muted }]}>
+                  {bestLabel} · {comparisonLabel}
+                </Text>
               ) : null}
 
               {open && (
@@ -1510,9 +1605,12 @@ function PerformanceTab({
                         : null,
                       gain !== 0
                         ? {
-                            label: "Gain",
-                            value: `${gain > 0 ? "+" : ""}${gain.toFixed(1)} kg`,
-                            color: gain > 0 ? colors.successText : negativeColor,
+                            label: gain > 0 ? "Recent gain" : "Recent change",
+                            value:
+                              gain > 0
+                                ? `+${gain.toFixed(1)} kg`
+                                : "Needs cleaner data",
+                            color: gain > 0 ? colors.successText : colors.muted,
                           }
                         : null,
                       ex.latestSession
@@ -1553,27 +1651,6 @@ function PerformanceTab({
     </View>
   );
 }
-const DEMO_PROGRESS_PHOTOS = {
-  Front: {
-    before:
-      "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=900&q=80",
-    now:
-      "https://images.unsplash.com/photo-1546483875-ad9014c88eba?auto=format&fit=crop&w=900&q=80",
-  },
-  Side: {
-    before:
-      "https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=900&q=80",
-    now:
-      "https://images.unsplash.com/photo-1517838277536-f5f99be501cd?auto=format&fit=crop&w=900&q=80",
-  },
-  Back: {
-    before:
-      "https://images.unsplash.com/photo-1517838277536-f5f99be501cd?auto=format&fit=crop&w=900&q=80",
-    now:
-      "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=900&q=80",
-  },
-} as const;
-
 function BodyTab({
   checkins,
   onNewCheckin,
@@ -1586,15 +1663,51 @@ function BodyTab({
   isDark: boolean;
 }) {
   const [compareIdx, setCompareIdx] = useState<number | null>(null);
-  const [angleIdx, setAngleIdx] = useState(0);
-  const ANGLES = ["Front", "Side", "Back"];
-  const soft = getSoft(isDark);
   const negativeColor = getNegativeColor(colors, isDark);
   const negativeSoft = getNegativeSoft(isDark);
   const negativeBorder = getNegativeBorder(isDark);
 
+  if (checkins.length === 0) {
+    return (
+      <View
+        style={[
+          S.finishLikeCard,
+          {
+            backgroundColor: colors.card,
+            borderColor: colors.borderSubtle,
+            padding: 22,
+          },
+        ]}
+      >
+        <Text style={[S.eyebrow, { color: colors.muted, marginBottom: 8 }]}>
+          BODY CHECK-INS
+        </Text>
+        <Text style={[S.title3, { color: colors.text }]}>
+          No body data yet
+        </Text>
+        <Text style={[S.body, { color: colors.muted, marginTop: 8 }]}>
+          Add your first check-in when you want to track weight and measurements.
+        </Text>
+        <Pressable
+          onPress={onNewCheckin}
+          style={[
+            S.checkinBtn,
+            {
+              backgroundColor: colors.premiumSoft,
+              borderColor: colors.premiumBorder,
+              marginTop: 16,
+            },
+          ]}
+        >
+          <Text style={[S.subhead, { color: colors.premiumText }]}>
+            Add first check-in
+          </Text>
+        </Pressable>
+      </View>
+    );
+  }
+
   const latest = checkins[checkins.length - 1];
-  const currentAngle = ANGLES[angleIdx] as keyof typeof DEMO_PROGRESS_PHOTOS;
   const first = checkins[0];
   const wDelta = +(latest.weight - first.weight).toFixed(1);
   const wDown = wDelta < 0;
@@ -1751,131 +1864,9 @@ function BodyTab({
           },
         ]}
       >
-        <View style={[S.row, { marginBottom: 14 }]}>
-          <Text style={[S.subhead, { color: colors.text }]}>Progress Photos</Text>
-          <Text style={[S.caption, { color: colors.muted }]}>
-            {checkins.length} check-ins
-          </Text>
-        </View>
-
-        <View style={{ flexDirection: "row", gap: 6, marginBottom: 16 }}>
-          {ANGLES.map((a, i) => (
-            <Pressable
-              key={i}
-              onPress={() => setAngleIdx(i)}
-              style={[
-                S.angleTab,
-                {
-                  backgroundColor: angleIdx === i ? soft : "transparent",
-                  borderWidth: angleIdx === i ? BorderWidth.default : 0,
-                  borderColor: colors.borderSubtle,
-                },
-              ]}
-            >
-              <Text
-                style={[
-                  S.caption,
-                  {
-                    color: angleIdx === i ? colors.text : colors.muted,
-                    fontWeight: angleIdx === i ? FontWeight.heavy : FontWeight.bold,
-                  },
-                ]}
-              >
-                {a}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-
-<View style={{ flexDirection: "row", gap: 10, marginBottom: 12 }}>
-  {([
-    {
-      label: "BEFORE",
-      accent: false,
-      uri: DEMO_PROGRESS_PHOTOS[currentAngle].before,
-      dateText: compareIdx !== null ? checkins[compareIdx]?.date ?? "" : "Demo",
-    },
-    {
-      label: "NOW",
-      accent: true,
-      uri: DEMO_PROGRESS_PHOTOS[currentAngle].now,
-      dateText: latest.date,
-    },
-  ] as const).map((slot, j) => (
-    <View key={j} style={{ flex: 1 }}>
-      <Text
-        style={[
-          S.eyebrow,
-          {
-            textAlign: "center",
-            color: slot.accent ? colors.premiumText : colors.muted,
-            marginBottom: 8,
-          },
-        ]}
-      >
-        {slot.label}
-      </Text>
-
-      <View
-        style={[
-          S.photoSlot,
-          {
-            backgroundColor: soft,
-            borderColor:
-              j === 0
-                ? compareIdx !== null
-                  ? colors.borderSubtle
-                  : colors.premiumBorder
-                : colors.premiumBorder,
-          },
-        ]}
-      >
-        <Image
-          source={{ uri: slot.uri }}
-          style={StyleSheet.absoluteFillObject}
-          resizeMode="cover"
-        />
-
-        <View
-          style={[
-            StyleSheet.absoluteFillObject,
-            {
-              backgroundColor: "rgba(0,0,0,0.16)",
-            },
-          ]}
-        />
-
-        <View
-          style={{
-            position: "absolute",
-            left: 8,
-            right: 8,
-            bottom: 8,
-            paddingVertical: 6,
-            paddingHorizontal: 8,
-            borderRadius: 10,
-            backgroundColor: "rgba(0,0,0,0.36)",
-          }}
-        >
-          <Text
-            style={{
-              fontSize: 10,
-              color: "#FFFFFF",
-              fontWeight: FontWeight.heavy,
-              textAlign: "center",
-            }}
-          >
-            {slot.dateText}
-          </Text>
-        </View>
-      </View>
-    </View>
-  ))}
-</View>
-
         <View style={[S.row, { marginBottom: 8 }]}>
           <Text style={[S.subhead, { fontSize: 13, color: colors.text }]}>
-            Compare with
+            Compare check-ins
           </Text>
           {compareIdx !== null && (
             <Text style={[S.caption, { color: colors.muted }]}>
@@ -1884,43 +1875,49 @@ function BodyTab({
           )}
         </View>
 
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ gap: 8, paddingBottom: 4 }}
-        >
-          {checkins.slice(0, -1).map((c, i) => {
-            const sel = compareIdx === i;
+        {checkins.length > 1 ? (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ gap: 8, paddingBottom: 4 }}
+          >
+            {checkins.slice(0, -1).map((c, i) => {
+              const sel = compareIdx === i;
 
-            return (
-              <Pressable
-                key={i}
-                onPress={() => setCompareIdx(sel ? null : i)}
-                style={[
-                  S.prMiniBadge,
-                  {
-                    backgroundColor: sel
-                      ? colors.premiumSoft
-                      : isDark
-                        ? "rgba(255,255,255,0.05)"
-                        : "rgba(0,0,0,0.04)",
-                    borderColor: sel ? colors.premiumBorder : colors.borderSubtle,
-                  },
-                ]}
-              >
-                <Text
-                  style={{
-                    fontSize: 12,
-                    fontWeight: sel ? FontWeight.heavy : FontWeight.bold,
-                    color: sel ? colors.premiumText : colors.muted,
-                  }}
+              return (
+                <Pressable
+                  key={i}
+                  onPress={() => setCompareIdx(sel ? null : i)}
+                  style={[
+                    S.prMiniBadge,
+                    {
+                      backgroundColor: sel
+                        ? colors.premiumSoft
+                        : isDark
+                          ? "rgba(255,255,255,0.05)"
+                          : "rgba(0,0,0,0.04)",
+                      borderColor: sel ? colors.premiumBorder : colors.borderSubtle,
+                    },
+                  ]}
                 >
-                  {c.date}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      fontWeight: sel ? FontWeight.heavy : FontWeight.bold,
+                      color: sel ? colors.premiumText : colors.muted,
+                    }}
+                  >
+                    {c.date}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        ) : (
+          <Text style={[S.caption, { color: colors.muted }]}>
+            Add another check-in to compare changes over time.
+          </Text>
+        )}
 
         {compareIdx !== null &&
           (() => {
@@ -1975,14 +1972,13 @@ function BodyTab({
           style={[
             S.caption,
             {
-              textAlign: "center",
               marginTop: 10,
-              fontSize: 10,
               color: colors.muted,
             },
           ]}
         >
-          Swipe photos left/right to change angle
+          Progress photos are not connected yet, so this section only shows
+          measurements you entered.
         </Text>
 
         <Pressable
@@ -2016,7 +2012,7 @@ function CheckInSheet({
   visible: boolean;
   onClose: () => void;
   onSubmit: (c: Omit<CheckIn, "id">) => void;
-  last: CheckIn;
+  last?: CheckIn;
   colors: any;
   isDark: boolean;
 }) {
@@ -2029,16 +2025,21 @@ function CheckInSheet({
   const now = new Date();
   const isoDate = now.toISOString().split("T")[0];
   const dateLabel = now.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const lastWeight = last?.weight;
+  const lastMeas = last?.meas;
+  const weightValue = parseFloat(weight);
+  const hasWeightInput = Number.isFinite(weightValue);
+  const canContinueWeight = lastWeight != null || hasWeightInput;
 
   function submit() {
     onSubmit({
       date: dateLabel,
       isoDate,
-      weight: parseFloat(weight) || last.weight,
+      weight: hasWeightInput ? weightValue : lastWeight ?? 0,
       meas: {
-        waist: parseFloat(meas.waist) || last.meas.waist,
-        chest: parseFloat(meas.chest) || last.meas.chest,
-        arm: parseFloat(meas.arm) || last.meas.arm,
+        waist: parseFloat(meas.waist) || lastMeas?.waist || 0,
+        chest: parseFloat(meas.chest) || lastMeas?.chest || 0,
+        arm: parseFloat(meas.arm) || lastMeas?.arm || 0,
       },
     });
     setStep(3);
@@ -2119,10 +2120,16 @@ function CheckInSheet({
         {step === 0 && (
           <View style={S.sheetBody}>
             <Text style={[S.caption, { color: colors.muted, marginBottom: 18 }]}>
-              Last:{" "}
-              <Text style={{ color: colors.text, fontWeight: FontWeight.heavy }}>
-                {last.weight} kg
-              </Text>
+              {lastWeight != null ? (
+                <>
+                  Last:{" "}
+                  <Text style={{ color: colors.text, fontWeight: FontWeight.heavy }}>
+                    {lastWeight} kg
+                  </Text>
+                </>
+              ) : (
+                "Start with your first body-weight entry."
+              )}
             </Text>
             <View
               style={{
@@ -2136,7 +2143,7 @@ function CheckInSheet({
               <TextInput
                 value={weight}
                 onChangeText={setWeight}
-                placeholder={String(last.weight)}
+                placeholder={lastWeight != null ? String(lastWeight) : "Weight"}
                 placeholderTextColor={colors.muted}
                 keyboardType="numeric"
                 style={[
@@ -2150,7 +2157,17 @@ function CheckInSheet({
               />
               <Text style={[S.body, { color: colors.muted }]}>kg</Text>
             </View>
-            <Pressable onPress={() => setStep(1)} style={[S.primaryBtn, { backgroundColor: colors.text }]}>
+            <Pressable
+              disabled={!canContinueWeight}
+              onPress={() => setStep(1)}
+              style={[
+                S.primaryBtn,
+                {
+                  backgroundColor: colors.text,
+                  opacity: canContinueWeight ? 1 : 0.42,
+                },
+              ]}
+            >
               <Text style={[S.btnText, { color: colors.surface }]}>Continue</Text>
             </Pressable>
           </View>
@@ -2164,8 +2181,8 @@ function CheckInSheet({
             <View style={{ gap: 10, marginBottom: 22 }}>
               {MEAS_FIELDS.map((f) => {
                 const cur = parseFloat(meas[f.key]);
-                const lastV = last.meas[f.key];
-                const delta = cur ? +(cur - lastV).toFixed(1) : null;
+                const lastV = lastMeas?.[f.key];
+                const delta = cur && lastV ? +(cur - lastV).toFixed(1) : null;
                 const good = delta
                   ? f.good === "down"
                     ? delta < 0
@@ -2188,7 +2205,7 @@ function CheckInSheet({
                         {f.label}
                       </Text>
                       <Text style={[S.caption, { color: colors.muted }]}>
-                        Last: {lastV} cm
+                        {lastV ? `Last: ${lastV} cm` : "First entry"}
                       </Text>
                     </View>
 
@@ -2222,7 +2239,7 @@ function CheckInSheet({
                           onChangeText={(t) =>
                             setMeas((m) => ({ ...m, [f.key]: t }))
                           }
-                          placeholder={String(lastV)}
+                          placeholder={lastV ? String(lastV) : "0"}
                           placeholderTextColor={colors.muted}
                           keyboardType="numeric"
                           style={[S.measInput, { color: colors.text }]}
@@ -2349,22 +2366,23 @@ function ShareModal({
   const negativeColor = getNegativeColor(colors, isDark);
 
   const { checkins, weekHistory, programTitle, programSubtitle } = data;
+  const hasCheckins = checkins.length > 0;
   const first = checkins[0];
   const latest = checkins[checkins.length - 1];
-  const wDelta = +(latest.weight - first.weight).toFixed(1);
+  const wDelta = hasCheckins ? +(latest.weight - first.weight).toFixed(1) : 0;
   const wDown = wDelta < 0;
 
   const allSessions = weekHistory.flatMap((w) => w.sessions.filter((s) => !s.planned));
-  const doneS = allSessions.filter((s) => s.complete).length;
+  const loggedS = allSessions.filter((s) => s.complete || s.lifts.length > 0).length;
   const totalS = allSessions.length;
-  const pct = Math.round((doneS / totalS) * 100);
-  const topPRs = weekHistory
+  const pct = totalS > 0 ? Math.round((loggedS / totalS) * 100) : 0;
+  const allPRs = weekHistory
     .flatMap((w) =>
       w.sessions.flatMap((s) =>
         s.lifts.filter((l) => l.includes("🏆")).map((l) => l.replace("🏆", "").trim()),
       ),
-    )
-    .slice(0, 3);
+    );
+  const topPRs = allPRs.slice(0, 3);
 
   return (
     <Modal
@@ -2453,7 +2471,7 @@ function ShareModal({
                     PROGRESS REPORT
                   </Text>
                   <Text style={[S.eyebrow, { color: colors.premiumText }]}>
-                    GYM APP
+                    BARBATA
                   </Text>
                 </View>
 
@@ -2475,22 +2493,24 @@ function ShareModal({
 
                 <View style={{ flexDirection: "row", gap: 8, marginBottom: topPRs.length ? 16 : 0 }}>
                   {[
-                    {
-                      label: "Body weight",
-                      value: `${wDelta > 0 ? "+" : ""}${wDelta} kg`,
-                      color: wDown ? colors.successText : negativeColor,
-                    },
+                    hasCheckins
+                      ? {
+                          label: "Body weight",
+                          value: `${wDelta > 0 ? "+" : ""}${wDelta} kg`,
+                          color: wDown ? colors.successText : negativeColor,
+                        }
+                      : null,
                     {
                       label: "Sessions",
-                      value: `${doneS}/${totalS}`,
+                      value: `${loggedS}/${totalS}`,
                       color: colors.premiumText,
                     },
                     {
                       label: "PRs hit",
-                      value: `${topPRs.length}+`,
+                      value: String(allPRs.length),
                       color: colors.premiumText,
                     },
-                  ].map((s, i) => (
+                  ].filter(Boolean).map((s, i) => (
                     <View
                       key={i}
                       style={[
@@ -2590,24 +2610,28 @@ function ShareModal({
                   SUMMARY FOR COACH
                 </Text>
                 {[
-                  {
-                    key: "Body weight",
-                    val: `${latest.weight} kg`,
-                    delta: `${wDelta > 0 ? "+" : ""}${wDelta}`,
-                    good: wDown,
-                  },
-                  ...MEAS_FIELDS.map((f) => {
-                    const d = +(latest.meas[f.key] - first.meas[f.key]).toFixed(1);
-                    return {
-                      key: f.label,
-                      val: `${latest.meas[f.key]} cm`,
-                      delta: `${d > 0 ? "+" : ""}${d}`,
-                      good: f.good === "down" ? d < 0 : d > 0,
-                    };
-                  }),
+                  ...(hasCheckins
+                    ? [
+                        {
+                          key: "Body weight",
+                          val: `${latest.weight} kg`,
+                          delta: `${wDelta > 0 ? "+" : ""}${wDelta}`,
+                          good: wDown,
+                        },
+                        ...MEAS_FIELDS.map((f) => {
+                          const d = +(latest.meas[f.key] - first.meas[f.key]).toFixed(1);
+                          return {
+                            key: f.label,
+                            val: `${latest.meas[f.key]} cm`,
+                            delta: `${d > 0 ? "+" : ""}${d}`,
+                            good: f.good === "down" ? d < 0 : d > 0,
+                          };
+                        }),
+                      ]
+                    : []),
                   {
                     key: "Attendance",
-                    val: `${doneS}/${totalS}`,
+                    val: `${loggedS}/${totalS}`,
                     delta: `${pct}%`,
                     good: pct >= 80,
                   },
@@ -2708,17 +2732,12 @@ export default function ProgressScreen() {
   const [showShare, setShowShare] = useState(false);
 
 
-  const programId = "strength-foundations";
-  const data = useProgressData(programId);
-  const { checkins, addCheckin, loading, refresh, programTitle, programSubtitle } = data;
-
-  const performanceCards =
-  data.exerciseCards && data.exerciseCards.length >= 3
-    ? data.exerciseCards
-    : PERFORMANCE_DEMO_CARDS;
+  const data = useProgressData();
+  const programId = data.programId;
+  const { checkins, addCheckin, loading, error, refresh, programTitle, programSubtitle } = data;
 
 
-  const TABS: Array<{ key: TabKey; label: string }> = [
+  const TABS: { key: TabKey; label: string }[] = [
     { key: "program", label: "Program" },
     { key: "performance", label: "Performance" },
     { key: "body", label: "Body" },
@@ -2819,6 +2838,24 @@ export default function ProgressScreen() {
           />
         }
       >
+        {error ? (
+          <View
+            style={[
+              S.finishLikeCard,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.warningBorder,
+                marginBottom: 14,
+              },
+            ]}
+          >
+            <Text style={[S.subhead, { color: colors.text }]}>Progress did not refresh</Text>
+            <Text style={[S.caption, { color: colors.muted, marginTop: 4 }]}>
+              {error}
+            </Text>
+          </View>
+        ) : null}
+
         {tab === "program" && (
           <ProgramTab
             router={router}
@@ -2829,7 +2866,7 @@ export default function ProgressScreen() {
           />
         )}
         {tab === "performance" && (
-         <PerformanceTab exerciseCards={performanceCards} colors={colors} isDark={isDark} />
+         <PerformanceTab exerciseCards={data.exerciseCards} colors={colors} />
         )}
         {tab === "body" && (
           <BodyTab

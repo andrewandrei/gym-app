@@ -41,6 +41,10 @@ export type SupabaseProgram = {
   workouts: SupabaseProgramWorkout[];
 };
 
+export type SupabaseProgramSummary = Omit<SupabaseProgram, "workouts"> & {
+  sortOrder: number | null;
+};
+
 type ProgramRow = {
   id: string;
   slug: string;
@@ -49,6 +53,7 @@ type ProgramRow = {
   description: string | null;
   hero_image_url: string | null;
   card_image_url: string | null;
+  image_url: string | null;
   level: string | null;
   duration_weeks: number | null;
   workouts_per_week: number | null;
@@ -57,6 +62,7 @@ type ProgramRow = {
   is_active: boolean;
   is_featured: boolean;
   published_at: string | null;
+  sort_order: number | null;
 
   free_workout_count: number | null;
   warning_after_workout_count: number | null;
@@ -88,14 +94,19 @@ function mapProgram(
   workouts: ProgramWorkoutRow[],
   accessById: Map<string, AccessRuleRow>,
 ): SupabaseProgram {
+  const heroImage =
+    program.hero_image_url ?? program.card_image_url ?? program.image_url ?? "";
+  const cardImage =
+    program.card_image_url ?? program.hero_image_url ?? program.image_url ?? "";
+
   return {
     id: program.id,
     slug: program.slug,
     title: program.title,
     subtitle: program.subtitle ?? "",
     description: program.description ?? "",
-    heroImageUrl: program.hero_image_url ?? "",
-    cardImageUrl: program.card_image_url ?? program.hero_image_url ?? "",
+    heroImageUrl: heroImage,
+    cardImageUrl: cardImage,
     level: program.level ?? "",
     durationWeeks: program.duration_weeks,
     workoutsPerWeek: program.workouts_per_week,
@@ -130,6 +141,16 @@ function mapProgram(
   };
 }
 
+function mapProgramSummary(program: ProgramRow): SupabaseProgramSummary {
+  const mapped = mapProgram(program, [], new Map());
+  const { workouts: _workouts, ...summary } = mapped;
+
+  return {
+    ...summary,
+    sortOrder: program.sort_order,
+  };
+}
+
 async function getProgramAccessRules(workoutIds: string[]) {
   if (!workoutIds.length) return new Map<string, AccessRuleRow>();
 
@@ -155,6 +176,50 @@ async function getProgramAccessRules(workoutIds: string[]) {
   return map;
 }
 
+export async function getPublishedPrograms(limit?: number) {
+  let query = supabase
+    .from("programs")
+    .select(
+      `
+      id,
+      slug,
+      title,
+      subtitle,
+      description,
+      hero_image_url,
+      card_image_url,
+      image_url,
+      level,
+      duration_weeks,
+      workouts_per_week,
+      goal,
+      equipment,
+      is_active,
+      is_featured,
+      published_at,
+      sort_order,
+      free_workout_count,
+      warning_after_workout_count,
+      program_meter_enabled
+    `,
+    )
+    .eq("status", "published")
+    .order("sort_order", { ascending: true });
+
+  if (typeof limit === "number") {
+    query = query.limit(limit);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.log("❌ published programs query error:", error);
+    return [] as SupabaseProgramSummary[];
+  }
+
+  return ((data ?? []) as ProgramRow[]).map(mapProgramSummary);
+}
+
 export async function getProgramBySlug(slug: string) {
   const { data: programData, error: programError } = await supabase
     .from("programs")
@@ -167,6 +232,7 @@ export async function getProgramBySlug(slug: string) {
       description,
       hero_image_url,
       card_image_url,
+      image_url,
       level,
       duration_weeks,
       workouts_per_week,
@@ -175,6 +241,7 @@ export async function getProgramBySlug(slug: string) {
       is_active,
       is_featured,
       published_at,
+      sort_order,
       free_workout_count,
       warning_after_workout_count,
       program_meter_enabled

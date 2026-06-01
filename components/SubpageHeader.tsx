@@ -1,6 +1,7 @@
 import { ChevronLeft } from "lucide-react-native";
 import React from "react";
 import { Pressable, StyleSheet, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ScreenHeader } from "@/components/ui/ScreenHeader";
 import { useAppTheme } from "@/providers/theme";
@@ -15,10 +16,13 @@ type Props = {
 
 export default function SubpageHeader({ title, subtitle, onBack }: Props) {
   const { colors, isDark } = useAppTheme();
+  const insets = useSafeAreaInsets();
   const SOFT = isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.05)";
+  const compactTitle = title.trim().length > 24;
+  const compactLevel = title.trim().length > 30 ? "small" : "default";
 
   return (
-    <View style={styles.headerRow}>
+    <View style={[styles.headerRow, { paddingTop: Math.max(insets.top, 12) }]}>
       <Pressable onPress={onBack} style={[styles.backBtn, {
         borderColor: colors.borderSubtle,
         backgroundColor: SOFT,
@@ -27,7 +31,12 @@ export default function SubpageHeader({ title, subtitle, onBack }: Props) {
       </Pressable>
 
       <View style={styles.headerTextWrap}>
-        <ScreenHeader title={title} subtitle={subtitle} />
+        <ScreenHeader
+          title={title}
+          subtitle={subtitle}
+          compact={compactTitle}
+          compactLevel={compactLevel}
+        />
       </View>
     </View>
   );
@@ -38,7 +47,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: Spacing.md,
-    paddingTop: 8,
     paddingBottom: 8,
   },
 

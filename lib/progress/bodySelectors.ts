@@ -19,7 +19,10 @@ export function buildMonthData(
   const firstDow = new Date(year, month, 1).getDay();
   const offset = (firstDow + 6) % 7;
 
-  const trainedDays = new Map<number, string>();
+  const trainedDays = new Map<
+    number,
+    { type: string; status: "partial" | "completed" }
+  >();
 
   rawHistory.forEach((entry) => {
     const d = new Date(entry.completedAt);
@@ -30,7 +33,14 @@ export function buildMonthData(
         : entry.workoutTitle?.includes("Lower")
           ? "L"
           : "";
-      trainedDays.set(dayNum, typeChar);
+      const previous = trainedDays.get(dayNum);
+      trainedDays.set(dayNum, {
+        type: typeChar || previous?.type || "",
+        status:
+          previous?.status === "completed" || entry.status === "completed"
+            ? "completed"
+            : "partial",
+      });
     }
   });
 
@@ -46,7 +56,8 @@ export function buildMonthData(
     days.push({
       dayNum: i,
       trained: trainedDays.has(i),
-      type: trainedDays.get(i),
+      status: trainedDays.get(i)?.status ?? "none",
+      type: trainedDays.get(i)?.type,
       isToday: today === i,
       future: isFuture,
     });

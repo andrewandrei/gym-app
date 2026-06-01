@@ -3,6 +3,7 @@ export type FinishSummary = {
   workoutId?: string;
   workoutTitle: string;
   programId?: string;
+  completedAt?: string;
   status?: "partial" | "completed";
   durationSec: number;
   totals: {
@@ -27,7 +28,7 @@ export type FinishSummary = {
     belowSetCount?: number;
     previousSessionFound?: boolean;
   };
-  prs: Array<{
+  prs: {
     exerciseId: string;
     exerciseName: string;
     set?: number;
@@ -37,14 +38,14 @@ export type FinishSummary = {
     delta?: number;
     weight: string;
     reps: string;
-  }>;
-  wins: Array<{
+  }[];
+  wins: {
     exerciseId: string;
     exerciseName: string;
     type: "heavier" | "more_reps" | "matched" | "volume_up";
     label: string;
-  }>;
-  exercises: Array<{
+  }[];
+  exercises: {
     id: string;
     name: string;
     completedSets: number;
@@ -69,7 +70,7 @@ export type FinishSummary = {
       belowSets: number;
       prCount: number;
     };
-    sets: Array<{
+    sets: {
       set: number;
       weight: string;
       reps: string;
@@ -102,8 +103,8 @@ export type FinishSummary = {
         isRepPR: boolean;
         isVolumePR: boolean;
       };
-    }>;
-  }>;
+    }[];
+  }[];
 };
 
 export type FinishFeedbackTone =
@@ -152,27 +153,6 @@ function pickBySeed<T>(items: T[], seedSource: string): T {
   return items[seed % items.length];
 }
 
-const EXCELLENT_MESSAGES: FinishFeedback[] = [
-  {
-    tone: "excellent",
-    kicker: "Excellent session",
-    title: "Everything moved in the right direction.",
-    body: "You executed well, progressed well, and gave yourself something to build on next time.",
-  },
-  {
-    tone: "excellent",
-    kicker: "High standard",
-    title: "This was a strong performance.",
-    body: "Sessions like this are what make progress feel inevitable.",
-  },
-  {
-    tone: "excellent",
-    kicker: "Locked in",
-    title: "You trained with intent today.",
-    body: "Clean execution, solid output, and the kind of consistency that compounds.",
-  },
-];
-
 const SOLID_MESSAGES: FinishFeedback[] = [
   {
     tone: "solid",
@@ -197,21 +177,42 @@ const SOLID_MESSAGES: FinishFeedback[] = [
 const PARTIAL_MESSAGES: FinishFeedback[] = [
   {
     tone: "partial",
-    kicker: "Still counts",
-    title: "You kept the habit alive.",
-    body: "Not every session has to be perfect to be useful. Staying in motion still matters.",
+    kicker: "Momentum kept",
+    title: "You kept the habit moving.",
+    body: "Not every session needs to be perfect to matter. Showing up still counts, especially on the harder days.",
   },
   {
     tone: "partial",
-    kicker: "Momentum preserved",
-    title: "You did enough to keep the chain going.",
-    body: "A shorter session is still better than letting the rhythm break.",
+    kicker: "Chain unbroken",
+    title: "You did enough to keep the rhythm alive.",
+    body: "A shorter session still protects the routine. The next win is coming back and adding to it.",
   },
   {
     tone: "partial",
-    kicker: "Progress is messy",
-    title: "This one still moves you forward.",
-    body: "Perfection is not the goal. Consistency is.",
+    kicker: "Still progress",
+    title: "This session still moved you forward.",
+    body: "Progress is rarely perfect. Consistency is what makes it real.",
+  },
+];
+
+const FULL_COMPLETION_MESSAGES: FinishFeedback[] = [
+  {
+    tone: "excellent",
+    kicker: "Full session complete",
+    title: "You closed the loop today.",
+    body: "Every planned set got done. Bank that feeling and bring it into the next session.",
+  },
+  {
+    tone: "excellent",
+    kicker: "Session finished",
+    title: "You finished what you came for.",
+    body: "That kind of follow-through builds confidence as much as it builds results.",
+  },
+  {
+    tone: "excellent",
+    kicker: "Strong finish",
+    title: "You saw the whole session through.",
+    body: "Those complete sessions stack up fast. Recover well and keep the streak moving.",
   },
 ];
 
@@ -242,21 +243,6 @@ const RECOVERY_MESSAGES: FinishFeedback[] = [
     kicker: "Intentional work",
     title: "You trained for the bigger picture today.",
     body: "Not every session should push harder. Recovery done well is a performance advantage.",
-  },
-];
-
-const CONSISTENCY_MESSAGES: FinishFeedback[] = [
-  {
-    tone: "consistency",
-    kicker: "Consistency",
-    title: "You held your standard.",
-    body: "Matching strong work consistently is often what comes right before another jump.",
-  },
-  {
-    tone: "consistency",
-    kicker: "Steady",
-    title: "You stayed on level today.",
-    body: "That stability matters. Keep stacking sessions like this.",
   },
 ];
 
@@ -387,8 +373,8 @@ function completionFeedback(summary: FinishSummary): FinishFeedback {
 
   if (completionRate >= 0.95) {
     return pickBySeed(
-      EXCELLENT_MESSAGES,
-      `${summary.workoutTitle}-excellent-${summary.totals.completedSets}-${summary.durationSec}`,
+      FULL_COMPLETION_MESSAGES,
+      `${summary.workoutTitle}-full-${summary.totals.completedSets}-${summary.durationSec}`,
     );
   }
 
@@ -447,26 +433,26 @@ export function getFinishFeedback(summary: FinishSummary): FinishFeedback {
     if (completionRate >= 0.95) {
       return {
         tone: "excellent",
-        kicker: "Strong first entry",
-        title: "You set a solid baseline today.",
-        body: "Now we have something real to build from. Keep showing up and the trend will take shape.",
+        kicker: "First full session",
+        title: "You finished your first session.",
+        body: "That is a real starting line. You closed the loop, logged the work, and gave yourself something solid to build on.",
       };
     }
 
     if (isPartialSession) {
       return {
         tone: "partial",
-        kicker: "First session logged",
-        title: "A first entry still matters.",
-        body: "You started the process. Next step is simply showing up again.",
+        kicker: "First step taken",
+        title: "You started the process today.",
+        body: "A first session does not need to be perfect to matter. You have a baseline now, and the next win is coming back to build on it.",
       };
     }
 
     return {
       tone: "default",
-      kicker: "First session logged",
-      title: "You’re underway now.",
-      body: "The first saved session is important. Consistency turns it into momentum.",
+      kicker: "First workout saved",
+      title: "You’re officially underway now.",
+      body: "The hardest part is starting. Now you have something real to return to and improve.",
     };
   }
 

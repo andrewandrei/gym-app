@@ -21,6 +21,7 @@ type Props = {
   badgeLabel?: string;
   width?: number;
   mediaHeight?: number;
+  mediaBorderless?: boolean;
   metaTopSpacing?: number;
   onPress: () => void;
   topRightAccessory?: React.ReactNode;
@@ -36,12 +37,14 @@ export function EditorialCard({
   badgeLabel,
   width = 332,
   mediaHeight = 214,
+  mediaBorderless = false,
   metaTopSpacing = 10,
   onPress,
   topRightAccessory,
   theme,
 }: Props) {
   const resolvedBadge = badgeLabel ?? (active ? "Active" : undefined);
+  const hasImage = typeof imageUrl === "string" && imageUrl.trim().length > 0;
 
   const cardColor = theme?.card ?? Colors.card;
   const textColor = theme?.text ?? Colors.text;
@@ -65,11 +68,20 @@ export function EditorialCard({
           {
             height: mediaHeight,
             backgroundColor: cardColor,
-            borderColor,
+            borderColor: mediaBorderless ? "transparent" : borderColor,
+            borderWidth: mediaBorderless ? 0 : BorderWidth.default,
           },
         ]}
       >
-        <Image source={{ uri: imageUrl }} style={styles.image} resizeMode="cover" />
+        {hasImage ? (
+          <Image
+            source={{ uri: imageUrl }}
+            style={styles.image}
+            resizeMode="cover"
+          />
+        ) : (
+          <View style={[styles.imageFallback, { backgroundColor: cardColor }]} />
+        )}
 
         <LinearGradient
           colors={["transparent", "rgba(0,0,0,0.55)"]}
@@ -122,7 +134,6 @@ const styles = StyleSheet.create({
   media: {
     borderRadius: 18,
     overflow: "hidden",
-    borderWidth: BorderWidth.default,
     shadowColor: "#000",
     shadowOpacity: 0.12,
     shadowRadius: 16,
@@ -134,6 +145,10 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     width: "100%",
     height: "100%",
+  },
+
+  imageFallback: {
+    ...StyleSheet.absoluteFillObject,
   },
 
   bottomScrim: {

@@ -247,6 +247,8 @@ export default function WorkoutsIndexScreen() {
                         metaMuted={item.meta}
                         imageUrl={item.imageUrl}
                         active={!!item.isActive}
+                        theme={colors}
+                        mediaBorderless
                         metaTopSpacing={10}
                         topRightAccessory={
                           isLocked ? <LockedChip isDark={isDark} /> : undefined

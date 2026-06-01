@@ -1,6 +1,6 @@
 // gym-app/app/(tabs)/_layout.tsx
 import { Tabs } from "expo-router";
-import { BarChart3, LayoutGrid, User } from "lucide-react-native";
+import { BarChart3, LayoutGrid, User, Users } from "lucide-react-native";
 import React, { useMemo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -13,6 +13,7 @@ import { useAppTheme } from "../../providers/theme";
 const LABELS: Record<string, string> = {
   index: "Home",
   explore: "Explore",
+  community: "Community",
   progress: "Progress",
   profile: "Profile",
 };
@@ -113,6 +114,8 @@ function TabContent({ state, navigation }: { state: any; navigation: any }) {
           );
         } else if (route.name === "explore") {
           icon = <LayoutGrid size={20} color={iconColor} strokeWidth={2} />;
+        } else if (route.name === "community") {
+          icon = <Users size={20} color={iconColor} strokeWidth={2} />;
         } else if (route.name === "progress") {
           icon = <BarChart3 size={20} color={iconColor} strokeWidth={2} />;
         } else {
@@ -165,7 +168,13 @@ export default function TabsLayout() {
           <TabContent state={state} navigation={navigation} />
         </View>
       )}
-    />
+    >
+      <Tabs.Screen name="index" />
+      <Tabs.Screen name="explore" />
+      <Tabs.Screen name="community" />
+      <Tabs.Screen name="progress" />
+      <Tabs.Screen name="profile" />
+    </Tabs>
   );
 }
 

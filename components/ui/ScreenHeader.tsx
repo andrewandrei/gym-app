@@ -21,6 +21,7 @@ type Props = {
 
   onBack?: () => void;
   compact?: boolean;
+  compactLevel?: "default" | "small";
 };
 
 export function ScreenHeader({
@@ -35,6 +36,7 @@ export function ScreenHeader({
   after = "default",
   onBack,
   compact = false,
+  compactLevel = "default",
 }: Props) {
   const { colors, isDark } = useAppTheme();
   const S = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
@@ -51,7 +53,9 @@ export function ScreenHeader({
   const titleStyle = isHero
     ? S.titleHero
     : compact
-      ? S.titleCompact
+      ? compactLevel === "small"
+        ? S.titleCompactSmall
+        : S.titleCompact
       : S.titlePage;
 
   return (
@@ -175,9 +179,9 @@ function createStyles(
     },
 
     titleHero: {
-      fontSize: 46,
-      lineHeight: 50,
-      letterSpacing: -0.6,
+      fontSize: 34,
+      lineHeight: 38,
+      letterSpacing: -0.4,
     },
 
     titlePage: {
@@ -190,6 +194,12 @@ function createStyles(
       fontSize: 28,
       lineHeight: 32,
       letterSpacing: -0.3,
+    },
+
+    titleCompactSmall: {
+      fontSize: 24,
+      lineHeight: 28,
+      letterSpacing: -0.25,
     },
 
     subtitle: {

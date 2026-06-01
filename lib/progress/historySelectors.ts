@@ -3,14 +3,30 @@
 import { parseProgramWorkoutId } from "../../features/programs/programWorkouts";
 import type { WeekEntry, WeekSession } from "./types";
 
-export function mergeHistory(rawHistory: any[], base: WeekEntry[]): WeekEntry[] {
+export function mergeHistory(
+  rawHistory: any[],
+  base: WeekEntry[],
+  programId?: string,
+): WeekEntry[] {
   if (!rawHistory?.length) return base;
 
   const merged = base.map((w) => ({ ...w, sessions: [...w.sessions] }));
 
-  rawHistory.forEach((entry) => {
+  const sortedHistory = [...rawHistory].sort(
+    (a, b) =>
+      new Date(a.completedAt ?? 0).getTime() - new Date(b.completedAt ?? 0).getTime(),
+  );
+
+  sortedHistory.forEach((entry) => {
     const parsed = parseProgramWorkoutId(entry.workoutId);
     if (!parsed) return;
+    if (
+      programId &&
+      parsed.programId !== programId &&
+      entry.programId !== programId
+    ) {
+      return;
+    }
 
     const week = merged.find((w) => w.n === parsed.weekNumber);
     if (!week) return;
@@ -39,13 +55,17 @@ export function mergeHistory(rawHistory: any[], base: WeekEntry[]): WeekEntry[] 
 
     const real: WeekSession = {
       date,
+      dayNumber: parsed.workoutNumber,
       type: entry.workoutTitle,
       complete: entry.status === "completed",
       lifts,
     };
 
     const idx = week.sessions.findIndex(
-      (s) => s.date === date || s.type === entry.workoutTitle,
+      (s) =>
+        s.dayNumber === parsed.workoutNumber ||
+        s.date === date ||
+        s.type === entry.workoutTitle,
     );
 
     if (idx >= 0) week.sessions[idx] = real;

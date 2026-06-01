@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
+import BarbataContentLoading from "@/components/BarbataContentLoading";
 import {
   getRecipeBySlug,
   type RecipeItem,
@@ -148,9 +149,11 @@ export default function RecipeDetailScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.safe}>
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyTitle}>Loading recipe...</Text>
-        </View>
+        <BarbataContentLoading
+          title="Loading recipe"
+          subtitle="Getting the ingredients and steps ready."
+          variant="detail"
+        />
       </SafeAreaView>
     );
   }

@@ -1,0 +1,774 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Barbata Home Timeline Lab</title>
+    <style>
+      :root {
+        --bg: #0f0f10;
+        --card: #191a1d;
+        --card-soft: #222328;
+        --ink: #ffffff;
+        --muted: #a6a6ad;
+        --soft: #74757d;
+        --line: rgba(255, 255, 255, 0.1);
+        --gold: #d8a313;
+        --gold-soft: rgba(216, 163, 19, 0.18);
+        --green: #35c86f;
+        --green-soft: rgba(53, 200, 111, 0.16);
+        --shadow: 0 32px 90px rgba(0, 0, 0, 0.42);
+        font-family:
+          ui-rounded,
+          "SF Pro Rounded",
+          "Avenir Next",
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 24px 14px;
+        background: #111;
+        color: var(--ink);
+      }
+
+      .phone {
+        width: min(430px, 100%);
+        height: min(860px, calc(100vh - 34px));
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        border-radius: 44px;
+        background: var(--bg);
+        box-shadow: var(--shadow);
+        overflow: hidden;
+        position: relative;
+      }
+
+      .scroll {
+        height: 100%;
+        overflow: auto;
+        padding: 28px 20px 118px;
+        scrollbar-width: none;
+      }
+
+      .scroll::-webkit-scrollbar {
+        display: none;
+      }
+
+      .header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+      }
+
+      h1 {
+        margin: 0;
+        max-width: 320px;
+        font-size: 39px;
+        line-height: 0.98;
+        letter-spacing: -0.058em;
+      }
+
+      .sun {
+        flex: 0 0 auto;
+        width: 52px;
+        height: 52px;
+        border-radius: 50%;
+        border: 1px solid var(--line);
+        background: var(--card);
+        display: grid;
+        place-items: center;
+        color: var(--ink);
+        font-size: 24px;
+      }
+
+      .week-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 42px;
+        color: var(--muted);
+        font-weight: 950;
+        font-size: 14px;
+      }
+
+      .bar {
+        margin-top: 10px;
+        height: 4px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.12);
+        overflow: hidden;
+      }
+
+      .bar span {
+        display: block;
+        width: 45%;
+        height: 100%;
+        border-radius: inherit;
+        background: var(--gold);
+      }
+
+      .section-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 30px;
+      }
+
+      h2 {
+        margin: 0;
+        font-size: 34px;
+        line-height: 1;
+        letter-spacing: -0.052em;
+      }
+
+      .plan-link {
+        color: var(--muted);
+        font-weight: 950;
+        font-size: 15px;
+      }
+
+      .sub {
+        margin: 10px 0 16px;
+        color: var(--muted);
+        font-weight: 900;
+        font-size: 17px;
+      }
+
+      .hero {
+        min-height: 466px;
+        border-radius: 28px;
+        overflow: hidden;
+        border: 1px solid var(--line);
+        position: relative;
+        background:
+          linear-gradient(180deg, rgba(0, 0, 0, 0.18), rgba(0, 0, 0, 0.78)),
+          url("https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?auto=format&fit=crop&w=900&q=82")
+            center / cover;
+      }
+
+      .hero::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+          180deg,
+          rgba(0, 0, 0, 0.18) 0%,
+          rgba(0, 0, 0, 0.08) 36%,
+          rgba(0, 0, 0, 0.36) 66%,
+          rgba(0, 0, 0, 0.82) 100%
+        );
+      }
+
+      .hero-top,
+      .hero-bottom {
+        position: relative;
+        z-index: 1;
+      }
+
+      .hero-top {
+        display: flex;
+        justify-content: space-between;
+        padding: 16px;
+      }
+
+      .chip {
+        border-radius: 999px;
+        padding: 9px 13px;
+        font-size: 12px;
+        font-weight: 1000;
+      }
+
+      .chip.light {
+        background: rgba(255, 255, 255, 0.88);
+        color: #101112;
+      }
+
+      .chip.dark {
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        background: rgba(0, 0, 0, 0.22);
+        color: #fff;
+      }
+
+      .hero-bottom {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        padding: 18px;
+      }
+
+      .label {
+        color: rgba(255, 255, 255, 0.76);
+        font-size: 12px;
+        font-weight: 1000;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+
+      .hero-title {
+        margin-top: 6px;
+        font-size: 31px;
+        line-height: 0.98;
+        letter-spacing: -0.055em;
+        font-weight: 1000;
+      }
+
+      .meta {
+        margin-top: 8px;
+        color: rgba(255, 255, 255, 0.86);
+        font-size: 15px;
+        font-weight: 900;
+      }
+
+      .cta {
+        margin-top: 18px;
+        width: 100%;
+        height: 58px;
+        border: 0;
+        border-radius: 999px;
+        background: #fff;
+        color: #101112;
+        font-size: 17px;
+        font-weight: 1000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+      }
+
+      .week-board {
+        margin-top: 14px;
+        border-radius: 28px;
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent),
+          var(--card);
+        border: 1px solid var(--line);
+        padding: 18px;
+      }
+
+      .week-board-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 18px;
+        align-items: flex-start;
+      }
+
+      .phase {
+        color: var(--muted);
+        font-size: 14px;
+        font-weight: 900;
+      }
+
+      .logged {
+        margin-top: 6px;
+        font-size: 32px;
+        line-height: 1;
+        letter-spacing: -0.05em;
+        font-weight: 1000;
+      }
+
+      .guidance {
+        margin-top: 8px;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.3;
+        font-weight: 850;
+      }
+
+      .current-pill {
+        margin-top: 24px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 1000;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+      }
+
+      .week-grid {
+        margin-top: 22px;
+        display: grid;
+        grid-template-columns: repeat(7, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .week-day {
+        min-width: 0;
+        text-align: center;
+      }
+
+      .day-name {
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 1000;
+        text-transform: uppercase;
+      }
+
+      .week-day.current .day-name,
+      .week-day.done .day-name,
+      .week-day.partial .day-name {
+        color: #f3c340;
+      }
+
+      .day-bubble {
+        width: 58px;
+        height: 58px;
+        margin: 10px auto 10px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--soft);
+        font-size: 18px;
+        font-weight: 1000;
+        border: 2px solid transparent;
+      }
+
+      .done .day-bubble {
+        background: var(--green);
+        color: #06140a;
+      }
+
+      .partial .day-bubble {
+        background: var(--gold-soft);
+        color: #f3c340;
+        border-color: rgba(216, 163, 19, 0.62);
+      }
+
+      .current .day-bubble {
+        background: rgba(216, 163, 19, 0.2);
+        border-color: rgba(216, 163, 19, 0.72);
+        color: #f3c340;
+      }
+
+      .rest .day-bubble {
+        width: 38px;
+        height: 38px;
+        margin-top: 20px;
+        margin-bottom: 20px;
+        background: transparent;
+        color: var(--soft);
+      }
+
+      .day-copy {
+        min-height: 32px;
+        color: var(--muted);
+        font-size: 10px;
+        line-height: 1.1;
+        font-weight: 1000;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        overflow-wrap: anywhere;
+      }
+
+      .done .day-copy,
+      .partial .day-copy,
+      .current .day-copy {
+        color: #f3c340;
+      }
+
+      .next-callout {
+        margin-top: 18px;
+        display: grid;
+        grid-template-columns: 42px 1fr auto;
+        gap: 12px;
+        align-items: center;
+        padding: 12px;
+        border-radius: 20px;
+        background: rgba(255, 255, 255, 0.055);
+      }
+
+      .next-icon {
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        background: #fff;
+        color: #111;
+        font-weight: 1000;
+      }
+
+      .next-eyebrow {
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 1000;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .next-title {
+        margin-top: 2px;
+        color: #fff;
+        font-size: 16px;
+        font-weight: 1000;
+        letter-spacing: -0.03em;
+      }
+
+      .next-state {
+        color: var(--gold);
+        font-size: 12px;
+        font-weight: 1000;
+        white-space: nowrap;
+      }
+
+      .recent-head {
+        margin-top: 26px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .recent-head h3 {
+        margin: 0;
+        font-size: 26px;
+        letter-spacing: -0.04em;
+      }
+
+      .recent-card {
+        margin-top: 14px;
+        border: 1px solid var(--line);
+        background: var(--card);
+        border-radius: 24px;
+        padding: 16px;
+      }
+
+      .recent-title {
+        font-size: 18px;
+        font-weight: 1000;
+      }
+
+      .recent-meta {
+        margin-top: 4px;
+        color: var(--muted);
+        font-weight: 850;
+      }
+
+      .scenario-dock {
+        display: flex;
+        gap: 8px;
+        overflow-x: auto;
+        margin-top: 18px;
+        padding: 2px 0 8px;
+        scrollbar-width: none;
+      }
+
+      .scenario-dock::-webkit-scrollbar {
+        display: none;
+      }
+
+      .scenario {
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: var(--card);
+        color: var(--muted);
+        padding: 11px 14px;
+        font-weight: 1000;
+        white-space: nowrap;
+      }
+
+      .scenario.active {
+        background: #fff;
+        color: #111;
+      }
+
+      .tabs {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: 76px;
+        background: rgba(21, 22, 24, 0.96);
+        border-top: 1px solid var(--line);
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        align-items: center;
+      }
+
+      .tab {
+        text-align: center;
+        color: var(--soft);
+        font-size: 12px;
+        font-weight: 850;
+      }
+
+      .tab strong {
+        display: block;
+        color: #fff;
+        font-size: 18px;
+        margin-bottom: 4px;
+      }
+
+      .tab.active {
+        color: #fff;
+      }
+
+      @media (max-width: 380px) {
+        .scroll {
+          padding-inline: 16px;
+        }
+
+        h1 {
+          font-size: 35px;
+        }
+
+        .hero {
+          min-height: 438px;
+        }
+
+        .week-board {
+          padding: 16px;
+        }
+
+        .week-grid {
+          gap: 6px;
+        }
+
+        .day-bubble {
+          width: 48px;
+          height: 48px;
+        }
+
+        .rest .day-bubble {
+          width: 32px;
+          height: 32px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="phone">
+      <section class="scroll">
+        <header class="header">
+          <h1>Build it one session at a time.</h1>
+          <button class="sun" aria-label="Theme">☼</button>
+        </header>
+
+        <div class="week-row">
+          <span>This week</span>
+          <span id="weekLeft">1 left</span>
+        </div>
+        <div class="bar"><span id="barFill"></span></div>
+
+        <section class="week-board">
+          <div class="week-board-head">
+            <div>
+              <div class="phase" id="weekPhase">Week 2 · Week 2 phase</div>
+              <div class="logged" id="loggedCount">2/3 logged</div>
+              <div class="guidance">See what is done and what comes next.</div>
+            </div>
+            <div class="current-pill" id="weekPill">Current</div>
+          </div>
+
+          <div class="week-grid" id="weekGrid"></div>
+
+          <div class="next-callout">
+            <div class="next-icon" id="nextIcon">3</div>
+            <div>
+              <div class="next-eyebrow" id="nextEyebrow">Next workout</div>
+              <div class="next-title" id="nextTitle">Strength Push</div>
+            </div>
+            <div class="next-state" id="nextState">Not yet</div>
+          </div>
+        </section>
+
+        <div class="section-head">
+          <h2>Today</h2>
+          <div class="plan-link">Plan overview ›</div>
+        </div>
+        <p class="sub">Your current plan</p>
+
+        <section class="hero">
+          <div class="hero-top">
+            <span class="chip light">1/12 complete</span>
+            <span class="chip dark">2-day streak</span>
+          </div>
+
+          <div class="hero-bottom">
+            <div class="label" id="heroLabel">Due today</div>
+            <div class="hero-title" id="heroTitle">Strength Push</div>
+            <div class="meta">Strength Foundations · Intermediate · 4 weeks</div>
+            <button class="cta">▶ <span id="ctaText">Start workout 7</span></button>
+          </div>
+        </section>
+
+        <div class="recent-head">
+          <h3>Recent sessions</h3>
+          <div class="plan-link">See all ›</div>
+        </div>
+        <section class="recent-card">
+          <div class="recent-title">Hypertrophy Focus</div>
+          <div class="recent-meta">Today · 4/25 sets</div>
+        </section>
+
+        <div class="scenario-dock">
+          <button class="scenario active" data-scenario="balanced">Real week</button>
+          <button class="scenario" data-scenario="fresh">Fresh start</button>
+          <button class="scenario" data-scenario="strong">Strong week</button>
+          <button class="scenario" data-scenario="behind">Behind</button>
+        </div>
+      </section>
+
+      <nav class="tabs" aria-label="Tabs">
+        <div class="tab active"><strong>BAR</strong>Home</div>
+        <div class="tab"><strong>▦</strong>Explore</div>
+        <div class="tab"><strong>♟</strong>Community</div>
+        <div class="tab"><strong>▥</strong>Progress</div>
+        <div class="tab"><strong>♙</strong>Profile</div>
+      </nav>
+    </main>
+
+    <script>
+      const scenarios = {
+        balanced: {
+          left: "1 left",
+          fill: "66%",
+          label: "Due today",
+          title: "Strength Push",
+          cta: "Start workout 7",
+          phase: "Week 2 · Week 2 phase",
+          logged: "2/3 logged",
+          pill: "Current",
+          nextIcon: "3",
+          nextEyebrow: "Next workout",
+          nextTitle: "Strength Push",
+          nextState: "Not yet",
+          days: [
+            ["D1", "done", "Foundation Push", "✓"],
+            ["Rest", "rest", "-", "·"],
+            ["D2", "partial", "Hypertrophy Pull", "–"],
+            ["Rest", "rest", "-", "·"],
+            ["D3", "current", "Strength Push", "3"],
+            ["Rest", "rest", "-", "·"],
+            ["Rest", "rest", "-", "·"],
+          ],
+        },
+        fresh: {
+          left: "3 left",
+          fill: "0%",
+          label: "Start here",
+          title: "Foundation Push",
+          cta: "Start workout 1",
+          phase: "Week 1 · Week 1 phase",
+          logged: "0/3 logged",
+          pill: "Current",
+          nextIcon: "1",
+          nextEyebrow: "Start here",
+          nextTitle: "Foundation Push",
+          nextState: "Not yet",
+          days: [
+            ["D1", "current", "Foundation Push", "1"],
+            ["Rest", "rest", "-", "·"],
+            ["D2", "upcoming", "Hypertrophy Pull", "2"],
+            ["Rest", "rest", "-", "·"],
+            ["D3", "upcoming", "Strength Push", "3"],
+            ["Rest", "rest", "-", "·"],
+            ["Rest", "rest", "-", "·"],
+          ],
+        },
+        strong: {
+          left: "Complete",
+          fill: "100%",
+          label: "Week complete",
+          title: "Next week unlocks soon",
+          cta: "View progress",
+          phase: "Week 2 · Week 2 phase",
+          logged: "3/3 logged",
+          pill: "Complete",
+          nextIcon: "✓",
+          nextEyebrow: "Week complete",
+          nextTitle: "All workouts done",
+          nextState: "Done",
+          days: [
+            ["D1", "done", "Foundation Push", "✓"],
+            ["Rest", "rest", "-", "·"],
+            ["D2", "done", "Hypertrophy Pull", "✓"],
+            ["Rest", "rest", "-", "·"],
+            ["D3", "done", "Strength Push", "✓"],
+            ["Rest", "rest", "-", "·"],
+            ["Rest", "rest", "-", "·"],
+          ],
+        },
+        behind: {
+          left: "2 left",
+          fill: "33%",
+          label: "Keep going",
+          title: "Hypertrophy Pull",
+          cta: "Start workout 2",
+          phase: "Week 2 · Week 2 phase",
+          logged: "1/3 logged",
+          pill: "Current",
+          nextIcon: "2",
+          nextEyebrow: "Next workout",
+          nextTitle: "Hypertrophy Pull",
+          nextState: "Not yet",
+          days: [
+            ["D1", "partial", "Foundation Push", "–"],
+            ["Rest", "rest", "-", "·"],
+            ["D2", "current", "Hypertrophy Pull", "2"],
+            ["Rest", "rest", "-", "·"],
+            ["D3", "upcoming", "Strength Push", "3"],
+            ["Rest", "rest", "-", "·"],
+            ["Rest", "rest", "-", "·"],
+          ],
+        },
+      };
+
+      function render(key) {
+        const scenario = scenarios[key];
+        document.querySelector("#weekLeft").textContent = scenario.left;
+        document.querySelector("#barFill").style.width = scenario.fill;
+        document.querySelector("#heroLabel").textContent = scenario.label;
+        document.querySelector("#heroTitle").textContent = scenario.title;
+        document.querySelector("#ctaText").textContent = scenario.cta;
+        document.querySelector("#weekPhase").textContent = scenario.phase;
+        document.querySelector("#loggedCount").textContent = scenario.logged;
+        document.querySelector("#weekPill").textContent = scenario.pill;
+        document.querySelector("#nextIcon").textContent = scenario.nextIcon;
+        document.querySelector("#nextEyebrow").textContent = scenario.nextEyebrow;
+        document.querySelector("#nextTitle").textContent = scenario.nextTitle;
+        document.querySelector("#nextState").textContent = scenario.nextState;
+
+        document.querySelector("#weekGrid").innerHTML = scenario.days
+          .map(
+            ([day, type, name, mark]) => `
+              <div class="week-day ${type}">
+                <div class="day-name">${day}</div>
+                <div class="day-bubble">${mark}</div>
+                <div class="day-copy">${getDayCopy(type)}</div>
+              </div>
+            `,
+          )
+          .join("");
+
+        document.querySelectorAll(".scenario").forEach((button) => {
+          button.classList.toggle("active", button.dataset.scenario === key);
+        });
+      }
+
+      function getDayCopy(type) {
+        if (type === "done") return "Done";
+        if (type === "partial") return "Part.";
+        if (type === "current") return "Next";
+        if (type === "upcoming") return "Later";
+        return "-";
+      }
+
+      document.querySelectorAll(".scenario").forEach((button) => {
+        button.addEventListener("click", () => render(button.dataset.scenario));
+      });
+
+      render("balanced");
+    </script>
+  </body>
+</html>

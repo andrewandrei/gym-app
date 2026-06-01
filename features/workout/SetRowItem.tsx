@@ -128,11 +128,11 @@ export function SetRowItem({
 
   const cellStyle = (done: boolean, active: boolean) => ({
     height: 56,
-    borderWidth: 1.5,
+    borderWidth: active && !done ? 1.5 : 1,
     borderColor: done
       ? colors.successBorder
       : active
-        ? colors.premiumBorder
+        ? colors.premium
         : colors.borderSubtle,
     backgroundColor: done
       ? colors.successSoft
@@ -213,55 +213,76 @@ export function SetRowItem({
     [closeOthers, closeSwipe, rowKey, onFocus, setKey],
   );
 
+  const buildPatch = useCallback(
+    (nextPrimary: string, nextSecondary: string, nextThird: string) => {
+      const patch: Partial<SetRow> = {};
+
+      if (trackingMode === "time") {
+        const nextSeconds = parseClockToSeconds(nextPrimary);
+        if ((set.weight ?? "") !== nextSeconds) patch.weight = nextSeconds;
+        if ((set.rest ?? "") !== nextSecondary) patch.rest = nextSecondary;
+      } else if (trackingMode === "reps_only") {
+        const cleanReps = sanitizeNumericInput(nextPrimary);
+        if ((set.reps ?? "") !== cleanReps) patch.reps = cleanReps;
+        if ((set.rest ?? "") !== nextSecondary) patch.rest = nextSecondary;
+      } else if (trackingMode === "calories") {
+        const cleanCalories = sanitizeNumericInput(nextPrimary);
+        if ((set.weight ?? "") !== cleanCalories) patch.weight = cleanCalories;
+        if ((set.rest ?? "") !== nextSecondary) patch.rest = nextSecondary;
+      } else {
+        const cleanPrimary = sanitizeNumericInput(nextPrimary);
+        const cleanSecondary = sanitizeNumericInput(nextSecondary);
+        const cleanThird = nextThird;
+
+        const currentDisplayWeight = isWeightBased
+          ? formatStoredWeightStringForDisplay({
+              storedWeight: set.weight ?? "",
+              unit: weightUnit,
+            })
+          : set.weight ?? "";
+
+        if (currentDisplayWeight !== cleanPrimary) patch.weight = cleanPrimary;
+        if ((set.reps ?? "") !== cleanSecondary) patch.reps = cleanSecondary;
+        if ((set.rest ?? "") !== cleanThird) patch.rest = cleanThird;
+      }
+
+      return patch;
+    },
+    [
+      isWeightBased,
+      set.reps,
+      set.rest,
+      set.weight,
+      trackingMode,
+      weightUnit,
+    ],
+  );
+
+  const syncDraftValue = useCallback(
+    (nextPrimary: string, nextSecondary: string, nextThird: string) => {
+      if (set.done) return;
+      if (trackingMode === "time") return;
+
+      const patch = buildPatch(nextPrimary, nextSecondary, nextThird);
+      if (Object.keys(patch).length) onUpdate(exId, set.id, patch);
+    },
+    [buildPatch, exId, onUpdate, set.done, set.id, trackingMode],
+  );
+
   const commit = useCallback(() => {
     if (set.done) return;
 
-    const patch: Partial<SetRow> = {};
-
-    if (trackingMode === "time") {
-      const nextSeconds = parseClockToSeconds(primary);
-      if ((set.weight ?? "") !== nextSeconds) patch.weight = nextSeconds;
-      if ((set.rest ?? "") !== secondary) patch.rest = secondary;
-    } else if (trackingMode === "reps_only") {
-      const cleanReps = sanitizeNumericInput(primary);
-      if ((set.reps ?? "") !== cleanReps) patch.reps = cleanReps;
-      if ((set.rest ?? "") !== secondary) patch.rest = secondary;
-    } else if (trackingMode === "calories") {
-      const cleanCalories = sanitizeNumericInput(primary);
-      if ((set.weight ?? "") !== cleanCalories) patch.weight = cleanCalories;
-      if ((set.rest ?? "") !== secondary) patch.rest = secondary;
-    } else {
-      const cleanPrimary = sanitizeNumericInput(primary);
-      const cleanSecondary = sanitizeNumericInput(secondary);
-      const cleanThird = third;
-
-      const currentDisplayWeight = isWeightBased
-        ? formatStoredWeightStringForDisplay({
-            storedWeight: set.weight ?? "",
-            unit: weightUnit,
-          })
-        : set.weight ?? "";
-
-      if (currentDisplayWeight !== cleanPrimary) patch.weight = cleanPrimary;
-      if ((set.reps ?? "") !== cleanSecondary) patch.reps = cleanSecondary;
-      if ((set.rest ?? "") !== cleanThird) patch.rest = cleanThird;
-    }
-
+    const patch = buildPatch(primary, secondary, third);
     if (Object.keys(patch).length) onUpdate(exId, set.id, patch);
   }, [
+    buildPatch,
     exId,
-    isWeightBased,
     onUpdate,
     primary,
     secondary,
     set.done,
     set.id,
-    set.reps,
-    set.rest,
-    set.weight,
     third,
-    trackingMode,
-    weightUnit,
   ]);
 
   const handleDelete = useCallback(() => {
@@ -411,11 +432,17 @@ export function SetRowItem({
                   {...(iosAccessoryProps ?? {})}
                   value={primary}
                   onChangeText={(t) => {
+                    let nextPrimary: string;
+
                     if (trackingMode === "time") {
-                      setPrimary(normalizeTimeInput(t));
+                      nextPrimary = normalizeTimeInput(t);
+                      setPrimary(nextPrimary);
                       return;
                     }
-                    setPrimary(sanitizeNumericInput(t));
+
+                    nextPrimary = sanitizeNumericInput(t);
+                    setPrimary(nextPrimary);
+                    syncDraftValue(nextPrimary, secondary, third);
                   }}
                   onFocus={() => handleFocus("primary", primary)}
                   selection={primarySelection}
@@ -442,15 +469,24 @@ export function SetRowItem({
                   {...(iosAccessoryProps ?? {})}
                   value={secondary}
                   onChangeText={(t) => {
+                    let nextSecondary: string;
+
                     if (trackingMode === "time") {
-                      setSecondary(t);
+                      nextSecondary = t;
+                      setSecondary(nextSecondary);
+                      syncDraftValue(primary, nextSecondary, third);
                       return;
                     }
                     if (trackingMode === "reps_only" || trackingMode === "calories") {
-                      setSecondary(t);
+                      nextSecondary = t;
+                      setSecondary(nextSecondary);
+                      syncDraftValue(primary, nextSecondary, third);
                       return;
                     }
-                    setSecondary(sanitizeNumericInput(t));
+
+                    nextSecondary = sanitizeNumericInput(t);
+                    setSecondary(nextSecondary);
+                    syncDraftValue(primary, nextSecondary, third);
                   }}
                   onFocus={() => handleFocus("secondary", secondary)}
                   selection={secondarySelection}
@@ -490,7 +526,10 @@ export function SetRowItem({
                   ref={thirdInputRef}
                   {...(iosAccessoryProps ?? {})}
                   value={hideThirdField ? "" : third}
-                  onChangeText={setThird}
+                  onChangeText={(t) => {
+                    setThird(t);
+                    syncDraftValue(primary, secondary, t);
+                  }}
                   onFocus={() => handleFocus("third", third)}
                   selection={thirdSelection}
                   onSelectionChange={(e) => setThirdSelection(e.nativeEvent.selection)}
@@ -509,7 +548,10 @@ export function SetRowItem({
             </View>
 
             <Pressable
-              onPress={() => onToggle(exId, set.id)}
+              onPress={() => {
+                commit();
+                onToggle(exId, set.id);
+              }}
               style={[
                 S.checkBtn,
                 {
