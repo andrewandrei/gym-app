@@ -26,7 +26,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import Svg, { Circle, Path } from "react-native-svg";
+import Svg, { Circle, Path, Text as SvgText } from "react-native-svg";
 
 import { ScreenHeader } from "@/components/ui/ScreenHeader";
 import { BorderWidth } from "@/styles/hairline";
@@ -559,6 +559,88 @@ const PHOTO_ANGLES: Array<{ key: "front"|"side"|"back"; label: string }> = [
   { key:"back",  label:"Back"  },
 ];
 
+/** Full labeled line chart — shows a dot + value label at every data point */
+function ProgressChart({
+  data, color, width = 315, height = 80,
+}: {
+  data: Array<{ value: number; label: string }>;
+  color: string; width?: number; height?: number;
+}) {
+  if (!data || data.length < 2) return <View style={{ height: height + 28 }} />;
+  const values = data.map(d => d.value);
+  const min    = Math.min(...values);
+  const max    = Math.max(...values);
+  const range  = max - min || 1;
+  const padT = 22; const padL = 6; const padR = 6;
+  const chartH = height - padT;
+  const chartW = width  - padL - padR;
+  const pts = data.map((d, i) => ({
+    x: padL + (i / Math.max(data.length - 1, 1)) * chartW,
+    y: padT + chartH - ((d.value - min) / range) * chartH,
+    value: d.value,
+    label: d.label,
+  }));
+  const line = pts.map((p, i) => `${i===0?"M":"L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
+  const area = `${line} L${pts[pts.length-1].x.toFixed(1)},${height} L${pts[0].x.toFixed(1)},${height} Z`;
+  return (
+    <Svg width={width} height={height + 24} style={{ overflow:"visible" }}>
+      <Path d={area} fill={color} fillOpacity={0.06} />
+      <Path d={line} stroke={color} strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      {pts.map((p, i) => {
+        const isLast  = i === pts.length - 1;
+        const isFirst = i === 0;
+        return (
+          <React.Fragment key={i}>
+            {/* Dot */}
+            <Circle cx={p.x} cy={p.y} r={isLast ? 5 : 3.5}
+              fill={isLast ? color : "transparent"} stroke={color} strokeWidth={1.8} />
+            {/* Value above dot */}
+            <SvgText x={p.x} y={p.y - 8} textAnchor="middle"
+              fontSize={isLast ? 11 : 9.5}
+              fontWeight={isLast ? "700" : "500"}
+              fill={color} fillOpacity={isLast ? 1 : 0.7}>
+              {p.value}
+            </SvgText>
+            {/* Date below baseline — first and last always, middle ones if ≤5 points */}
+            {(isFirst || isLast || data.length <= 5) && (
+              <SvgText x={p.x} y={height + 18}
+                textAnchor={isFirst ? "start" : isLast ? "end" : "middle"}
+                fontSize={9} fontWeight="400" fill="rgba(128,128,128,0.75)">
+                {p.label}
+              </SvgText>
+            )}
+          </React.Fragment>
+        );
+      })}
+      {/* Baseline rule */}
+      <Path d={`M${padL},${height} L${width-padR},${height}`}
+        stroke="rgba(128,128,128,0.12)" strokeWidth={1} />
+    </Svg>
+  );
+}
+
+/** Single row in the comparison changes table */
+function ChangeRow({ label, before, after, unit, goodDown, colors }: {
+  label:string; before:number; after:number; unit:string; goodDown:boolean; colors:any;
+}) {
+  const delta = +(after - before).toFixed(1);
+  const good  = goodDown ? delta<0 : delta>0;
+  const col   = delta===0 ? colors.muted : good ? "#22C55E" : "#EF4444";
+  const arrow = delta===0 ? "—" : delta<0 ? "↓" : "↑";
+  return (
+    <View style={{ flexDirection:"row", alignItems:"center", paddingVertical:11,
+      borderTopWidth:StyleSheet.hairlineWidth, borderTopColor:colors.borderSubtle }}>
+      <Text style={{ fontSize:14, color:col, width:18, fontWeight:FontWeight.heavy }}>{arrow}</Text>
+      <Text style={[{ flex:1, fontSize:FontSize.body, color:colors.text, marginLeft:2 }]}>{label}</Text>
+      <Text style={[{ fontSize:FontSize.caption, color:colors.muted }]}>{before} → {after} {unit}</Text>
+      <Text style={[{ fontSize:FontSize.subhead, color:col, fontWeight:FontWeight.heavy,
+        marginLeft:12, minWidth:56, textAlign:"right" }]}>
+        {delta===0 ? "—" : `${delta>0?"+":""}${delta} ${unit}`}
+      </Text>
+    </View>
+  );
+}
+
 function BodyTab({
   checkins, onNewCheckin, colors, isDark,
 }: {
@@ -566,8 +648,9 @@ function BodyTab({
 }) {
   const [compareIdx, setCompareIdx] = useState<number|null>(null);
   const [angleKey,   setAngleKey]   = useState<"front"|"side"|"back">("front");
-  const soft = isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)";
+  const soft = isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.04)";
 
+  // ── Empty state ──────────────────────────────────────────────────────────────
   if (checkins.length === 0) {
     return (
       <View style={{ gap:14 }}>
@@ -589,122 +672,147 @@ function BodyTab({
   const first     = checkins[0];
   const prev      = checkins.length > 1 ? checkins[checkins.length-2] : null;
   const wTotal    = +(latest.weight - first.weight).toFixed(1);
-  const wWeek     = prev ? +(latest.weight - prev.weight).toFixed(1) : 0;
-  const compareCI = compareIdx !== null ? checkins[compareIdx] : null;
-  const nowPhoto  = latest.photos?.[angleKey];
+  const wPrev     = prev ? +(latest.weight - prev.weight).toFixed(1) : 0;
+
+  // BEFORE defaults to first check-in when nothing is explicitly selected
+  const effectiveCompareIdx = compareIdx ?? (checkins.length > 1 ? 0 : null);
+  const compareCI = effectiveCompareIdx !== null ? checkins[effectiveCompareIdx] : null;
+  const nowPhoto    = latest.photos?.[angleKey];
   const beforePhoto = compareCI?.photos?.[angleKey];
 
   return (
-    <View style={{ gap:14 }}>
+    <View style={{ gap:16 }}>
 
-      {/* ── Weight card ── */}
+      {/* ─────────────────────────────────────────────────────────────────────
+          1. BODY WEIGHT — large labeled chart
+      ───────────────────────────────────────────────────────────────────── */}
       <View style={[S.bCard, { backgroundColor:colors.card, borderColor:colors.borderSubtle }]}>
-        <Text style={[S.eyebrow, { color:colors.muted, marginBottom:10 }]}>BODY WEIGHT</Text>
-
-        <View style={[S.row, { marginBottom:14, alignItems:"flex-start" }]}>
+        {/* Header */}
+        <View style={[S.row, { marginBottom:16 }]}>
           <View>
-            <View style={{ flexDirection:"row", alignItems:"baseline", gap:7 }}>
+            <Text style={[S.eyebrow, { color:colors.muted, marginBottom:4 }]}>BODY WEIGHT</Text>
+            <View style={{ flexDirection:"row", alignItems:"baseline", gap:6 }}>
               <Text style={[S.weightBig, { color:colors.text }]}>{latest.weight}</Text>
               <Text style={[S.caption, { color:colors.muted }]}>kg</Text>
-              {wWeek !== 0 && (
-                <View style={[S.pill, {
-                  backgroundColor: wWeek<0 ? "#22C55E18" : "#EF444418",
-                  borderColor:     wWeek<0 ? "#22C55E40" : "#EF444440",
-                }]}>
-                  <Text style={[S.pillText, { color:wWeek<0?"#22C55E":"#EF4444" }]}>
-                    {wWeek>0?"+":""}{wWeek} kg
-                  </Text>
-                </View>
-              )}
             </View>
-            <Text style={[S.caption, { color:colors.muted, marginTop:4 }]}>
-              {wWeek !== 0 ? "vs last check-in" : "current weight"}
-            </Text>
           </View>
-          <View style={{ alignItems:"flex-end", gap:2 }}>
-            <Text style={[S.caption, { color:colors.muted }]}>Since start</Text>
-            <Text style={[S.subhead, { color:wTotal<0?"#22C55E":wTotal>0?"#EF4444":colors.muted, fontWeight:FontWeight.heavy }]}>
-              {wTotal>0?"+":""}{wTotal} kg
-            </Text>
-            <Text style={[S.caption, { color:colors.muted }]}>{first.weight} → {latest.weight} kg</Text>
+          <View style={{ alignItems:"flex-end", gap:5 }}>
+            {/* Total change badge */}
+            <View style={[S.pill, {
+              backgroundColor: wTotal<0 ? "#22C55E18" : wTotal>0 ? "#EF444418" : soft,
+              borderColor:     wTotal<0 ? "#22C55E50" : wTotal>0 ? "#EF444450" : colors.borderSubtle,
+              paddingHorizontal:10, paddingVertical:5,
+            }]}>
+              <Text style={[S.pillText, {
+                color: wTotal<0 ? "#22C55E" : wTotal>0 ? "#EF4444" : colors.muted, fontSize:13,
+              }]}>
+                {wTotal===0 ? "No change" : `${wTotal>0?"+":""}${wTotal} kg total`}
+              </Text>
+            </View>
+            {/* Week-over-week */}
+            {wPrev !== 0 && (
+              <Text style={[S.caption, { color:wPrev<0?"#22C55E":"#EF4444" }]}>
+                {wPrev>0?"+":""}{wPrev} kg this week
+              </Text>
+            )}
           </View>
         </View>
 
-        <Spark data={checkins.map(c=>c.weight)} color={colors.text} width={315} height={52} strokeWidth={2} />
+        {/* Chart */}
+        <ProgressChart
+          data={checkins.map(c => ({ value:c.weight, label:c.date }))}
+          color={colors.text}
+          width={315}
+          height={90}
+        />
 
-        <View style={[S.row, { marginTop:8 }]}>
-          <Text style={[S.caption, { color:colors.muted }]}>{first.date}</Text>
-          <Text style={[S.caption, { color:colors.text, fontWeight:FontWeight.heavy }]}>{latest.date}</Text>
-        </View>
-
-        <View style={{ flexDirection:"row", marginTop:14, paddingTop:12, borderTopWidth:StyleSheet.hairlineWidth, borderTopColor:colors.borderSubtle }}>
+        {/* Footer stat row */}
+        <View style={{ flexDirection:"row", marginTop:18, paddingTop:14,
+          borderTopWidth:StyleSheet.hairlineWidth, borderTopColor:colors.borderSubtle }}>
           {[
             { label:"Start",     value:`${first.weight} kg` },
             { label:"Current",   value:`${latest.weight} kg` },
             { label:"Check-ins", value:String(checkins.length) },
           ].map((s, i) => (
-            <View key={i} style={{ flex:1, alignItems:"center", borderLeftWidth:i>0?StyleSheet.hairlineWidth:0, borderLeftColor:colors.borderSubtle }}>
+            <View key={i} style={{ flex:1, alignItems:"center",
+              borderLeftWidth:i>0?StyleSheet.hairlineWidth:0, borderLeftColor:colors.borderSubtle }}>
               <Text style={{ fontSize:15, fontWeight:FontWeight.heavy, color:colors.text }}>{s.value}</Text>
-              <Text style={[S.caption, { color:colors.muted, marginTop:2 }]}>{s.label}</Text>
+              <Text style={[S.caption, { color:colors.muted, marginTop:3 }]}>{s.label}</Text>
             </View>
           ))}
         </View>
       </View>
 
-      {/* ── Measurements card ── */}
+      {/* ─────────────────────────────────────────────────────────────────────
+          2. MEASUREMENTS — one full-width labeled chart per metric
+      ───────────────────────────────────────────────────────────────────── */}
       <View style={[S.bCard, { backgroundColor:colors.card, borderColor:colors.borderSubtle }]}>
-        <Text style={[S.subhead, { color:colors.text, marginBottom:14 }]}>Measurements</Text>
+        <Text style={[S.subhead, { color:colors.text, marginBottom:6 }]}>Measurements</Text>
+
         {MEAS_FIELDS.map((f, i) => {
-          const vals      = checkins.map(c => c.meas[f.key]);
-          const delta     = +(vals[vals.length-1] - vals[0]).toFixed(1);
-          const weekDelta = checkins.length > 1 ? +(vals[vals.length-1] - vals[vals.length-2]).toFixed(1) : 0;
-          const good      = f.good==="down" ? delta<0 : delta>0;
-          const col       = delta===0 ? colors.muted : good ? "#22C55E" : "#EF4444";
-          const wGood     = f.good==="down" ? weekDelta<0 : weekDelta>0;
+          const vals  = checkins.map(c => c.meas[f.key]);
+          const delta = +(vals[vals.length-1] - vals[0]).toFixed(1);
+          const good  = f.good==="down" ? delta<0 : delta>0;
+          const col   = delta===0 ? colors.muted : good ? "#22C55E" : "#EF4444";
+          const cur   = vals[vals.length-1];
           return (
-            <View key={f.key} style={[S.measRow, {
-              borderTopColor:colors.borderSubtle,
-              borderTopWidth: i===0 ? 0 : StyleSheet.hairlineWidth,
-              paddingTop: i===0 ? 0 : 12,
-            }]}>
-              <View style={{ width:80, flexShrink:0 }}>
-                <Text style={[S.caption, { color:colors.muted }]}>{f.label}</Text>
-                <Text style={[S.headline, { color:colors.text, marginTop:2 }]}>
-                  {vals[vals.length-1]}<Text style={[S.caption, { color:colors.muted }]}> cm</Text>
-                </Text>
-                {weekDelta !== 0 && (
-                  <Text style={[S.caption, { color:wGood?"#22C55E":"#EF4444", marginTop:2 }]}>
-                    {weekDelta>0?"+":""}{weekDelta} wk
+            <View key={f.key} style={{
+              paddingTop:16, marginTop:i===0?6:0,
+              borderTopWidth:i===0?0:StyleSheet.hairlineWidth, borderTopColor:colors.borderSubtle,
+            }}>
+              {/* Metric header */}
+              <View style={[S.row, { marginBottom:14 }]}>
+                <View>
+                  <Text style={[S.eyebrow, { color:colors.muted, marginBottom:3 }]}>{f.label.toUpperCase()}</Text>
+                  <View style={{ flexDirection:"row", alignItems:"baseline", gap:5 }}>
+                    <Text style={{ fontSize:22, fontWeight:FontWeight.heavy, color:colors.text }}>{cur}</Text>
+                    <Text style={[S.caption, { color:colors.muted }]}>cm</Text>
+                  </View>
+                </View>
+                {/* Delta badge */}
+                <View style={[S.pill, {
+                  backgroundColor: col+"18",
+                  borderColor:     col+"40",
+                  paddingHorizontal:10, paddingVertical:5,
+                  alignSelf:"center",
+                }]}>
+                  <Text style={[S.pillText, { color:col, fontSize:13 }]}>
+                    {delta===0 ? "No change" : `${delta>0?"+":""}${delta} cm`}
                   </Text>
-                )}
+                </View>
               </View>
-              <View style={{ flex:1, alignItems:"center" }}>
-                <Spark data={vals} color={col} width={100} height={28} strokeWidth={1.6} />
-              </View>
-              <View style={{ width:52, alignItems:"flex-end", flexShrink:0 }}>
-                <Text style={[S.subhead, { color:col, fontWeight:FontWeight.heavy }]}>{delta>0?"+":""}{delta}</Text>
-                <Text style={[S.caption, { color:colors.muted }]}>cm total</Text>
-              </View>
+
+              {/* Labeled chart */}
+              <ProgressChart
+                data={checkins.map(c => ({ value:c.meas[f.key], label:c.date }))}
+                color={col}
+                width={315}
+                height={60}
+              />
             </View>
           );
         })}
       </View>
 
-      {/* ── Progress Photos card ── */}
+      {/* ─────────────────────────────────────────────────────────────────────
+          3. PROGRESS PHOTOS — clear before/now with anchored metadata
+      ───────────────────────────────────────────────────────────────────── */}
       <View style={[S.bCard, { backgroundColor:colors.card, borderColor:colors.borderSubtle }]}>
+
+        {/* Section header */}
         <View style={[S.row, { marginBottom:16 }]}>
           <Text style={[S.subhead, { color:colors.text }]}>Progress Photos</Text>
           <Text style={[S.caption, { color:colors.muted }]}>{checkins.length} check-ins</Text>
         </View>
 
         {/* Angle tabs */}
-        <View style={{ flexDirection:"row", gap:6, marginBottom:16 }}>
+        <View style={{ flexDirection:"row", gap:6, marginBottom:20 }}>
           {PHOTO_ANGLES.map(a => (
             <Pressable key={a.key} onPress={() => setAngleKey(a.key)}
               style={[S.angleTab, {
                 backgroundColor: angleKey===a.key ? soft : "transparent",
-                borderWidth: angleKey===a.key ? 0.5 : 0,
-                borderColor: colors.borderSubtle,
+                borderWidth:0.5,
+                borderColor: angleKey===a.key ? colors.text+"40" : colors.borderSubtle,
               }]}>
               <Text style={[S.caption, {
                 color: angleKey===a.key ? colors.text : colors.muted,
@@ -714,116 +822,136 @@ function BodyTab({
           ))}
         </View>
 
-        {/* Side-by-side comparison */}
-        <View style={{ flexDirection:"row", gap:10, marginBottom:14 }}>
-          {([
-            { label:"BEFORE", photo:beforePhoto, ci:compareCI,   accent:colors.muted    },
-            { label:"NOW",    photo:nowPhoto,    ci:latest,       accent:colors.premium  },
-          ] as const).map((slot, j) => (
-            <View key={j} style={{ flex:1 }}>
-              <View style={[S.row, { marginBottom:6 }]}>
-                <Text style={[S.eyebrow, { color:slot.accent }]}>{slot.label}</Text>
-                {slot.ci && <Text style={[S.caption, { color:colors.muted, fontSize:10 }]}>{slot.ci.date}</Text>}
-              </View>
-              <View style={[S.photoSlot, {
-                backgroundColor: soft,
-                borderColor: slot.photo ? slot.accent+"50" : j===1 ? colors.premium+"50" : colors.borderSubtle,
-              }]}>
-                {slot.photo ? (
-                  <Image source={{ uri:slot.photo }} style={StyleSheet.absoluteFillObject} resizeMode="cover" />
-                ) : (
-                  <>
-                    <Svg width={22} height={22} viewBox="0 0 24 24" opacity={0.35}>
-                      <Path d="M14.5 4h-5L8 7H4a1 1 0 00-1 1v10a1 1 0 001 1h16a1 1 0 001-1V8a1 1 0 00-1-1h-4l-1.5-3z"
-                        stroke={j===1 ? colors.premium : colors.muted}
-                        strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" fill="none" />
-                      <Circle cx={12} cy={13} r={3}
-                        stroke={j===1 ? colors.premium : colors.muted}
-                        strokeWidth={1.6} fill="none" />
-                    </Svg>
-                    <Text style={[S.caption, {
-                      color: j===1 ? colors.premium : colors.muted,
-                      textAlign:"center", paddingHorizontal:8, fontWeight:FontWeight.bold,
-                    }]}>
-                      {j===1 ? "Add in\ncheck-in" : compareIdx===null ? "Pick a date\nbelow" : "No photo\nfor this date"}
-                    </Text>
-                  </>
-                )}
+        {/* ── BEFORE / NOW side-by-side ── */}
+        <View style={{ flexDirection:"row", gap:12, marginBottom:20 }}>
+
+          {/* BEFORE */}
+          <View style={{ flex:1 }}>
+            {/* Label */}
+            <View style={{ alignItems:"center", marginBottom:8 }}>
+              <View style={[S.pill, { backgroundColor:soft, borderColor:colors.borderSubtle }]}>
+                <Text style={[S.eyebrow, { color:colors.muted, letterSpacing:0.5 }]}>BEFORE</Text>
               </View>
             </View>
-          ))}
-        </View>
-
-        {/* Compare selector */}
-        <Text style={[S.caption, { color:colors.muted, marginBottom:8 }]}>Compare with</Text>
-        {checkins.length < 2 ? (
-          <Text style={[S.caption, { color:colors.muted, fontStyle:"italic", marginBottom:4 }]}>
-            Add more check-ins to compare
-          </Text>
-        ) : (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ gap:8, paddingBottom:4 }}>
-            {checkins.slice(0,-1).map((c, i) => {
-              const sel = compareIdx === i;
-              return (
-                <Pressable key={i} onPress={() => setCompareIdx(sel ? null : i)}
-                  style={[S.comparePill, {
-                    backgroundColor: sel ? colors.premium+"16" : soft,
-                    borderColor:     sel ? colors.premium+"50" : colors.borderSubtle,
-                  }]}>
-                  <Text style={{ fontSize:12, fontWeight:sel?FontWeight.heavy:FontWeight.bold, color:sel?colors.premium:colors.muted }}>
-                    {c.date}
+            {/* Photo frame */}
+            <View style={[S.photoSlot, {
+              backgroundColor:soft,
+              borderColor: compareCI ? colors.borderSubtle : colors.muted+"30",
+            }]}>
+              {beforePhoto ? (
+                <Image source={{ uri:beforePhoto }} style={StyleSheet.absoluteFillObject} resizeMode="cover" />
+              ) : (
+                <View style={{ alignItems:"center", gap:8, paddingHorizontal:12 }}>
+                  <Svg width={24} height={24} viewBox="0 0 24 24" opacity={0.3}>
+                    <Path d="M14.5 4h-5L8 7H4a1 1 0 00-1 1v10a1 1 0 001 1h16a1 1 0 001-1V8a1 1 0 00-1-1h-4l-1.5-3z"
+                      stroke={colors.muted} strokeWidth={1.5} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                    <Circle cx={12} cy={13} r={3} stroke={colors.muted} strokeWidth={1.5} fill="none" />
+                  </Svg>
+                  <Text style={[S.caption, { color:colors.muted, textAlign:"center" }]}>
+                    {compareCI ? "No photo\nfor this date" : "Select a\ndate below"}
                   </Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-        )}
-
-        {/* Comparison detail panel */}
-        {compareCI && (() => {
-          const wDelta     = +(latest.weight - compareCI.weight).toFixed(1);
-          const measDeltas = MEAS_FIELDS.map(f => ({
-            label: f.label,
-            delta: +(latest.meas[f.key] - compareCI.meas[f.key]).toFixed(1),
-            good:  f.good==="down" ? latest.meas[f.key] < compareCI.meas[f.key] : latest.meas[f.key] > compareCI.meas[f.key],
-          }));
-          return (
-            <View style={[S.compareDetail, { backgroundColor:colors.premium+"10", borderColor:colors.premium+"35", marginTop:12 }]}>
-              <View style={[S.row, { marginBottom:measDeltas.some(m=>m.delta!==0) ? 10 : 0 }]}>
-                <View>
-                  <Text style={[S.subhead, { color:colors.premium, fontSize:13 }]}>
-                    {compareCI.date} → {latest.date}
-                  </Text>
-                  <Text style={[S.caption, { color:colors.muted, marginTop:2 }]}>Progress since this check-in</Text>
-                </View>
-                <View style={{ alignItems:"flex-end" }}>
-                  <Text style={[S.subhead, { color:wDelta<0?"#22C55E":"#EF4444", fontWeight:FontWeight.heavy }]}>
-                    {wDelta>0?"+":""}{wDelta} kg
-                  </Text>
-                  <Text style={[S.caption, { color:colors.muted }]}>body weight</Text>
-                </View>
-              </View>
-              {measDeltas.some(m => m.delta !== 0) && (
-                <View style={{ flexDirection:"row", flexWrap:"wrap", gap:6 }}>
-                  {measDeltas.filter(m => m.delta !== 0).map((m, i) => (
-                    <View key={i} style={[S.pill, {
-                      backgroundColor: m.good ? "#22C55E18" : "#EF444418",
-                      borderColor:     m.good ? "#22C55E40" : "#EF444440",
-                    }]}>
-                      <Text style={[S.pillText, { color:m.good?"#22C55E":"#EF4444" }]}>
-                        {m.label} {m.delta>0?"+":""}{m.delta} cm
-                      </Text>
-                    </View>
-                  ))}
                 </View>
               )}
             </View>
-          );
-        })()}
+            {/* Date + weight anchored below photo */}
+            {compareCI && (
+              <View style={{ alignItems:"center", marginTop:10, gap:2 }}>
+                <Text style={[S.caption, { color:colors.muted }]}>{compareCI.date}</Text>
+                <Text style={{ fontSize:16, fontWeight:FontWeight.heavy, color:colors.text }}>
+                  {compareCI.weight} kg
+                </Text>
+              </View>
+            )}
+          </View>
 
+          {/* NOW */}
+          <View style={{ flex:1 }}>
+            {/* Label */}
+            <View style={{ alignItems:"center", marginBottom:8 }}>
+              <View style={[S.pill, { backgroundColor:colors.premium+"14", borderColor:colors.premium+"40" }]}>
+                <Text style={[S.eyebrow, { color:colors.premium, letterSpacing:0.5 }]}>NOW</Text>
+              </View>
+            </View>
+            {/* Photo frame */}
+            <View style={[S.photoSlot, {
+              backgroundColor:soft,
+              borderColor: colors.premium+"50",
+            }]}>
+              {nowPhoto ? (
+                <Image source={{ uri:nowPhoto }} style={StyleSheet.absoluteFillObject} resizeMode="cover" />
+              ) : (
+                <View style={{ alignItems:"center", gap:8, paddingHorizontal:12 }}>
+                  <Svg width={24} height={24} viewBox="0 0 24 24" opacity={0.4}>
+                    <Path d="M14.5 4h-5L8 7H4a1 1 0 00-1 1v10a1 1 0 001 1h16a1 1 0 001-1V8a1 1 0 00-1-1h-4l-1.5-3z"
+                      stroke={colors.premium} strokeWidth={1.5} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                    <Circle cx={12} cy={13} r={3} stroke={colors.premium} strokeWidth={1.5} fill="none" />
+                  </Svg>
+                  <Text style={[S.caption, { color:colors.premium, textAlign:"center" }]}>
+                    Add a photo{"\n"}in check-in
+                  </Text>
+                </View>
+              )}
+            </View>
+            {/* Date + weight anchored below photo */}
+            <View style={{ alignItems:"center", marginTop:10, gap:2 }}>
+              <Text style={[S.caption, { color:colors.muted }]}>{latest.date}</Text>
+              <Text style={{ fontSize:16, fontWeight:FontWeight.heavy, color:colors.text }}>
+                {latest.weight} kg
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* ── BEFORE date selector ── */}
+        <View style={{ marginBottom:compareCI ? 20 : 4 }}>
+          <Text style={[S.caption, { color:colors.muted, marginBottom:10 }]}>
+            Set "Before" to a past check-in:
+          </Text>
+          {checkins.length < 2 ? (
+            <Text style={[S.caption, { color:colors.muted, fontStyle:"italic" }]}>
+              Complete a second check-in to compare
+            </Text>
+          ) : (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ gap:8, paddingBottom:2 }}>
+              {checkins.slice(0,-1).map((c, i) => {
+                const sel = effectiveCompareIdx === i;
+                return (
+                  <Pressable key={i}
+                    onPress={() => setCompareIdx(sel && compareIdx !== null ? null : i)}
+                    style={[S.comparePill, {
+                      backgroundColor: sel ? colors.premium+"16" : soft,
+                      borderColor:     sel ? colors.premium+"55" : colors.borderSubtle,
+                    }]}>
+                    <Text style={{ fontSize:12, fontWeight:sel?FontWeight.heavy:FontWeight.bold,
+                      color:sel?colors.premium:colors.muted }}>
+                      {c.date}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          )}
+        </View>
+
+        {/* ── CHANGES table ── */}
+        {compareCI && (
+          <View style={{ paddingTop:4 }}>
+            <Text style={[S.eyebrow, { color:colors.muted, marginBottom:4 }]}>CHANGES</Text>
+            <ChangeRow label="Body weight" before={compareCI.weight} after={latest.weight}
+              unit="kg" goodDown={true} colors={colors} />
+            {MEAS_FIELDS.map(f => (
+              <ChangeRow key={f.key} label={f.label}
+                before={compareCI.meas[f.key]} after={latest.meas[f.key]}
+                unit="cm" goodDown={f.good==="down"} colors={colors} />
+            ))}
+          </View>
+        )}
+
+        {/* ── CTA ── */}
         <Pressable onPress={onNewCheckin}
-          style={[S.checkinBtn, { backgroundColor:colors.premium+"14", borderColor:colors.premium+"45", marginTop:16 }]}>
+          style={[S.checkinBtn, { backgroundColor:colors.premium+"14",
+            borderColor:colors.premium+"45", marginTop:20 }]}>
           <Text style={[S.subhead, { color:colors.premium }]}>+ New Check-in</Text>
         </Pressable>
       </View>
