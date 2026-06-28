@@ -210,9 +210,9 @@ async function fetchWorkoutHistory(): Promise<any[]> {
   //   return error ? [] : data;
   // ──────────────────────────────────────────────────────────────────────────
   try {
-    const { loadWorkoutHistory } = require("../workout/workoutHistory");
-    if (typeof loadWorkoutHistory === "function") {
-      const h = await loadWorkoutHistory();
+    const { getWorkoutHistory } = require("../workout/workoutHistory");
+    if (typeof getWorkoutHistory === "function") {
+      const h = await getWorkoutHistory();
       return h ?? [];
     }
   } catch { /* noop */ }

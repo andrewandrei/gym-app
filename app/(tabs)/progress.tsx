@@ -560,6 +560,24 @@ function BodyTab({
   const [angleIdx,   setAngleIdx]   = useState(0);
   const ANGLES = ["Front","Side","Back"];
   const soft   = isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)";
+
+  if (checkins.length === 0) {
+    return (
+      <View style={{ gap:14 }}>
+        <View style={[S.bCard, { backgroundColor:colors.card, borderColor:colors.borderSubtle, alignItems:"center", paddingVertical:40 }]}>
+          <Text style={[S.title3, { color:colors.text, marginBottom:8 }]}>No check-ins yet</Text>
+          <Text style={[S.body, { color:colors.muted, textAlign:"center", marginBottom:24 }]}>
+            Log your weight and measurements weekly to track your progress.
+          </Text>
+          <Pressable onPress={onNewCheckin}
+            style={[S.checkinBtn, { backgroundColor:colors.premium+"14", borderColor:colors.premium+"45" }]}>
+            <Text style={[S.subhead, { color:colors.premium }]}>+ Start First Check-in</Text>
+          </Pressable>
+        </View>
+      </View>
+    );
+  }
+
   const latest = checkins[checkins.length-1];
   const first  = checkins[0];
   const wDelta = +(latest.weight - first.weight).toFixed(1);
@@ -1040,11 +1058,8 @@ export default function ProgressScreen() {
   const data = useProgressData("strength-foundations");
   const { checkins, addCheckin, loading, refresh, programTitle, programSubtitle } = data;
 
-  // Demo PR toast — in production fire from workout/finish.tsx
-  useEffect(() => {
-    const t = setTimeout(() => setPrToast({ name:"Back Squat", gain:"7.5" }), 1600);
-    return () => clearTimeout(t);
-  }, []);
+  // PR toast is triggered externally (e.g. from workout/finish.tsx via navigation params)
+  // Remove the demo setTimeout once real PR detection is wired in workout session engine
 
   const TABS: Array<{key:TabKey;label:string}> = [
     { key:"program",     label:"Program"     },
@@ -1060,7 +1075,8 @@ export default function ProgressScreen() {
       <CheckInSheet
         visible={showCheckin} onClose={() => setShowCheckin(false)}
         onSubmit={c => { addCheckin(c); setShowCheckin(false); }}
-        last={checkins[checkins.length-1]} colors={colors} isDark={isDark}
+        last={checkins[checkins.length-1] ?? { id:"", date:"", isoDate:"", weight:80, meas:{ waist:80, chest:100, arm:35 } }}
+        colors={colors} isDark={isDark}
       />
 
       <ShareModal
