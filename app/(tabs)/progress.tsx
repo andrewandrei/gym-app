@@ -5,6 +5,7 @@
 // This file only handles UI.
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import React, {
   useEffect,
@@ -14,6 +15,7 @@ import React, {
 import {
   Animated,
   Easing,
+  Image,
   Modal,
   Pressable,
   RefreshControl,
@@ -551,15 +553,20 @@ function PerformanceTab({ exerciseCards, colors, isDark }: {
 
 // ─── Body tab ─────────────────────────────────────────────────────────────────
 
+const PHOTO_ANGLES: Array<{ key: "front"|"side"|"back"; label: string }> = [
+  { key:"front", label:"Front" },
+  { key:"side",  label:"Side"  },
+  { key:"back",  label:"Back"  },
+];
+
 function BodyTab({
   checkins, onNewCheckin, colors, isDark,
 }: {
   checkins: CheckIn[]; onNewCheckin:()=>void; colors:any; isDark:boolean;
 }) {
   const [compareIdx, setCompareIdx] = useState<number|null>(null);
-  const [angleIdx,   setAngleIdx]   = useState(0);
-  const ANGLES = ["Front","Side","Back"];
-  const soft   = isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)";
+  const [angleKey,   setAngleKey]   = useState<"front"|"side"|"back">("front");
+  const soft = isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)";
 
   if (checkins.length === 0) {
     return (
@@ -578,73 +585,112 @@ function BodyTab({
     );
   }
 
-  const latest = checkins[checkins.length-1];
-  const first  = checkins[0];
-  const wDelta = +(latest.weight - first.weight).toFixed(1);
-  const wDown  = wDelta < 0;
+  const latest    = checkins[checkins.length-1];
+  const first     = checkins[0];
+  const prev      = checkins.length > 1 ? checkins[checkins.length-2] : null;
+  const wTotal    = +(latest.weight - first.weight).toFixed(1);
+  const wWeek     = prev ? +(latest.weight - prev.weight).toFixed(1) : 0;
+  const compareCI = compareIdx !== null ? checkins[compareIdx] : null;
+  const nowPhoto  = latest.photos?.[angleKey];
+  const beforePhoto = compareCI?.photos?.[angleKey];
 
   return (
     <View style={{ gap:14 }}>
 
-      {/* Weight card */}
+      {/* ── Weight card ── */}
       <View style={[S.bCard, { backgroundColor:colors.card, borderColor:colors.borderSubtle }]}>
         <Text style={[S.eyebrow, { color:colors.muted, marginBottom:10 }]}>BODY WEIGHT</Text>
-        <View style={[S.row, { marginBottom:14, alignItems:"flex-end" }]}>
+
+        <View style={[S.row, { marginBottom:14, alignItems:"flex-start" }]}>
           <View>
             <View style={{ flexDirection:"row", alignItems:"baseline", gap:7 }}>
               <Text style={[S.weightBig, { color:colors.text }]}>{latest.weight}</Text>
               <Text style={[S.caption, { color:colors.muted }]}>kg</Text>
-              <View style={[S.pill, { backgroundColor:wDown?"#22C55E18":"#EF444418", borderColor:wDown?"#22C55E40":"#EF444440" }]}>
-                <Text style={[S.pillText, { color:wDown?"#22C55E":"#EF4444" }]}>{wDelta>0?"+":""}{wDelta} kg</Text>
-              </View>
+              {wWeek !== 0 && (
+                <View style={[S.pill, {
+                  backgroundColor: wWeek<0 ? "#22C55E18" : "#EF444418",
+                  borderColor:     wWeek<0 ? "#22C55E40" : "#EF444440",
+                }]}>
+                  <Text style={[S.pillText, { color:wWeek<0?"#22C55E":"#EF4444" }]}>
+                    {wWeek>0?"+":""}{wWeek} kg
+                  </Text>
+                </View>
+              )}
             </View>
+            <Text style={[S.caption, { color:colors.muted, marginTop:4 }]}>
+              {wWeek !== 0 ? "vs last check-in" : "current weight"}
+            </Text>
           </View>
-          <View style={{ alignItems:"flex-end" }}>
-            <Text style={[S.caption, { color:colors.muted }]}>Block start</Text>
-            <Text style={[S.subhead, { color:colors.muted, marginTop:2 }]}>{first.weight} kg</Text>
+          <View style={{ alignItems:"flex-end", gap:2 }}>
+            <Text style={[S.caption, { color:colors.muted }]}>Since start</Text>
+            <Text style={[S.subhead, { color:wTotal<0?"#22C55E":wTotal>0?"#EF4444":colors.muted, fontWeight:FontWeight.heavy }]}>
+              {wTotal>0?"+":""}{wTotal} kg
+            </Text>
+            <Text style={[S.caption, { color:colors.muted }]}>{first.weight} → {latest.weight} kg</Text>
           </View>
         </View>
+
         <Spark data={checkins.map(c=>c.weight)} color={colors.text} width={315} height={52} strokeWidth={2} />
-        <View style={[S.row, { marginTop:6 }]}>
-          {checkins.map((c,i) => (
-            <Text key={i} style={[S.caption, { color:i===checkins.length-1 ? colors.text : colors.muted }]}>{c.date}</Text>
+
+        <View style={[S.row, { marginTop:8 }]}>
+          <Text style={[S.caption, { color:colors.muted }]}>{first.date}</Text>
+          <Text style={[S.caption, { color:colors.text, fontWeight:FontWeight.heavy }]}>{latest.date}</Text>
+        </View>
+
+        <View style={{ flexDirection:"row", marginTop:14, paddingTop:12, borderTopWidth:StyleSheet.hairlineWidth, borderTopColor:colors.borderSubtle }}>
+          {[
+            { label:"Start",     value:`${first.weight} kg` },
+            { label:"Current",   value:`${latest.weight} kg` },
+            { label:"Check-ins", value:String(checkins.length) },
+          ].map((s, i) => (
+            <View key={i} style={{ flex:1, alignItems:"center", borderLeftWidth:i>0?StyleSheet.hairlineWidth:0, borderLeftColor:colors.borderSubtle }}>
+              <Text style={{ fontSize:15, fontWeight:FontWeight.heavy, color:colors.text }}>{s.value}</Text>
+              <Text style={[S.caption, { color:colors.muted, marginTop:2 }]}>{s.label}</Text>
+            </View>
           ))}
         </View>
       </View>
 
-      {/* Measurements card */}
+      {/* ── Measurements card ── */}
       <View style={[S.bCard, { backgroundColor:colors.card, borderColor:colors.borderSubtle }]}>
         <Text style={[S.subhead, { color:colors.text, marginBottom:14 }]}>Measurements</Text>
         {MEAS_FIELDS.map((f, i) => {
-          const vals  = checkins.map(c => c.meas[f.key]);
-          const delta = +(vals[vals.length-1] - vals[0]).toFixed(1);
-          const good  = f.good==="down" ? delta<0 : delta>0;
-          const col   = delta===0 ? colors.muted : good ? "#22C55E" : "#EF4444";
+          const vals      = checkins.map(c => c.meas[f.key]);
+          const delta     = +(vals[vals.length-1] - vals[0]).toFixed(1);
+          const weekDelta = checkins.length > 1 ? +(vals[vals.length-1] - vals[vals.length-2]).toFixed(1) : 0;
+          const good      = f.good==="down" ? delta<0 : delta>0;
+          const col       = delta===0 ? colors.muted : good ? "#22C55E" : "#EF4444";
+          const wGood     = f.good==="down" ? weekDelta<0 : weekDelta>0;
           return (
             <View key={f.key} style={[S.measRow, {
               borderTopColor:colors.borderSubtle,
               borderTopWidth: i===0 ? 0 : StyleSheet.hairlineWidth,
-              paddingTop: i===0 ? 0 : 11,
+              paddingTop: i===0 ? 0 : 12,
             }]}>
-              <View style={{ width:72, flexShrink:0 }}>
+              <View style={{ width:80, flexShrink:0 }}>
                 <Text style={[S.caption, { color:colors.muted }]}>{f.label}</Text>
                 <Text style={[S.headline, { color:colors.text, marginTop:2 }]}>
                   {vals[vals.length-1]}<Text style={[S.caption, { color:colors.muted }]}> cm</Text>
                 </Text>
+                {weekDelta !== 0 && (
+                  <Text style={[S.caption, { color:wGood?"#22C55E":"#EF4444", marginTop:2 }]}>
+                    {weekDelta>0?"+":""}{weekDelta} wk
+                  </Text>
+                )}
               </View>
               <View style={{ flex:1, alignItems:"center" }}>
-                <Spark data={vals} color={colors.text} width={100} height={28} strokeWidth={1.6} />
+                <Spark data={vals} color={col} width={100} height={28} strokeWidth={1.6} />
               </View>
-              <View style={{ width:44, alignItems:"flex-end", flexShrink:0 }}>
+              <View style={{ width:52, alignItems:"flex-end", flexShrink:0 }}>
                 <Text style={[S.subhead, { color:col, fontWeight:FontWeight.heavy }]}>{delta>0?"+":""}{delta}</Text>
-                <Text style={[S.caption, { color:colors.muted }]}>cm</Text>
+                <Text style={[S.caption, { color:colors.muted }]}>cm total</Text>
               </View>
             </View>
           );
         })}
       </View>
 
-      {/* Photos card */}
+      {/* ── Progress Photos card ── */}
       <View style={[S.bCard, { backgroundColor:colors.card, borderColor:colors.borderSubtle }]}>
         <View style={[S.row, { marginBottom:16 }]}>
           <Text style={[S.subhead, { color:colors.text }]}>Progress Photos</Text>
@@ -652,48 +698,54 @@ function BodyTab({
         </View>
 
         {/* Angle tabs */}
-        <View style={{ flexDirection:"row", gap:6, marginBottom:18 }}>
-          {ANGLES.map((a, i) => (
-            <Pressable key={i} onPress={() => setAngleIdx(i)}
-              style={[S.angleTab, { backgroundColor:angleIdx===i?soft:"transparent", borderWidth:angleIdx===i?0.5:0, borderColor:colors.borderSubtle }]}>
-              <Text style={[S.caption, { color:angleIdx===i?colors.text:colors.muted, fontWeight:angleIdx===i?FontWeight.heavy:FontWeight.bold }]}>{a}</Text>
+        <View style={{ flexDirection:"row", gap:6, marginBottom:16 }}>
+          {PHOTO_ANGLES.map(a => (
+            <Pressable key={a.key} onPress={() => setAngleKey(a.key)}
+              style={[S.angleTab, {
+                backgroundColor: angleKey===a.key ? soft : "transparent",
+                borderWidth: angleKey===a.key ? 0.5 : 0,
+                borderColor: colors.borderSubtle,
+              }]}>
+              <Text style={[S.caption, {
+                color: angleKey===a.key ? colors.text : colors.muted,
+                fontWeight: angleKey===a.key ? FontWeight.heavy : FontWeight.bold,
+              }]}>{a.label}</Text>
             </Pressable>
           ))}
         </View>
 
-        {/* Before / Now */}
+        {/* Side-by-side comparison */}
         <View style={{ flexDirection:"row", gap:10, marginBottom:14 }}>
           {([
-            { label:"BEFORE", accent:false },
-            { label:"NOW",    accent:true  },
+            { label:"BEFORE", photo:beforePhoto, ci:compareCI,   accent:colors.muted    },
+            { label:"NOW",    photo:nowPhoto,    ci:latest,       accent:colors.premium  },
           ] as const).map((slot, j) => (
             <View key={j} style={{ flex:1 }}>
-              <Text style={[S.eyebrow, { textAlign:"center", color:slot.accent?colors.premium:colors.muted, marginBottom:8 }]}>{slot.label}</Text>
+              <View style={[S.row, { marginBottom:6 }]}>
+                <Text style={[S.eyebrow, { color:slot.accent }]}>{slot.label}</Text>
+                {slot.ci && <Text style={[S.caption, { color:colors.muted, fontSize:10 }]}>{slot.ci.date}</Text>}
+              </View>
               <View style={[S.photoSlot, {
-                backgroundColor:soft,
-                borderColor: j===0 ? (compareIdx!==null?colors.borderSubtle:colors.premium+"50") : colors.premium+"50",
+                backgroundColor: soft,
+                borderColor: slot.photo ? slot.accent+"50" : j===1 ? colors.premium+"50" : colors.borderSubtle,
               }]}>
-                {j===0 && compareIdx===null ? (
-                  <>
-                    <Svg width={22} height={22} viewBox="0 0 24 24" opacity={0.45}>
-                      <Path d="M14.5 4h-5L8 7H4a1 1 0 00-1 1v10a1 1 0 001 1h16a1 1 0 001-1V8a1 1 0 00-1-1h-4l-1.5-3z" stroke={colors.premium} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" fill="none" />
-                      <Circle cx={12} cy={13} r={3} stroke={colors.premium} strokeWidth={1.6} fill="none" />
-                    </Svg>
-                    <Text style={[S.caption, { color:colors.premium, fontWeight:FontWeight.bold, textAlign:"center", paddingHorizontal:8 }]}>
-                      Pick a date below
-                    </Text>
-                  </>
+                {slot.photo ? (
+                  <Image source={{ uri:slot.photo }} style={StyleSheet.absoluteFillObject} resizeMode="cover" />
                 ) : (
                   <>
-                    <Svg width={22} height={22} viewBox="0 0 24 24" opacity={0.28}>
-                      <Path d="M14.5 4h-5L8 7H4a1 1 0 00-1 1v10a1 1 0 001 1h16a1 1 0 001-1V8a1 1 0 00-1-1h-4l-1.5-3z" stroke={colors.muted} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" fill="none" />
-                      <Circle cx={12} cy={13} r={3} stroke={colors.muted} strokeWidth={1.6} fill="none" />
+                    <Svg width={22} height={22} viewBox="0 0 24 24" opacity={0.35}>
+                      <Path d="M14.5 4h-5L8 7H4a1 1 0 00-1 1v10a1 1 0 001 1h16a1 1 0 001-1V8a1 1 0 00-1-1h-4l-1.5-3z"
+                        stroke={j===1 ? colors.premium : colors.muted}
+                        strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                      <Circle cx={12} cy={13} r={3}
+                        stroke={j===1 ? colors.premium : colors.muted}
+                        strokeWidth={1.6} fill="none" />
                     </Svg>
-                    <Text style={[S.caption, { color:colors.muted, textAlign:"center", paddingHorizontal:10 }]}>
-                      {j===0 ? `No photo\n${checkins[compareIdx!]?.date ?? ""}` : "No photo yet\nadd in check-in"}
-                    </Text>
-                    <Text style={{ fontSize:9, color:colors.muted, marginTop:2 }}>
-                      {j===0 ? checkins[compareIdx!]?.date ?? "" : latest.date}
+                    <Text style={[S.caption, {
+                      color: j===1 ? colors.premium : colors.muted,
+                      textAlign:"center", paddingHorizontal:8, fontWeight:FontWeight.bold,
+                    }]}>
+                      {j===1 ? "Add in\ncheck-in" : compareIdx===null ? "Pick a date\nbelow" : "No photo\nfor this date"}
                     </Text>
                   </>
                 )}
@@ -702,67 +754,76 @@ function BodyTab({
           ))}
         </View>
 
-        {/* Compare label + horizontal scroll pills */}
-        <View style={[S.row, { marginBottom:10 }]}>
-          <Text style={[S.subhead, { fontSize:13 }]}>{/* set color below */}
-            <Text style={{ color:colors.text }}>Compare with</Text>
+        {/* Compare selector */}
+        <Text style={[S.caption, { color:colors.muted, marginBottom:8 }]}>Compare with</Text>
+        {checkins.length < 2 ? (
+          <Text style={[S.caption, { color:colors.muted, fontStyle:"italic", marginBottom:4 }]}>
+            Add more check-ins to compare
           </Text>
-          {compareIdx !== null && (
-            <Text style={[S.caption, { color:colors.muted }]}>{checkins[compareIdx]?.date} selected</Text>
-          )}
-        </View>
+        ) : (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ gap:8, paddingBottom:4 }}>
+            {checkins.slice(0,-1).map((c, i) => {
+              const sel = compareIdx === i;
+              return (
+                <Pressable key={i} onPress={() => setCompareIdx(sel ? null : i)}
+                  style={[S.comparePill, {
+                    backgroundColor: sel ? colors.premium+"16" : soft,
+                    borderColor:     sel ? colors.premium+"50" : colors.borderSubtle,
+                  }]}>
+                  <Text style={{ fontSize:12, fontWeight:sel?FontWeight.heavy:FontWeight.bold, color:sel?colors.premium:colors.muted }}>
+                    {c.date}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        )}
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ gap:8, paddingBottom:4 }}>
-          {checkins.slice(0,-1).map((c, i) => {
-            const sel = compareIdx === i;
-            return (
-              <Pressable key={i} onPress={() => setCompareIdx(sel ? null : i)}
-                style={[S.comparePill, {
-                  backgroundColor: sel ? colors.premium+"16" : isDark?"rgba(255,255,255,0.05)":"rgba(0,0,0,0.04)",
-                  borderColor: sel ? colors.premium+"50" : colors.borderSubtle,
-                }]}>
-                <Text style={{ fontSize:12, fontWeight:sel?FontWeight.heavy:FontWeight.bold, color:sel?colors.premium:colors.muted }}>
-                  {c.date}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
-
-        {/* Selected detail */}
-        {compareIdx !== null && (() => {
-          const c = checkins[compareIdx];
-          const delta = +(latest.weight - c.weight).toFixed(1);
-          const isDown = delta < 0;
+        {/* Comparison detail panel */}
+        {compareCI && (() => {
+          const wDelta     = +(latest.weight - compareCI.weight).toFixed(1);
+          const measDeltas = MEAS_FIELDS.map(f => ({
+            label: f.label,
+            delta: +(latest.meas[f.key] - compareCI.meas[f.key]).toFixed(1),
+            good:  f.good==="down" ? latest.meas[f.key] < compareCI.meas[f.key] : latest.meas[f.key] > compareCI.meas[f.key],
+          }));
           return (
-            <View style={[S.compareDetail, {
-              backgroundColor:colors.premium+"10",
-              borderColor:colors.premium+"35",
-              marginTop:12,
-            }]}>
-              <View style={S.row}>
+            <View style={[S.compareDetail, { backgroundColor:colors.premium+"10", borderColor:colors.premium+"35", marginTop:12 }]}>
+              <View style={[S.row, { marginBottom:measDeltas.some(m=>m.delta!==0) ? 10 : 0 }]}>
                 <View>
-                  <Text style={[S.subhead, { color:colors.premium, fontSize:13 }]}>{c.date}</Text>
-                  <Text style={[S.caption, { color:colors.muted, marginTop:2 }]}>Week {compareIdx+1} · {c.weight} kg</Text>
+                  <Text style={[S.subhead, { color:colors.premium, fontSize:13 }]}>
+                    {compareCI.date} → {latest.date}
+                  </Text>
+                  <Text style={[S.caption, { color:colors.muted, marginTop:2 }]}>Progress since this check-in</Text>
                 </View>
                 <View style={{ alignItems:"flex-end" }}>
-                  <Text style={[S.subhead, { color:isDown?"#22C55E":"#EF4444", fontWeight:FontWeight.heavy }]}>
-                    {delta>0?"+":""}{delta} kg
+                  <Text style={[S.subhead, { color:wDelta<0?"#22C55E":"#EF4444", fontWeight:FontWeight.heavy }]}>
+                    {wDelta>0?"+":""}{wDelta} kg
                   </Text>
-                  <Text style={[S.caption, { color:colors.muted }]}>since then</Text>
+                  <Text style={[S.caption, { color:colors.muted }]}>body weight</Text>
                 </View>
               </View>
+              {measDeltas.some(m => m.delta !== 0) && (
+                <View style={{ flexDirection:"row", flexWrap:"wrap", gap:6 }}>
+                  {measDeltas.filter(m => m.delta !== 0).map((m, i) => (
+                    <View key={i} style={[S.pill, {
+                      backgroundColor: m.good ? "#22C55E18" : "#EF444418",
+                      borderColor:     m.good ? "#22C55E40" : "#EF444440",
+                    }]}>
+                      <Text style={[S.pillText, { color:m.good?"#22C55E":"#EF4444" }]}>
+                        {m.label} {m.delta>0?"+":""}{m.delta} cm
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              )}
             </View>
           );
         })()}
 
-        <Text style={[S.caption, { textAlign:"center", marginTop:10, fontSize:10, color:colors.muted }]}>
-          Swipe photos left/right to change angle
-        </Text>
-
         <Pressable onPress={onNewCheckin}
-          style={[S.checkinBtn, { backgroundColor:colors.premium+"14", borderColor:colors.premium+"45", marginTop:14 }]}>
+          style={[S.checkinBtn, { backgroundColor:colors.premium+"14", borderColor:colors.premium+"45", marginTop:16 }]}>
           <Text style={[S.subhead, { color:colors.premium }]}>+ New Check-in</Text>
         </Pressable>
       </View>
@@ -775,29 +836,62 @@ function BodyTab({
 function CheckInSheet({ visible, onClose, onSubmit, last, colors, isDark }: {
   visible:boolean; onClose:()=>void; onSubmit:(c:Omit<CheckIn,"id">)=>void; last:CheckIn; colors:any; isDark:boolean;
 }) {
-  const [step, setStep] = useState(0);
-  const [weight, setWeight] = useState("");
-  const [meas, setMeas] = useState({ waist:"", chest:"", arm:"" });
+  const [step,       setStep]       = useState(0);
+  const [weight,     setWeight]     = useState("");
+  const [meas,       setMeas]       = useState({ waist:"", chest:"", arm:"" });
+  const [photos,     setPhotos]     = useState<{ front?:string; side?:string; back?:string }>({});
+  const [photoAngle, setPhotoAngle] = useState<"front"|"side"|"back">("front");
   const soft = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)";
 
-  const now = new Date();
-  const isoDate = now.toISOString().split("T")[0];
+  const now       = new Date();
+  const isoDate   = now.toISOString().split("T")[0];
   const dateLabel = now.toLocaleDateString("en-US", { month:"short", day:"numeric" });
+
+  const parsedWeight     = parseFloat(weight);
+  const liveWeightDelta  = !isNaN(parsedWeight) ? +(parsedWeight - last.weight).toFixed(1) : null;
+
+  function nudge(amount: number) {
+    const base = parseFloat(weight) || last.weight;
+    setWeight((Math.round((base + amount) * 10) / 10).toFixed(1));
+  }
+
+  async function pickPhoto(source: "camera"|"library") {
+    let result: ImagePicker.ImagePickerResult;
+    if (source === "camera") {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== "granted") return;
+      result = await ImagePicker.launchCameraAsync({ allowsEditing:true, aspect:[3,4], quality:0.75 });
+    } else {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== "granted") return;
+      result = await ImagePicker.launchImageLibraryAsync({ mediaTypes:ImagePicker.MediaTypeOptions.Images, allowsEditing:true, aspect:[3,4], quality:0.75 });
+    }
+    if (!result.canceled && result.assets[0]) {
+      setPhotos(p => ({ ...p, [photoAngle]:result.assets[0].uri }));
+    }
+  }
 
   function submit() {
     onSubmit({
       date: dateLabel,
       isoDate,
-      weight: parseFloat(weight)||last.weight,
+      weight: parseFloat(weight) || last.weight,
       meas: {
-        waist: parseFloat(meas.waist)||last.meas.waist,
-        chest: parseFloat(meas.chest)||last.meas.chest,
-        arm:   parseFloat(meas.arm)  ||last.meas.arm,
+        waist: parseFloat(meas.waist) || last.meas.waist,
+        chest: parseFloat(meas.chest) || last.meas.chest,
+        arm:   parseFloat(meas.arm)   || last.meas.arm,
       },
+      photos: Object.keys(photos).length > 0 ? photos : undefined,
     });
-    setStep(3);
+    setStep(4);
   }
-  function reset() { setStep(0); setWeight(""); setMeas({ waist:"", chest:"", arm:"" }); onClose(); }
+
+  function reset() {
+    setStep(0); setWeight(""); setMeas({ waist:"", chest:"", arm:"" });
+    setPhotos({}); setPhotoAngle("front"); onClose();
+  }
+
+  const stepLabels = ["Weight","Measurements","Photos","Review"];
 
   return (
     <Modal visible={visible} animationType="slide" transparent presentationStyle="overFullScreen" onRequestClose={reset}>
@@ -805,62 +899,95 @@ function CheckInSheet({ visible, onClose, onSubmit, last, colors, isDark }: {
       <View style={[S.sheet, { backgroundColor:colors.surface, borderColor:colors.borderSubtle }]}>
         <View style={[S.handle, { backgroundColor:isDark?"rgba(255,255,255,0.15)":"rgba(0,0,0,0.12)" }]} />
 
-        {step < 3 && (
+        {step < 4 && (
           <View style={{ paddingHorizontal:20, paddingTop:14 }}>
             <View style={S.row}>
               <View>
                 <Text style={[S.eyebrow, { color:colors.muted, marginBottom:4 }]}>WEEKLY CHECK-IN</Text>
-                <Text style={[S.title2, { color:colors.text }]}>{["Weight","Measurements","Photos"][step]}</Text>
+                <Text style={[S.title2, { color:colors.text }]}>{stepLabels[step]}</Text>
               </View>
               <Pressable onPress={reset} style={[S.closeBtn, { backgroundColor:soft, borderColor:colors.borderSubtle }]}>
                 <Text style={[S.body, { color:colors.muted, fontSize:18 }]}>×</Text>
               </Pressable>
             </View>
             <View style={{ flexDirection:"row", gap:5, marginTop:12 }}>
-              {[0,1,2].map(i => <View key={i} style={[S.progBar, { backgroundColor:i<=step?colors.premium:soft }]} />)}
+              {stepLabels.map((_, i) => (
+                <View key={i} style={[S.progBar, { backgroundColor:i<=step?colors.premium:soft }]} />
+              ))}
             </View>
           </View>
         )}
 
+        {/* ── Step 0: Weight ── */}
         {step===0 && (
           <View style={S.sheetBody}>
             <Text style={[S.caption, { color:colors.muted, marginBottom:20 }]}>
-              Last: <Text style={{ color:colors.text, fontWeight:FontWeight.heavy }}>{last.weight} kg</Text>
+              Last check-in: <Text style={{ color:colors.text, fontWeight:FontWeight.heavy }}>{last.weight} kg</Text>
             </Text>
-            <View style={{ flexDirection:"row", justifyContent:"center", alignItems:"center", gap:10, marginBottom:28 }}>
-              <TextInput value={weight} onChangeText={setWeight} placeholder={String(last.weight)}
-                placeholderTextColor={colors.muted} keyboardType="numeric"
-                style={[S.bigInput, { backgroundColor:soft, borderColor:colors.borderSubtle, color:colors.text }]} />
-              <Text style={[S.body, { color:colors.muted }]}>kg</Text>
+            <View style={{ flexDirection:"row", justifyContent:"center", alignItems:"center", gap:12, marginBottom:14 }}>
+              <Pressable onPress={() => nudge(-0.5)} style={[S.nudgeBtn, { backgroundColor:soft, borderColor:colors.borderSubtle }]}>
+                <Text style={[S.title3, { color:colors.muted }]}>−</Text>
+              </Pressable>
+              <View style={{ alignItems:"center" }}>
+                <TextInput value={weight} onChangeText={setWeight}
+                  placeholder={String(last.weight)}
+                  placeholderTextColor={colors.muted} keyboardType="decimal-pad"
+                  style={[S.bigInput, { backgroundColor:soft, borderColor:colors.borderSubtle, color:colors.text, width:140 }]} />
+                <Text style={[S.caption, { color:colors.muted, marginTop:5 }]}>kg</Text>
+              </View>
+              <Pressable onPress={() => nudge(0.5)} style={[S.nudgeBtn, { backgroundColor:soft, borderColor:colors.borderSubtle }]}>
+                <Text style={[S.title3, { color:colors.muted }]}>+</Text>
+              </Pressable>
             </View>
+            {liveWeightDelta !== null && (
+              <View style={{ alignItems:"center", marginBottom:22 }}>
+                <View style={[S.pill, {
+                  backgroundColor: liveWeightDelta<0 ? "#22C55E18" : liveWeightDelta>0 ? "#EF444418" : soft,
+                  borderColor:     liveWeightDelta<0 ? "#22C55E40" : liveWeightDelta>0 ? "#EF444440" : colors.borderSubtle,
+                  paddingHorizontal:14, paddingVertical:6,
+                }]}>
+                  <Text style={[S.pillText, {
+                    color: liveWeightDelta<0 ? "#22C55E" : liveWeightDelta>0 ? "#EF4444" : colors.muted,
+                    fontSize:13,
+                  }]}>
+                    {liveWeightDelta>0?"+":""}{liveWeightDelta} kg since last check-in
+                  </Text>
+                </View>
+              </View>
+            )}
             <Pressable onPress={() => setStep(1)} style={[S.primaryBtn, { backgroundColor:colors.text }]}>
-              <Text style={[S.btnText, { color:colors.surface }]}>Continue</Text>
+              <Text style={[S.btnText, { color:colors.surface }]}>Continue →</Text>
             </Pressable>
           </View>
         )}
 
+        {/* ── Step 1: Measurements ── */}
         {step===1 && (
           <View style={S.sheetBody}>
-            <Text style={[S.caption, { color:colors.muted, marginBottom:16 }]}>All optional</Text>
+            <Text style={[S.caption, { color:colors.muted, marginBottom:16 }]}>All optional — skip any you don't track</Text>
             <View style={{ gap:10, marginBottom:24 }}>
               {MEAS_FIELDS.map(f => {
-                const cur = parseFloat(meas[f.key]);
+                const cur   = parseFloat(meas[f.key]);
                 const lastV = last.meas[f.key];
-                const delta = cur ? +(cur - lastV).toFixed(1) : null;
-                const good  = delta ? (f.good==="down" ? delta<0 : delta>0) : null;
+                const delta = !isNaN(cur) ? +(cur - lastV).toFixed(1) : null;
+                const good  = delta != null ? (f.good==="down" ? delta<0 : delta>0) : null;
                 return (
                   <View key={f.key} style={[S.measInputRow, { backgroundColor:soft, borderColor:colors.borderSubtle }]}>
                     <View>
-                      <Text style={[S.subhead, { color:colors.muted }]}>{f.label}</Text>
+                      <Text style={[S.subhead, { color:colors.text }]}>{f.label}</Text>
                       <Text style={[S.caption, { color:colors.muted }]}>Last: {lastV} cm</Text>
                     </View>
-                    <View style={{ flexDirection:"row", alignItems:"center", gap:10 }}>
-                      {delta !== null && <Text style={[S.caption, { color:good?"#22C55E":"#EF4444", fontWeight:FontWeight.heavy }]}>{delta>0?"+":""}{delta}</Text>}
+                    <View style={{ flexDirection:"row", alignItems:"center", gap:8 }}>
+                      {delta !== null && (
+                        <Text style={[S.caption, { color:good?"#22C55E":"#EF4444", fontWeight:FontWeight.heavy }]}>
+                          {delta>0?"+":""}{delta}
+                        </Text>
+                      )}
                       <View style={[S.measWrap, { backgroundColor:colors.card, borderColor:colors.borderSubtle }]}>
                         <TextInput value={meas[f.key as keyof typeof meas]}
                           onChangeText={t => setMeas(m=>({...m,[f.key]:t}))}
                           placeholder={String(lastV)} placeholderTextColor={colors.muted}
-                          keyboardType="numeric"
+                          keyboardType="decimal-pad"
                           style={[S.measInput, { color:colors.text }]} />
                         <Text style={[S.caption, { color:colors.muted, paddingRight:10 }]}>cm</Text>
                       </View>
@@ -871,43 +998,176 @@ function CheckInSheet({ visible, onClose, onSubmit, last, colors, isDark }: {
             </View>
             <View style={{ flexDirection:"row", gap:10 }}>
               <Pressable onPress={() => setStep(0)} style={[S.ghostBtn, { flex:1, borderColor:colors.borderSubtle }]}>
-                <Text style={[S.btnText, { color:colors.muted }]}>Back</Text>
+                <Text style={[S.btnText, { color:colors.muted }]}>← Back</Text>
               </Pressable>
               <Pressable onPress={() => setStep(2)} style={[S.primaryBtn, { flex:2, backgroundColor:colors.text }]}>
-                <Text style={[S.btnText, { color:colors.surface }]}>Continue</Text>
+                <Text style={[S.btnText, { color:colors.surface }]}>Continue →</Text>
               </Pressable>
             </View>
           </View>
         )}
 
+        {/* ── Step 2: Photos ── */}
         {step===2 && (
-          <View style={S.sheetBody}>
-            <Text style={[S.caption, { color:colors.muted, marginBottom:16 }]}>Private — visible only to you and your coach</Text>
-            <View style={[S.photoPlaceholder, { backgroundColor:soft, borderColor:colors.borderSubtle }]}>
-              <Text style={{ fontSize:26, color:colors.muted, marginBottom:8 }}>📷</Text>
-              <Text style={[S.subhead, { color:colors.text }]}>Photo upload</Text>
-              <Text style={[S.caption, { color:colors.muted, textAlign:"center", marginTop:4 }]}>
-                Run: npx expo install expo-image-picker
-              </Text>
+          <ScrollView contentContainerStyle={S.sheetBody} keyboardShouldPersistTaps="handled">
+            <Text style={[S.caption, { color:colors.muted, marginBottom:14 }]}>Private — visible only to you and your coach</Text>
+
+            {/* Angle selector */}
+            <View style={{ flexDirection:"row", gap:6, marginBottom:16 }}>
+              {PHOTO_ANGLES.map(a => (
+                <Pressable key={a.key} onPress={() => setPhotoAngle(a.key)}
+                  style={[S.angleTab, {
+                    backgroundColor: photoAngle===a.key ? soft : "transparent",
+                    borderWidth: photoAngle===a.key ? 0.5 : 0,
+                    borderColor: colors.borderSubtle,
+                  }]}>
+                  <Text style={[S.caption, {
+                    color: photoAngle===a.key ? colors.text : colors.muted,
+                    fontWeight: photoAngle===a.key ? FontWeight.heavy : FontWeight.bold,
+                  }]}>{a.label}</Text>
+                </Pressable>
+              ))}
             </View>
-            <View style={{ flexDirection:"row", gap:10, marginTop:20 }}>
+
+            {/* Photo preview */}
+            <View style={{ marginBottom:16 }}>
+              {photos[photoAngle] ? (
+                <View>
+                  <Image source={{ uri:photos[photoAngle]! }}
+                    style={{ width:"100%", aspectRatio:3/4, borderRadius:14 }}
+                    resizeMode="cover" />
+                  <Pressable onPress={() => setPhotos(p => ({ ...p, [photoAngle]:undefined }))}
+                    style={{ position:"absolute", top:10, right:10, width:32, height:32,
+                      borderRadius:16, alignItems:"center", justifyContent:"center",
+                      backgroundColor:"rgba(0,0,0,0.55)" }}>
+                    <Text style={{ color:"#fff", fontSize:18, fontWeight:FontWeight.heavy }}>×</Text>
+                  </Pressable>
+                </View>
+              ) : (
+                <View style={[S.photoPlaceholder, { backgroundColor:soft, borderColor:colors.borderSubtle, paddingVertical:32 }]}>
+                  <Svg width={30} height={30} viewBox="0 0 24 24" opacity={0.4}>
+                    <Path d="M14.5 4h-5L8 7H4a1 1 0 00-1 1v10a1 1 0 001 1h16a1 1 0 001-1V8a1 1 0 00-1-1h-4l-1.5-3z"
+                      stroke={colors.muted} strokeWidth={1.4} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                    <Circle cx={12} cy={13} r={3} stroke={colors.muted} strokeWidth={1.4} fill="none" />
+                  </Svg>
+                  <Text style={[S.subhead, { color:colors.muted, marginTop:10 }]}>No {photoAngle} photo</Text>
+                </View>
+              )}
+            </View>
+
+            {/* Camera / Gallery buttons */}
+            <View style={{ flexDirection:"row", gap:10, marginBottom:16 }}>
+              <Pressable onPress={() => pickPhoto("camera")}
+                style={[S.ghostBtn, { flex:1, borderColor:colors.borderSubtle, flexDirection:"row", gap:8, justifyContent:"center" }]}>
+                <Svg width={17} height={17} viewBox="0 0 24 24">
+                  <Path d="M14.5 4h-5L8 7H4a1 1 0 00-1 1v10a1 1 0 001 1h16a1 1 0 001-1V8a1 1 0 00-1-1h-4l-1.5-3z"
+                    stroke={colors.text} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                  <Circle cx={12} cy={13} r={3} stroke={colors.text} strokeWidth={1.6} fill="none" />
+                </Svg>
+                <Text style={[S.btnText, { color:colors.text }]}>Camera</Text>
+              </Pressable>
+              <Pressable onPress={() => pickPhoto("library")}
+                style={[S.ghostBtn, { flex:1, borderColor:colors.borderSubtle, flexDirection:"row", gap:8, justifyContent:"center" }]}>
+                <Svg width={17} height={17} viewBox="0 0 24 24">
+                  <Path d="M4 6a2 2 0 012-2h12a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V6z"
+                    stroke={colors.text} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                  <Path d="M4 16l4-4 4 4 3-3 3 3"
+                    stroke={colors.text} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                </Svg>
+                <Text style={[S.btnText, { color:colors.text }]}>Library</Text>
+              </Pressable>
+            </View>
+
+            {/* Angle progress dots */}
+            <View style={{ flexDirection:"row", justifyContent:"center", gap:8, marginBottom:16 }}>
+              {PHOTO_ANGLES.map(a => (
+                <View key={a.key} style={{
+                  width: photos[a.key] ? 8 : 6,
+                  height: photos[a.key] ? 8 : 6,
+                  borderRadius:4,
+                  backgroundColor: photos[a.key] ? colors.premium : colors.borderSubtle,
+                }} />
+              ))}
+            </View>
+
+            <View style={{ flexDirection:"row", gap:10 }}>
               <Pressable onPress={() => setStep(1)} style={[S.ghostBtn, { flex:1, borderColor:colors.borderSubtle }]}>
-                <Text style={[S.btnText, { color:colors.muted }]}>Back</Text>
+                <Text style={[S.btnText, { color:colors.muted }]}>← Back</Text>
+              </Pressable>
+              <Pressable onPress={() => setStep(3)} style={[S.primaryBtn, { flex:2, backgroundColor:colors.text }]}>
+                <Text style={[S.btnText, { color:colors.surface }]}>Review →</Text>
+              </Pressable>
+            </View>
+          </ScrollView>
+        )}
+
+        {/* ── Step 3: Review ── */}
+        {step===3 && (
+          <ScrollView contentContainerStyle={S.sheetBody} keyboardShouldPersistTaps="handled">
+            <Text style={[S.caption, { color:colors.muted, marginBottom:20 }]}>Review before saving</Text>
+
+            <View style={[S.coachSummary, { backgroundColor:soft, borderColor:colors.borderSubtle, marginBottom:20 }]}>
+              {[
+                { label:"Body Weight", cur:parseFloat(weight)||last.weight,       prev:last.weight,      unit:"kg",  goodDown:true  },
+                { label:"Waist",       cur:parseFloat(meas.waist)||last.meas.waist, prev:last.meas.waist, unit:"cm",  goodDown:true  },
+                { label:"Chest",       cur:parseFloat(meas.chest)||last.meas.chest, prev:last.meas.chest, unit:"cm",  goodDown:false },
+                { label:"Arms",        cur:parseFloat(meas.arm)||last.meas.arm,     prev:last.meas.arm,   unit:"cm",  goodDown:false },
+              ].map((r, i, arr) => {
+                const delta = +(r.cur - r.prev).toFixed(1);
+                const good  = r.goodDown ? delta<0 : delta>0;
+                return (
+                  <View key={i} style={[S.coachRow, {
+                    borderBottomColor:colors.borderSubtle,
+                    borderBottomWidth:i<arr.length-1?StyleSheet.hairlineWidth:0,
+                  }]}>
+                    <Text style={[S.body, { color:colors.muted, flex:1 }]}>{r.label}</Text>
+                    <Text style={[S.subhead, { color:colors.text }]}>{r.cur} {r.unit}</Text>
+                    <Text style={[S.subhead, {
+                      color: delta===0 ? colors.muted : good ? "#22C55E" : "#EF4444",
+                      marginLeft:10, minWidth:52, textAlign:"right", fontWeight:FontWeight.heavy,
+                    }]}>
+                      {delta===0 ? "—" : `${delta>0?"+":""}${delta}`}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+
+            {/* Photo thumbnails */}
+            {PHOTO_ANGLES.some(a => photos[a.key]) && (
+              <View style={{ flexDirection:"row", gap:8, marginBottom:20 }}>
+                {PHOTO_ANGLES.filter(a => photos[a.key]).map(a => (
+                  <View key={a.key} style={{ flex:1, gap:5 }}>
+                    <Text style={[S.eyebrow, { color:colors.muted, textAlign:"center" }]}>{a.label.toUpperCase()}</Text>
+                    <Image source={{ uri:photos[a.key]! }}
+                      style={{ width:"100%", aspectRatio:3/4, borderRadius:10 }}
+                      resizeMode="cover" />
+                  </View>
+                ))}
+              </View>
+            )}
+
+            <View style={{ flexDirection:"row", gap:10 }}>
+              <Pressable onPress={() => setStep(2)} style={[S.ghostBtn, { flex:1, borderColor:colors.borderSubtle }]}>
+                <Text style={[S.btnText, { color:colors.muted }]}>← Back</Text>
               </Pressable>
               <Pressable onPress={submit} style={[S.primaryBtn, { flex:2, backgroundColor:colors.text }]}>
-                <Text style={[S.btnText, { color:colors.surface }]}>Save check-in</Text>
+                <Text style={[S.btnText, { color:colors.surface }]}>Save Check-in ✓</Text>
               </Pressable>
             </View>
-          </View>
+          </ScrollView>
         )}
 
-        {step===3 && (
+        {/* ── Step 4: Done ── */}
+        {step===4 && (
           <View style={[S.sheetBody, { alignItems:"center", paddingVertical:32 }]}>
             <View style={[S.doneCircle, { backgroundColor:colors.premium+"20", borderColor:colors.premium+"45" }]}>
-              <Text style={{ fontSize:20, color:colors.premium }}>✓</Text>
+              <Text style={{ fontSize:22, color:colors.premium }}>✓</Text>
             </View>
             <Text style={[S.title2, { color:colors.text, marginBottom:6 }]}>Check-in saved</Text>
-            <Text style={[S.body, { color:colors.muted, marginBottom:28 }]}>Your coach will review shortly</Text>
+            <Text style={[S.body, { color:colors.muted, marginBottom:28, textAlign:"center" }]}>
+              Your progress has been logged.{"\n"}Keep it up!
+            </Text>
             <Pressable onPress={reset} style={[S.primaryBtn, { backgroundColor:colors.text, width:"100%" }]}>
               <Text style={[S.btnText, { color:colors.surface }]}>Done</Text>
             </Pressable>
@@ -1184,7 +1444,8 @@ const S = StyleSheet.create({
   closeBtn:    { width:32, height:32, borderRadius:10, borderWidth:BorderWidth.default, alignItems:"center", justifyContent:"center" },
   progBar:     { flex:1, height:2, borderRadius:1 },
   sheetBody:   { paddingHorizontal:20, paddingTop:8, paddingBottom:16 },
-  bigInput:    { borderRadius:14, borderWidth:BorderWidth.default, padding:14, fontSize:36, fontWeight:FontWeight.black, width:160, textAlign:"center" },
+  bigInput:    { borderRadius:14, borderWidth:BorderWidth.default, padding:14, fontSize:36, fontWeight:FontWeight.black, textAlign:"center" },
+  nudgeBtn:    { width:48, height:48, borderRadius:12, borderWidth:BorderWidth.default, alignItems:"center", justifyContent:"center" },
   primaryBtn:  { borderRadius:14, padding:15, alignItems:"center" },
   ghostBtn:    { borderRadius:14, padding:15, alignItems:"center", borderWidth:BorderWidth.default },
   btnText:     { ...Typography.button },

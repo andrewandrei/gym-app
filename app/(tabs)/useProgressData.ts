@@ -74,6 +74,7 @@ export type CheckIn = {
   isoDate: string;     // ISO for sorting
   weight: number;
   meas: { waist: number; chest: number; arm: number };
+  photos?: { front?: string; side?: string; back?: string };
 };
 
 export type ProgressData = {
