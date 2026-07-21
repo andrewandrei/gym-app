@@ -326,7 +326,7 @@ const S = StyleSheet.create({
   progressFill: {
     height: "100%",
     borderRadius: 999,
-    backgroundColor: (Colors as any).premium ?? "#F4C84A",
+    backgroundColor: (Colors as any).premium ?? "#F2EDE5",
   },
   exerciseRow: {
     marginTop: Spacing.md,

@@ -56,8 +56,7 @@ export const LightColors: AppColors = {
   fill: "#F2F2F7",
   fillAlt: "#FAFAFA",
 
-  // Deep Honey
-  premium: "#C89211",
+  premium: "#1A1A1A",
 
   danger: "#D92D20",
   success: "#22C55E",
@@ -68,10 +67,9 @@ export const LightColors: AppColors = {
 
   card: "#FFFFFF",
 
-  // Deep Honey semantic system
-  premiumSoft: "rgba(200,146,17,0.14)",
-  premiumBorder: "rgba(122,82,0,0.18)",
-  premiumText: "#7A5200",
+  premiumSoft: "rgba(26,26,26,0.07)",
+  premiumBorder: "rgba(26,26,26,0.14)",
+  premiumText: "#1A1A1A",
 
   // Emerald semantic system
   successSoft: "rgba(34,197,94,0.12)",
@@ -100,8 +98,7 @@ export const DarkColors: AppColors = {
   fill: "#1A1B1E",
   fillAlt: "#141518",
 
-  // Deep Honey
-  premium: "#C89211",
+  premium: "#F2EDE5",
 
   danger: "#FF6B5E",
   success: "#22C55E",
@@ -112,10 +109,9 @@ export const DarkColors: AppColors = {
 
   card: "#1B1B1E",
 
-  // Deep Honey semantic system
-  premiumSoft: "rgba(200,146,17,0.18)",
-  premiumBorder: "rgba(200,146,17,0.34)",
-  premiumText: "#F4C84A",
+  premiumSoft: "rgba(242,237,229,0.10)",
+  premiumBorder: "rgba(242,237,229,0.18)",
+  premiumText: "#F2EDE5",
 
   // Emerald semantic system
   successSoft: "rgba(34,197,94,0.16)",

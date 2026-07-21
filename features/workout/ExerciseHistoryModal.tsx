@@ -515,7 +515,7 @@ const styles = StyleSheet.create({
   },
 
   doneDotPr: {
-    backgroundColor: (Colors as any).premium ?? "#F4C84A",
+    backgroundColor: (Colors as any).premium ?? "#F2EDE5",
   },
 
   doneDotOff: {
