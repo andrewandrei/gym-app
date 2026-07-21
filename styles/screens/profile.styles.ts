@@ -12,6 +12,7 @@ export function createProfileStyles(
     border: string;
     borderSubtle: string;
     premium: string;
+    onPremium: string;
   },
   isDark: boolean,
 ) {
@@ -77,7 +78,7 @@ export function createProfileStyles(
     upgradePillText: {
       fontSize: 14,
       fontWeight: "900",
-      color: "#111111",
+      color: colors.onPremium,
       letterSpacing: -0.1,
     },
 

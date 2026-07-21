@@ -17,6 +17,7 @@ export type AppColors = {
   fillAlt: string;
 
   premium: string;
+  onPremium: string;
 
   danger: string;
   success: string;
@@ -57,6 +58,7 @@ export const LightColors: AppColors = {
   fillAlt: "#FAFAFA",
 
   premium: "#1A1A1A",
+  onPremium: "#FFFFFF",
 
   danger: "#D92D20",
   success: "#22C55E",
@@ -99,6 +101,7 @@ export const DarkColors: AppColors = {
   fillAlt: "#141518",
 
   premium: "#F2EDE5",
+  onPremium: "#0F0F10",
 
   danger: "#FF6B5E",
   success: "#22C55E",

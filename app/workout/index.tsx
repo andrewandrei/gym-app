@@ -2724,7 +2724,12 @@ const workoutConfig = builderWorkoutConfig ?? localWorkoutConfig;
                             },
                           ]}
                         >
-                          {hs.done ? <Check size={14} color="#fff" /> : null}
+                          {hs.done ? (
+                            <Check
+                              size={14}
+                              color={isPrSet ? colors.onPremium : "#fff"}
+                            />
+                          ) : null}
                         </View>
                       </View>
                     );
@@ -2865,7 +2870,7 @@ const workoutConfig = builderWorkoutConfig ?? localWorkoutConfig;
                         style={{
                           fontSize: 24,
                           fontWeight: "900",
-                          color: customMinutes === min.toString() ? colors.text : colors.muted,
+                          color: customMinutes === min.toString() ? colors.onPremium : colors.muted,
                         }}
                       >
                         {min}
@@ -2915,7 +2920,7 @@ const workoutConfig = builderWorkoutConfig ?? localWorkoutConfig;
                         style={{
                           fontSize: 24,
                           fontWeight: "900",
-                          color: customSeconds === sec.toString() ? colors.text : colors.muted,
+                          color: customSeconds === sec.toString() ? colors.onPremium : colors.muted,
                         }}
                       >
                         {sec.toString().padStart(2, "0")}

@@ -1480,7 +1480,7 @@ export default function FinishScreen() {
                     <MaterialCommunityIcons
                       name={communityPosted ? "check-bold" : "account-group"}
                       size={30}
-                      color={communityPosted ? colors.successText : "#FFFFFF"}
+                      color={communityPosted ? colors.successText : colors.onPremium}
                     />
                   </View>
                   <Text style={styles.shareOptionPrimaryLabel}>Community</Text>
