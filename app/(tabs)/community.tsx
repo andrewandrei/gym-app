@@ -67,7 +67,7 @@ const FEED_TABS: { key: FeedTabKey; label: string }[] = [
 ];
 
 const SAMPLE_ATHLETES = [
-  { name: "Alex", accent: "#F2EDE5", filter: "following" as const },
+  { name: "Alex", accent: "#DAC79B", filter: "following" as const },
   { name: "Maya", accent: "#7ED6A5", filter: "latest" as const },
   { name: "Chris", accent: "#8FB8FF", filter: "following" as const },
   { name: "Sofia", accent: "#F7A8B8", filter: "nearby" as const },
@@ -183,7 +183,7 @@ function mapCommunityPost(post: CommunityFeedPost): WorkoutShareFeedItem {
   return {
     id: post.id,
     athlete: post.athleteName,
-    accent: "#F2EDE5",
+    accent: "#DAC79B",
     workoutTitle: post.workoutTitle,
     statusText:
       typeof post.userStatus === "string" && post.userStatus.trim().length > 0

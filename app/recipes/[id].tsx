@@ -344,7 +344,6 @@ function createStyles(
     border: string;
     borderSubtle: string;
     premium: string;
-    onPremium: string;
   },
   isDark: boolean,
   screenHeight: number,
@@ -453,7 +452,7 @@ function createStyles(
     categoryTagText: {
       fontSize: 12,
       fontWeight: "900",
-      color: colors.onPremium,
+      color: "#111111",
       letterSpacing: -0.05,
     },
 

@@ -17,7 +17,6 @@ export type AppColors = {
   fillAlt: string;
 
   premium: string;
-  onPremium: string;
 
   danger: string;
   success: string;
@@ -57,8 +56,8 @@ export const LightColors: AppColors = {
   fill: "#F2F2F7",
   fillAlt: "#FAFAFA",
 
-  premium: "#1A1A1A",
-  onPremium: "#FFFFFF",
+  // Champagne
+  premium: "#DAC79B",
 
   danger: "#D92D20",
   success: "#22C55E",
@@ -69,9 +68,10 @@ export const LightColors: AppColors = {
 
   card: "#FFFFFF",
 
-  premiumSoft: "rgba(26,26,26,0.07)",
-  premiumBorder: "rgba(26,26,26,0.14)",
-  premiumText: "#1A1A1A",
+  // Champagne semantic system
+  premiumSoft: "rgba(218,199,155,0.24)",
+  premiumBorder: "rgba(150,128,66,0.32)",
+  premiumText: "#7C6A38",
 
   // Emerald semantic system
   successSoft: "rgba(34,197,94,0.12)",
@@ -100,8 +100,8 @@ export const DarkColors: AppColors = {
   fill: "#1A1B1E",
   fillAlt: "#141518",
 
-  premium: "#F2EDE5",
-  onPremium: "#0F0F10",
+  // Champagne
+  premium: "#DAC79B",
 
   danger: "#FF6B5E",
   success: "#22C55E",
@@ -112,9 +112,10 @@ export const DarkColors: AppColors = {
 
   card: "#1B1B1E",
 
-  premiumSoft: "rgba(242,237,229,0.10)",
-  premiumBorder: "rgba(242,237,229,0.18)",
-  premiumText: "#F2EDE5",
+  // Champagne semantic system
+  premiumSoft: "rgba(218,199,155,0.16)",
+  premiumBorder: "rgba(218,199,155,0.32)",
+  premiumText: "#E8DAB4",
 
   // Emerald semantic system
   successSoft: "rgba(34,197,94,0.16)",

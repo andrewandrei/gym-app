@@ -196,9 +196,7 @@ function RecipeCard({
               { backgroundColor: colors.premium },
             ]}
           >
-            <Text
-              style={[cardStyles.categoryPillText, { color: colors.onPremium }]}
-            >
+            <Text style={cardStyles.categoryPillText}>
               {recipe.category || "Recipe"}
             </Text>
           </View>
